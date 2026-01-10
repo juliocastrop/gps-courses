@@ -1,0 +1,109 @@
+# Dependencies
+/vendor/
+
+# IDE and editors
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Debug files
+debug-*.php
+diagnostics.php
+ajax-monitor.php
+view-logs.php
+test-*.php
+fix-*.php
+check-*.php
+*-debug.php
+*-test.php
+cleanup-*.php
+diagnose-*.php
+reprocess-*.php
+update-ticket-counts.php
+
+# Temporary markdown documentation (keep only CLAUDE.md and README.md)
+CERTIFICATE_VALIDATION.md
+CHECKOUT-ERROR-FIX.md
+COMPLETE-FIX-SUMMARY.md
+CONSOLIDATION-CHANGES.md
+DEBUGGING-INSTRUCTIONS.md
+DEEP-LOGIC-FIXES.md
+DEPLOYMENT-CHECKLIST.md
+DIAGNOSTICS-README.md
+EMAIL-CUSTOMIZATION-GUIDE.md
+EMAIL-SETTINGS-IMPROVEMENTS.md
+EMAIL-TEMPLATE-CUSTOMIZATION.md
+FINAL-CHECKOUT-FIX.md
+FINAL-FIXES-ZERO-STOCK.md
+FINAL-STOCK-FIXES.md
+FRESH-START-GUIDE.md
+HPOS-COMPATIBILITY-FIX.md
+HPOS-COUNTING-FIX.md
+HPOS-FIX-SIMPLE.md
+IMMEDIATE-NEXT-STEPS.md
+IMPROVEMENTS-SUMMARY.md
+NEW-EMAIL-FEATURES.md
+NEW-WIDGETS-README.md
+ORDER-816-NOT-WORKING.md
+ORDER-STATUS-FIX.md
+POST-500-ERROR-FIXES.md
+QUICK-UPLOAD-GUIDE.md
+README-ZERO-STOCK-FIX.md
+SCRIPT-INSTRUCTIONS.md
+START-HERE-ANALYSIS.md
+START-HERE.md
+STOCK-AND-REPORTING-FIX.md
+STOCK-FIX-INSTRUCTIONS.md
+STOCK-IMPROVEMENTS-SUMMARY.md
+TICKET-SELECTOR-GUIDE.md
+UPLOAD-THESE-3-FILES.md
+URGENT-FIX-INSTRUCTIONS.md
+URGENT-UPLOAD-NOW.md
+VERIFIED-FIXES-SUMMARY.md
+VISUAL-GUIDE.md
+WHY-NO-TICKETS-SHOWING.md
+WIDGETS-FINAL-UPDATE.md
+WIDGETS-UPDATE-SUMMARY.md
+fix-mysql-sync-issue.md
+
+# Backup files
+*.backup
+
+# Temporary files
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# Claude local settings
+.claude/
+
+# Build artifacts
+node_modules/
+*.map
+
+# Composer
+composer.lock
+
+# WordPress specific
+wp-config.php
+wp-content/uploads/
+wp-content/cache/
+wp-content/upgrade/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# QR codes and generated files (uploaded separately)
+/uploads/
+/qr-codes/
+/certificates/

@@ -1,0 +1,554 @@
+/**
+ * GPS Courses - Frontend Styles
+ */
+
+/* Reset & Base Styles */
+.gps-courses-plugin * {
+    box-sizing: border-box;
+}
+
+/* Shortcodes Common */
+.gps-events-shortcode,
+.gps-speakers-shortcode,
+.gps-my-tickets,
+.gps-ce-profile {
+    margin: 30px 0;
+}
+
+/* Grid Layouts */
+.gps-columns-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 30px;
+}
+
+.gps-columns-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+}
+
+.gps-columns-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 30px;
+}
+
+.gps-columns-6 {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 20px;
+}
+
+/* Event Cards */
+.gps-event-item {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.gps-event-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.gps-event-thumbnail {
+    position: relative;
+    overflow: hidden;
+    padding-top: 60%;
+}
+
+.gps-event-thumbnail img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s;
+}
+
+.gps-event-item:hover .gps-event-thumbnail img {
+    transform: scale(1.05);
+}
+
+.gps-event-content {
+    padding: 20px;
+}
+
+.gps-event-title {
+    margin: 0 0 15px 0;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.gps-event-title a {
+    color: #1d2327;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.gps-event-title a:hover {
+    color: #2271b1;
+}
+
+.gps-event-date,
+.gps-event-venue,
+.gps-event-credits {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    color: #646970;
+    font-size: 14px;
+}
+
+.gps-event-date i,
+.gps-event-venue i,
+.gps-event-credits i {
+    color: #2271b1;
+}
+
+.gps-event-excerpt {
+    margin: 15px 0;
+    color: #646970;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.gps-event-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #2271b1;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.gps-event-link:hover {
+    background: #135e96;
+}
+
+/* List Layout */
+.gps-events-list .gps-event-item {
+    display: flex;
+    margin-bottom: 20px;
+}
+
+.gps-events-list .gps-event-thumbnail {
+    width: 300px;
+    padding-top: 0;
+    height: 200px;
+    flex-shrink: 0;
+}
+
+.gps-events-list .gps-event-content {
+    flex: 1;
+}
+
+/* Speaker Cards */
+.gps-speaker-item {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    text-align: center;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.gps-speaker-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.gps-speaker-photo {
+    position: relative;
+    overflow: hidden;
+    padding-top: 100%;
+    background: #f0f0f1;
+}
+
+.gps-speaker-photo img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.gps-speaker-content {
+    padding: 20px;
+}
+
+.gps-speaker-name {
+    margin: 0 0 5px 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.gps-speaker-designation,
+.gps-speaker-company {
+    color: #646970;
+    font-size: 14px;
+    margin: 5px 0;
+}
+
+.gps-speaker-bio {
+    margin-top: 15px;
+    color: #646970;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* CE Credits Display */
+.gps-ce-profile-header {
+    background: linear-gradient(135deg, #2271b1, #135e96);
+    color: #fff;
+    padding: 30px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.gps-total-credits {
+    margin-top: 20px;
+}
+
+.gps-credits-number {
+    display: block;
+    font-size: 48px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.gps-credits-label {
+    display: block;
+    margin-top: 10px;
+    font-size: 16px;
+    opacity: 0.9;
+}
+
+.gps-ce-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.gps-ce-table th,
+.gps-ce-table td {
+    padding: 15px;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.gps-ce-table th {
+    background: #f6f7f7;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.gps-ce-table tr:last-child td {
+    border-bottom: none;
+}
+
+.gps-ce-table tr:hover {
+    background: #f9f9f9;
+}
+
+.gps-credit-type {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.gps-credit-type.attendance {
+    background: #ecf7ed;
+    color: #2c662d;
+}
+
+.gps-credit-type.manual {
+    background: #f0e5ff;
+    color: #6c2eb9;
+}
+
+/* CE Credits Total Widget */
+.gps-ce-credits-total {
+    text-align: center;
+    padding: 30px;
+    background: linear-gradient(135deg, #2271b1, #135e96);
+    color: #fff;
+    border-radius: 8px;
+}
+
+.gps-ce-credits-total .gps-credits-number {
+    font-size: 64px;
+    font-weight: 700;
+    line-height: 1;
+    display: block;
+}
+
+.gps-ce-credits-total .gps-credits-label {
+    font-size: 18px;
+    margin-top: 15px;
+    display: block;
+    opacity: 0.9;
+}
+
+/* My Tickets */
+.gps-tickets-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.gps-tickets-table th,
+.gps-tickets-table td {
+    padding: 15px;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.gps-tickets-table th {
+    background: #f6f7f7;
+    font-weight: 600;
+}
+
+.gps-tickets-table tr:last-child td {
+    border-bottom: none;
+}
+
+.gps-tickets-table code {
+    background: #f0f0f1;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+/* Status Badges */
+.gps-status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.gps-status-badge.checked-in {
+    background: #ecf7ed;
+    color: #2c662d;
+}
+
+.gps-status-badge.valid,
+.gps-status-badge.pending,
+.gps-status-badge.enrolled {
+    background: #fcf3cf;
+    color: #826001;
+}
+
+.gps-status-badge.cancelled,
+.gps-status-badge.invalid {
+    background: #fce8e8;
+    color: #d63638;
+}
+
+/* Countdown Timer */
+.gps-countdown-shortcode,
+.gps-countdown-widget {
+    text-align: center;
+    padding: 30px;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+}
+
+.gps-countdown-message {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1d2327;
+    margin-bottom: 20px;
+}
+
+.gps-countdown-timer {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+.gps-countdown-item {
+    background: #f6f7f7;
+    padding: 20px;
+    border-radius: 8px;
+    min-width: 100px;
+    transition: transform 0.3s;
+}
+
+.gps-countdown-item.tick {
+    transform: scale(1.05);
+}
+
+.gps-countdown-value {
+    display: block;
+    font-size: 36px;
+    font-weight: 700;
+    color: #2271b1;
+    line-height: 1;
+}
+
+.gps-countdown-label {
+    display: block;
+    margin-top: 10px;
+    font-size: 14px;
+    color: #646970;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.gps-countdown-expired {
+    font-size: 24px;
+    font-weight: 700;
+    color: #2271b1;
+    padding: 40px;
+}
+
+/* Messages */
+.gps-login-required,
+.gps-no-events,
+.gps-no-speakers,
+.gps-no-tickets,
+.gps-no-credits {
+    padding: 20px;
+    background: #f0f6fc;
+    border-left: 4px solid #2271b1;
+    color: #1d2327;
+    border-radius: 4px;
+}
+
+/* Loading Spinner */
+.gps-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: gps-spin 0.6s linear infinite;
+}
+
+@keyframes gps-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media screen and (max-width: 1024px) {
+    .gps-columns-6 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .gps-columns-4 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .gps-columns-2,
+    .gps-columns-3,
+    .gps-columns-4,
+    .gps-columns-6 {
+        grid-template-columns: 1fr;
+    }
+
+    .gps-events-list .gps-event-item {
+        flex-direction: column;
+    }
+
+    .gps-events-list .gps-event-thumbnail {
+        width: 100%;
+        padding-top: 60%;
+        height: auto;
+    }
+
+    .gps-countdown-timer {
+        gap: 10px;
+    }
+
+    .gps-countdown-item {
+        padding: 15px;
+        min-width: 70px;
+    }
+
+    .gps-countdown-value {
+        font-size: 24px;
+    }
+
+    .gps-countdown-label {
+        font-size: 11px;
+    }
+
+    .gps-ce-credits-total .gps-credits-number {
+        font-size: 48px;
+    }
+
+    .gps-tickets-table,
+    .gps-ce-table {
+        font-size: 13px;
+    }
+
+    .gps-tickets-table th,
+    .gps-tickets-table td,
+    .gps-ce-table th,
+    .gps-ce-table td {
+        padding: 10px;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .gps-event-content,
+    .gps-speaker-content {
+        padding: 15px;
+    }
+
+    .gps-event-title {
+        font-size: 18px;
+    }
+
+    .gps-countdown-item {
+        padding: 10px;
+        min-width: 60px;
+    }
+
+    .gps-countdown-value {
+        font-size: 20px;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .gps-event-link,
+    .gps-tickets-table .button {
+        display: none;
+    }
+
+    .gps-event-item,
+    .gps-speaker-item {
+        break-inside: avoid;
+    }
+}

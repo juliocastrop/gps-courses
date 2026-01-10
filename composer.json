@@ -1,0 +1,25 @@
+{
+    "name": "gps/courses",
+    "description": "GPS Dental Training Course Management Plugin",
+    "type": "wordpress-plugin",
+    "require": {
+        "php": ">=7.4",
+        "endroid/qr-code": "^4.8",
+        "tecnickcom/tcpdf": "^6.6",
+        "phpmailer/phpmailer": "^6.8"
+    },
+    "autoload": {
+        "psr-4": {
+            "GPSC\\": "includes/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true,
+        "allow-plugins": {
+            "composer/installers": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

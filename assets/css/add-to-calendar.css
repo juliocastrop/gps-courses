@@ -1,0 +1,279 @@
+/**
+ * GPS Add to Calendar Styles
+ * Professional calendar integration modal
+ */
+
+/* ===== CALENDAR BUTTON ===== */
+.gps-calendar-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: #5b6cf9;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(91, 108, 249, 0.2);
+}
+
+.gps-calendar-button:hover {
+    background: #4a5bd9;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(91, 108, 249, 0.3);
+}
+
+.gps-calendar-button:active {
+    transform: translateY(0);
+}
+
+.gps-calendar-button-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.gps-calendar-button-icon svg {
+    width: 1em;
+    height: 1em;
+    fill: currentColor;
+}
+
+.gps-calendar-button-icon i {
+    line-height: 1;
+}
+
+/* ===== MODAL ===== */
+.gps-calendar-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.75);
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: gps-calendar-fade-in 0.3s ease;
+}
+
+@keyframes gps-calendar-fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.gps-calendar-modal-content {
+    position: relative;
+    background: #ffffff;
+    max-width: 500px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: gps-calendar-slide-up 0.3s ease;
+}
+
+@keyframes gps-calendar-slide-up {
+    from {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.gps-calendar-modal-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: transparent;
+    border: none;
+    font-size: 32px;
+    line-height: 1;
+    color: #666;
+    cursor: pointer;
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.gps-calendar-modal-close:hover {
+    background: #f0f0f0;
+    color: #333;
+}
+
+/* ===== MODAL HEADER ===== */
+.gps-calendar-modal-header {
+    padding: 30px 30px 20px 30px;
+    border-bottom: 1px solid #e8e8e8;
+}
+
+.gps-calendar-modal-header h3 {
+    margin: 0 0 10px 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
+.gps-calendar-event-title {
+    margin: 0;
+    font-size: 14px;
+    color: #666;
+    line-height: 1.5;
+}
+
+/* ===== MODAL BODY ===== */
+.gps-calendar-modal-body {
+    padding: 30px;
+}
+
+/* ===== CALENDAR OPTIONS ===== */
+.gps-calendar-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.gps-calendar-option {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 16px 20px;
+    background: #f9fafb;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1a1a1a;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: left;
+    width: 100%;
+}
+
+.gps-calendar-option:hover {
+    background: #e0f2ff;
+    border-color: #5b6cf9;
+    transform: translateX(5px);
+}
+
+.gps-calendar-option:active {
+    transform: translateX(2px);
+}
+
+.gps-calendar-option i {
+    font-size: 24px;
+    width: 30px;
+    text-align: center;
+}
+
+/* Calendar Service Colors */
+.gps-calendar-option[data-service="google"]:hover i {
+    color: #4285f4;
+}
+
+.gps-calendar-option[data-service="yahoo"]:hover i {
+    color: #410093;
+}
+
+.gps-calendar-option[data-service="outlook"]:hover i,
+.gps-calendar-option[data-service="outlookcom"]:hover i {
+    color: #0078d4;
+}
+
+.gps-calendar-option[data-service="apple"]:hover i {
+    color: #555555;
+}
+
+/* ===== BODY LOCK ===== */
+body.gps-modal-open {
+    overflow: hidden;
+}
+
+/* ===== RESPONSIVE ===== */
+@media screen and (max-width: 768px) {
+    .gps-calendar-modal-content {
+        max-width: 100%;
+        margin: 20px;
+    }
+
+    .gps-calendar-modal-header {
+        padding: 20px 20px 15px 20px;
+    }
+
+    .gps-calendar-modal-header h3 {
+        font-size: 20px;
+    }
+
+    .gps-calendar-modal-body {
+        padding: 20px;
+    }
+
+    .gps-calendar-option {
+        padding: 14px 18px;
+        font-size: 15px;
+    }
+
+    .gps-calendar-option i {
+        font-size: 22px;
+        width: 28px;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .gps-calendar-button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .gps-calendar-option {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+
+    .gps-calendar-option i {
+        font-size: 20px;
+        width: 26px;
+    }
+}
+
+/* ===== LOADING STATE ===== */
+.gps-calendar-option.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.gps-calendar-option.loading::after {
+    content: '';
+    position: absolute;
+    right: 20px;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #5b6cf9;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: gps-calendar-spin 0.6s linear infinite;
+}
+
+@keyframes gps-calendar-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

@@ -1,0 +1,320 @@
+/**
+ * GPS Share Course Styles
+ * Professional modal-based social sharing
+ */
+
+/* ===== SHARE BUTTON ===== */
+.gps-share-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: #2271b1;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.gps-share-button:hover {
+    background: #135e96;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.gps-share-button:active {
+    transform: translateY(0);
+}
+
+.gps-share-button-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.gps-share-button-icon svg {
+    width: 1em;
+    height: 1em;
+    fill: currentColor;
+}
+
+.gps-share-button-icon i {
+    line-height: 1;
+}
+
+/* ===== MODAL ===== */
+.gps-share-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.75);
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: gps-fade-in 0.3s ease;
+}
+
+@keyframes gps-fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.gps-share-modal-content {
+    position: relative;
+    background: #ffffff;
+    max-width: 500px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: gps-slide-up 0.3s ease;
+}
+
+@keyframes gps-slide-up {
+    from {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.gps-share-modal-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: transparent;
+    border: none;
+    font-size: 32px;
+    line-height: 1;
+    color: #666;
+    cursor: pointer;
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.gps-share-modal-close:hover {
+    background: #f0f0f0;
+    color: #333;
+}
+
+/* ===== MODAL HEADER ===== */
+.gps-share-modal-header {
+    padding: 30px 30px 20px 30px;
+    border-bottom: 1px solid #e8e8e8;
+}
+
+.gps-share-modal-header h3 {
+    margin: 0 0 10px 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
+.gps-share-course-title {
+    margin: 0;
+    font-size: 14px;
+    color: #666;
+    line-height: 1.5;
+}
+
+/* ===== MODAL BODY ===== */
+.gps-share-modal-body {
+    padding: 30px;
+}
+
+/* ===== SHARE ICONS ===== */
+.gps-share-icons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.gps-share-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 22px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.gps-share-icon:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.gps-share-icon:active {
+    transform: translateY(0) scale(1);
+}
+
+/* Platform Colors */
+.gps-share-facebook {
+    background: #1877f2;
+}
+
+.gps-share-facebook:hover {
+    background: #145dbf;
+}
+
+.gps-share-twitter {
+    background: #1da1f2;
+}
+
+.gps-share-twitter:hover {
+    background: #0c8dd9;
+}
+
+.gps-share-linkedin {
+    background: #0a66c2;
+}
+
+.gps-share-linkedin:hover {
+    background: #084f9a;
+}
+
+.gps-share-whatsapp {
+    background: #25d366;
+}
+
+.gps-share-whatsapp:hover {
+    background: #1ea952;
+}
+
+.gps-share-email {
+    background: #666666;
+}
+
+.gps-share-email:hover {
+    background: #4d4d4d;
+}
+
+/* ===== COPY URL SECTION ===== */
+.gps-share-url-copy {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e8e8e8;
+}
+
+.gps-share-url-input {
+    flex: 1;
+    padding: 10px 15px;
+    border: 1px solid #dcdcde;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #666;
+    background: #f9fafb;
+}
+
+.gps-share-url-input:focus {
+    outline: none;
+    border-color: #2271b1;
+}
+
+.gps-copy-url-button {
+    padding: 10px 20px;
+    background: #2271b1;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.gps-copy-url-button:hover {
+    background: #135e96;
+}
+
+.gps-copy-url-button.gps-copied {
+    background: #4caf50;
+}
+
+/* ===== BODY LOCK ===== */
+body.gps-modal-open {
+    overflow: hidden;
+}
+
+/* ===== RESPONSIVE ===== */
+@media screen and (max-width: 768px) {
+    .gps-share-modal-content {
+        max-width: 100%;
+        margin: 20px;
+    }
+
+    .gps-share-modal-header {
+        padding: 20px 20px 15px 20px;
+    }
+
+    .gps-share-modal-header h3 {
+        font-size: 20px;
+    }
+
+    .gps-share-modal-body {
+        padding: 20px;
+    }
+
+    .gps-share-icon {
+        width: 45px;
+        height: 45px;
+        font-size: 20px;
+    }
+
+    .gps-share-url-copy {
+        flex-direction: column;
+    }
+
+    .gps-copy-url-button {
+        width: 100%;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .gps-share-button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .gps-share-icons {
+        gap: 10px;
+    }
+
+    .gps-share-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+    }
+}

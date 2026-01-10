@@ -1,0 +1,246 @@
+/**
+ * GPS Courses - Admin Settings Styles
+ */
+
+.gps-settings-page {
+    max-width: 1200px;
+}
+
+/* Tabs */
+.nav-tab-wrapper {
+    margin: 20px 0;
+    border-bottom: 1px solid #ccd0d4;
+}
+
+.nav-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid transparent;
+    border-bottom: none;
+    background: transparent;
+    color: #646970;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.nav-tab:hover {
+    background: #f6f7f7;
+    color: #2271b1;
+}
+
+.nav-tab-active {
+    background: #fff;
+    border-color: #ccd0d4;
+    color: #2271b1;
+    margin-bottom: -1px;
+    position: relative;
+}
+
+.nav-tab .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+/* Content */
+.gps-settings-content {
+    background: #fff;
+    padding: 30px;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+    margin: 0 0 20px 0;
+}
+
+/* Form */
+.form-table {
+    margin-top: 0;
+}
+
+.form-table th {
+    width: 200px;
+    padding: 20px 10px 20px 0;
+    font-weight: 600;
+}
+
+.form-table td {
+    padding: 20px 10px;
+}
+
+.form-table h3 {
+    margin: 0;
+    padding: 0;
+    font-size: 16px;
+    color: #2271b1;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+}
+
+.form-table input[type="text"],
+.form-table input[type="email"],
+.form-table input[type="password"],
+.form-table textarea,
+.form-table select {
+    font-size: 14px;
+    padding: 8px 12px;
+}
+
+.form-table textarea {
+    min-height: 80px;
+}
+
+.form-table .description {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #646970;
+    line-height: 1.5;
+}
+
+.form-table .description a {
+    color: #2271b1;
+    text-decoration: none;
+}
+
+.form-table .description a:hover {
+    text-decoration: underline;
+}
+
+/* Image Upload */
+.gps-upload-button {
+    margin-left: 10px;
+    vertical-align: middle;
+}
+
+.gps-image-preview {
+    margin-top: 10px;
+    border: 1px solid #e0e0e0;
+    padding: 10px;
+    background: #fafafa;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.gps-image-preview img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+/* Color Picker */
+.wp-picker-container {
+    vertical-align: middle;
+}
+
+.wp-picker-container .button {
+    margin-left: 6px;
+}
+
+/* Submit Button */
+.submit {
+    padding: 0;
+    margin: 30px 0 0 0;
+}
+
+.submit .button-primary {
+    padding: 10px 30px;
+    height: auto;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+/* Settings Sections */
+.gps-settings-section {
+    margin-bottom: 40px;
+}
+
+.gps-settings-section:last-child {
+    margin-bottom: 0;
+}
+
+/* Checkboxes */
+.form-table input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+.form-table label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Help Text */
+.gps-help-text {
+    background: #f0f6fc;
+    border-left: 4px solid #2271b1;
+    padding: 15px;
+    margin: 20px 0;
+}
+
+.gps-help-text h4 {
+    margin: 0 0 10px 0;
+    color: #2271b1;
+}
+
+.gps-help-text p {
+    margin: 0;
+    color: #1d2327;
+}
+
+/* Responsive */
+@media screen and (max-width: 782px) {
+    .nav-tab {
+        padding: 8px 15px;
+        font-size: 13px;
+    }
+
+    .nav-tab .dashicons {
+        display: none;
+    }
+
+    .gps-settings-content {
+        padding: 20px;
+    }
+
+    .form-table th,
+    .form-table td {
+        display: block;
+        width: 100%;
+        padding: 10px 0;
+    }
+
+    .form-table th {
+        border-bottom: none;
+        padding-bottom: 5px;
+    }
+
+    .form-table td {
+        padding-top: 0;
+    }
+
+    .gps-upload-button {
+        margin-left: 0;
+        margin-top: 10px;
+        display: block;
+        width: 100%;
+    }
+}
+
+/* Animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.gps-settings-content {
+    animation: fadeIn 0.3s ease-out;
+}

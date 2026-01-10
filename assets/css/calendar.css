@@ -1,0 +1,825 @@
+/**
+ * GPS Event Calendar Styles
+ * Professional calendar view with responsive design
+ */
+
+/* ===== CALENDAR WRAPPER ===== */
+.gps-calendar-wrapper {
+    position: relative;
+    width: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+/* ===== CALENDAR HEADER ===== */
+.gps-calendar-header {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.gps-calendar-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.gps-calendar-title {
+    flex: 1;
+    text-align: center;
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.gps-calendar-title-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.gps-month-selector,
+.gps-year-selector {
+    padding: 6px 12px;
+    border: 1px solid #dcdcde;
+    border-radius: 6px;
+    background: #ffffff;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.gps-month-selector:hover,
+.gps-year-selector:hover {
+    border-color: #2271b1;
+}
+
+.gps-month-selector:focus,
+.gps-year-selector:focus {
+    outline: none;
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+}
+
+.gps-month-selector {
+    min-width: 120px;
+}
+
+.gps-year-selector {
+    min-width: 80px;
+}
+
+.gps-calendar-nav-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid #dcdcde;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.gps-calendar-nav-btn:hover {
+    background: #f6f7f7;
+    transform: scale(1.05);
+}
+
+.gps-calendar-nav-btn:active {
+    transform: scale(0.95);
+}
+
+/* Today Button */
+.gps-today-btn {
+    padding: 8px 16px;
+    background: #2271b1;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.gps-today-btn:hover {
+    background: #135e96;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(34, 113, 177, 0.2);
+}
+
+.gps-today-btn:active {
+    transform: translateY(0);
+}
+
+/* ===== CATEGORY FILTER ===== */
+.gps-category-filter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gps-category-filter select {
+    width: 100%;
+    max-width: 300px;
+    border: 1px solid #dcdcde;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.gps-category-filter select:hover {
+    border-color: #2271b1;
+}
+
+.gps-category-filter select:focus {
+    outline: none;
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+}
+
+/* ===== CALENDAR CONTENT LAYOUT ===== */
+.gps-calendar-content {
+    display: flex;
+    gap: 20px;
+    position: relative;
+}
+
+.gps-calendar-body {
+    flex: 1;
+    min-width: 0; /* Prevents flex item overflow */
+}
+
+/* ===== CALENDAR GRID ===== */
+.gps-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.gps-calendar-day-header {
+    padding: 12px 8px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.gps-calendar-day {
+    min-height: 120px;
+    padding: 8px;
+    border: 1px solid #e8e8e8;
+    background: #ffffff;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.gps-calendar-day:hover {
+    background: #f9fafb;
+}
+
+.gps-calendar-day.today {
+    background: #f0f6ff;
+}
+
+.gps-calendar-day.other-month {
+    background: #fafafa;
+}
+
+.gps-calendar-day.has-events {
+    cursor: pointer;
+}
+
+.gps-day-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.gps-calendar-day.today .gps-day-number {
+    font-weight: 700;
+}
+
+.gps-calendar-day.selected {
+    background: #e0f2ff;
+    border-color: #2271b1;
+}
+
+.gps-calendar-day.selected.today {
+    background: #d0e9ff;
+}
+
+/* ===== EVENT ITEMS ===== */
+.gps-day-events {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    width: 100%;
+}
+
+.gps-calendar-event {
+    display: block;
+    padding: 4px 8px;
+    font-size: 12px;
+    line-height: 1.4;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border-radius: 4px;
+}
+
+.gps-calendar-event:hover {
+    transform: translateX(2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Course events - Blue */
+.gps-calendar-event.course {
+    background-color: #0B52AC;
+    color: #ffffff;
+}
+
+.gps-calendar-event.course:hover {
+    background-color: #094291;
+}
+
+.gps-calendar-event.course .gps-event-time {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Seminar session events - Gold */
+.gps-calendar-event.seminar-session {
+    background-color: #DDC89D;
+    color: #13326A;
+}
+
+.gps-calendar-event.seminar-session:hover {
+    background-color: #d4bc8a;
+}
+
+.gps-calendar-event.seminar-session .gps-event-time {
+    color: #13326A;
+}
+
+.gps-event-time {
+    font-weight: 600;
+    margin-right: 4px;
+}
+
+.gps-event-location {
+    font-size: 11px;
+    opacity: 0.8;
+    margin-top: 2px;
+}
+
+.gps-more-events {
+    display: inline-block;
+    padding: 4px 8px;
+    font-size: 11px;
+    color: #2271b1;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 4px;
+}
+
+.gps-more-events:hover {
+    text-decoration: underline;
+}
+
+/* ===== EVENT DETAILS SIDEBAR ===== */
+.gps-calendar-sidebar {
+    flex-shrink: 0;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    overflow-y: auto;
+    max-height: 900px;
+    min-height: 600px;
+}
+
+.gps-sidebar-header {
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e8e8e8;
+    margin-bottom: 20px;
+}
+
+.gps-sidebar-header h3 {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #666;
+}
+
+.gps-selected-date {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
+.gps-sidebar-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.gps-no-events {
+    text-align: center;
+    padding: 40px 20px;
+    color: #999;
+    font-style: italic;
+}
+
+.gps-sidebar-event {
+    padding: 20px;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    background: #ffffff;
+}
+
+.gps-sidebar-event:hover {
+    border-color: #2271b1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.gps-sidebar-event-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 10px 0;
+    color: #1a1a1a;
+}
+
+.gps-sidebar-event-title a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.gps-sidebar-event-title a:hover {
+    color: #2271b1;
+}
+
+.gps-sidebar-event-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: #666;
+}
+
+.gps-sidebar-event-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.gps-sidebar-event-meta-item svg,
+.gps-sidebar-event-meta-item i {
+    flex-shrink: 0;
+    width: 16px;
+    color: #2271b1;
+}
+
+.gps-sidebar-event-excerpt {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #444;
+    margin: 0 0 12px 0;
+}
+
+.gps-sidebar-event-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: #2271b1;
+    color: #ffffff;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.gps-sidebar-event-link:hover {
+    background: #135e96;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(34, 113, 177, 0.2);
+}
+
+/* Sidebar event type styling */
+.gps-sidebar-event.course {
+    border-left: 4px solid #0B52AC;
+}
+
+.gps-sidebar-event.course:hover {
+    border-color: #0B52AC;
+}
+
+.gps-sidebar-event.course .gps-sidebar-event-link {
+    background: #0B52AC;
+}
+
+.gps-sidebar-event.course .gps-sidebar-event-link:hover {
+    background: #094291;
+    box-shadow: 0 4px 8px rgba(11, 82, 172, 0.2);
+}
+
+.gps-sidebar-event.course .gps-sidebar-event-meta-item i {
+    color: #0B52AC;
+}
+
+.gps-sidebar-event.seminar-session {
+    border-left: 4px solid #DDC89D;
+}
+
+.gps-sidebar-event.seminar-session:hover {
+    border-color: #DDC89D;
+}
+
+.gps-sidebar-event.seminar-session .gps-sidebar-event-link {
+    background: #13326A;
+}
+
+.gps-sidebar-event.seminar-session .gps-sidebar-event-link:hover {
+    background: #0d2347;
+    box-shadow: 0 4px 8px rgba(19, 50, 106, 0.2);
+}
+
+.gps-sidebar-event.seminar-session .gps-sidebar-event-meta-item i {
+    color: #13326A;
+}
+
+/* ===== TOOLTIPS ===== */
+.gps-calendar-tooltip {
+    position: absolute;
+    background: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%);
+    color: #ffffff;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+    max-width: 90vw;
+    width: auto;
+    min-width: 200px;
+    z-index: 10000;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
+    pointer-events: none;
+    display: none;
+    white-space: normal;
+    word-wrap: break-word;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+/* Limit width on larger screens */
+@media screen and (min-width: 769px) {
+    .gps-calendar-tooltip {
+        max-width: 500px;
+    }
+}
+
+.gps-calendar-tooltip::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: 16px;
+    width: 10px;
+    height: 10px;
+    background: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%);
+    transform: rotate(45deg);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Tablet tooltip adjustments */
+@media screen and (max-width: 1024px) {
+    .gps-calendar-tooltip {
+        max-width: 400px;
+    }
+}
+
+/* Mobile tooltip adjustments */
+@media screen and (max-width: 768px) {
+    .gps-calendar-tooltip {
+        font-size: 13px;
+        padding: 8px 14px;
+        max-width: calc(100vw - 40px);
+        min-width: 150px;
+    }
+}
+
+/* Extra small mobile */
+@media screen and (max-width: 480px) {
+    .gps-calendar-tooltip {
+        font-size: 12px;
+        padding: 6px 12px;
+        max-width: calc(100vw - 30px);
+    }
+}
+
+/* ===== LOADING STATE ===== */
+.gps-calendar-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: 8px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+}
+
+.gps-calendar-loading.visible {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.gps-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #2271b1;
+    border-radius: 50%;
+    animation: gps-spin 0.8s linear infinite;
+}
+
+@keyframes gps-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+
+/* Tablet (768px - 1024px) */
+@media screen and (max-width: 1024px) {
+    .gps-calendar-sidebar {
+        width: 300px !important;
+        padding: 20px !important;
+    }
+
+    .gps-calendar-day {
+        min-height: 100px;
+    }
+
+    .gps-calendar-title {
+        font-size: 20px;
+    }
+
+    .gps-sidebar-event-title {
+        font-size: 16px;
+    }
+}
+
+/* Mobile - Stack sidebar below calendar */
+@media screen and (max-width: 768px) {
+    .gps-calendar-header {
+        gap: 12px;
+    }
+
+    .gps-calendar-navigation {
+        gap: 10px;
+    }
+
+    .gps-calendar-title {
+        font-size: 18px;
+    }
+
+    .gps-month-selector,
+    .gps-year-selector {
+        font-size: 14px;
+        padding: 5px 10px;
+    }
+
+    .gps-month-selector {
+        min-width: 100px;
+    }
+
+    .gps-year-selector {
+        min-width: 70px;
+    }
+
+    .gps-calendar-nav-btn {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 18px !important;
+    }
+
+    .gps-category-filter select {
+        max-width: 100%;
+        font-size: 14px;
+    }
+
+    .gps-today-btn {
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+
+    .gps-calendar-content {
+        flex-direction: column;
+    }
+
+    .gps-calendar-sidebar {
+        width: 100% !important;
+        max-height: 400px;
+        margin-top: 20px;
+    }
+
+    .gps-calendar-day {
+        min-height: 80px;
+        padding: 6px;
+    }
+
+    .gps-day-number {
+        width: 28px;
+        height: 28px;
+        font-size: 13px;
+        margin-bottom: 4px;
+    }
+
+    .gps-calendar-event {
+        font-size: 11px;
+        padding: 3px 6px;
+    }
+
+    .gps-more-events {
+        font-size: 10px;
+        padding: 3px 6px;
+        margin-top: 2px;
+    }
+
+    .gps-sidebar-header h3 {
+        font-size: 14px;
+    }
+
+    .gps-selected-date {
+        font-size: 20px;
+    }
+
+    .gps-sidebar-event {
+        padding: 15px;
+    }
+
+    .gps-sidebar-event-title {
+        font-size: 16px;
+    }
+
+    .gps-sidebar-event-meta {
+        font-size: 13px;
+    }
+
+    .gps-sidebar-event-excerpt {
+        font-size: 13px;
+    }
+}
+
+/* Extra small mobile */
+@media screen and (max-width: 480px) {
+    .gps-calendar-title {
+        font-size: 16px;
+    }
+
+    .gps-month-selector,
+    .gps-year-selector {
+        font-size: 13px;
+        padding: 4px 8px;
+    }
+
+    .gps-month-selector {
+        min-width: 90px;
+    }
+
+    .gps-year-selector {
+        min-width: 65px;
+    }
+
+    .gps-calendar-day {
+        min-height: 70px;
+        padding: 4px;
+    }
+
+    .gps-day-number {
+        width: 24px;
+        height: 24px;
+        font-size: 12px;
+    }
+
+    .gps-calendar-event {
+        font-size: 10px;
+        padding: 2px 4px;
+    }
+
+    .gps-event-time {
+        display: none; /* Hide time on very small screens */
+    }
+
+    .gps-calendar-day-header {
+        padding: 8px 4px;
+        font-size: 11px;
+    }
+
+    .gps-sidebar-event {
+        padding: 12px;
+    }
+
+    .gps-sidebar-event-title {
+        font-size: 15px;
+    }
+}
+
+/* Very narrow screens - abbreviate day names */
+@media screen and (max-width: 360px) {
+    .gps-calendar-day-header {
+        font-size: 10px;
+        letter-spacing: 0;
+    }
+}
+
+/* ===== PRINT STYLES ===== */
+@media print {
+    .gps-calendar-header {
+        border-bottom: 2px solid #000;
+        padding-bottom: 10px;
+    }
+
+    .gps-calendar-nav-btn,
+    .gps-category-filter {
+        display: none;
+    }
+
+    .gps-calendar-content {
+        flex-direction: column;
+    }
+
+    .gps-calendar-day {
+        border: 1px solid #000;
+        page-break-inside: avoid;
+    }
+
+    .gps-calendar-event {
+        page-break-inside: avoid;
+    }
+}
+
+/* ===== ACCESSIBILITY ===== */
+.gps-calendar-nav-btn:focus,
+.gps-category-filter select:focus,
+.gps-calendar-event:focus {
+    outline: 2px solid #2271b1;
+    outline-offset: 2px;
+}
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+    .gps-calendar-nav-btn,
+    .gps-calendar-event,
+    .gps-sidebar-event,
+    .gps-sidebar-event-link {
+        transition: none;
+    }
+
+    .gps-spinner {
+        animation: none;
+        border-top-color: #2271b1;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .gps-calendar-day {
+        border: 2px solid;
+    }
+
+    .gps-calendar-event {
+        border: 1px solid currentColor;
+    }
+}
