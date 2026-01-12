@@ -82,6 +82,76 @@ class Woo {
 
         // GPS Orders diagnostic page
         add_action('admin_menu', [__CLASS__, 'add_diagnostic_menu']);
+
+        // Redirect product links to event/course page in cart and checkout
+        add_filter('woocommerce_cart_item_permalink', [__CLASS__, 'change_cart_item_permalink'], 10, 3);
+        add_filter('woocommerce_order_item_permalink', [__CLASS__, 'change_order_item_permalink'], 10, 3);
+    }
+
+    /**
+     * Change cart item permalink to point to the event/course page instead of product page
+     */
+    public static function change_cart_item_permalink($permalink, $cart_item, $cart_item_key) {
+        $product_id = $cart_item['product_id'];
+
+        // Check if this product is linked to a GPS ticket type
+        $ticket_type_id = self::get_ticket_type_for_product($product_id);
+
+        if ($ticket_type_id) {
+            // Get the event ID from the ticket type
+            $event_id = get_post_meta($ticket_type_id, '_gps_event_id', true);
+
+            if ($event_id) {
+                $event_permalink = get_permalink($event_id);
+                if ($event_permalink) {
+                    return $event_permalink;
+                }
+            }
+        }
+
+        // Check if this product is linked to a GPS seminar
+        $seminar_id = get_post_meta($product_id, '_gps_seminar_id', true);
+        if ($seminar_id) {
+            $seminar_permalink = get_permalink($seminar_id);
+            if ($seminar_permalink) {
+                return $seminar_permalink;
+            }
+        }
+
+        return $permalink;
+    }
+
+    /**
+     * Change order item permalink to point to the event/course page instead of product page
+     */
+    public static function change_order_item_permalink($permalink, $item, $order) {
+        $product_id = $item->get_product_id();
+
+        // Check if this product is linked to a GPS ticket type
+        $ticket_type_id = self::get_ticket_type_for_product($product_id);
+
+        if ($ticket_type_id) {
+            // Get the event ID from the ticket type
+            $event_id = get_post_meta($ticket_type_id, '_gps_event_id', true);
+
+            if ($event_id) {
+                $event_permalink = get_permalink($event_id);
+                if ($event_permalink) {
+                    return $event_permalink;
+                }
+            }
+        }
+
+        // Check if this product is linked to a GPS seminar
+        $seminar_id = get_post_meta($product_id, '_gps_seminar_id', true);
+        if ($seminar_id) {
+            $seminar_permalink = get_permalink($seminar_id);
+            if ($seminar_permalink) {
+                return $seminar_permalink;
+            }
+        }
+
+        return $permalink;
     }
 
     /**
