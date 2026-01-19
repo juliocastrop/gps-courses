@@ -27,6 +27,9 @@
 
             // Bulk actions
             $('#gps-waitlist-bulk-apply').on('click', this.bulkAction.bind(this));
+
+            // Test email
+            $('#gps-send-test-email').on('click', this.sendTestEmail.bind(this));
         },
 
         selectAll(e) {
@@ -206,6 +209,54 @@
                 error: () => {
                     GPSWaitlistAdmin.showNotice('error', 'An error occurred. Please try again.');
                     $btn.prop('disabled', false).text('Apply');
+                }
+            });
+        },
+
+        sendTestEmail(e) {
+            e.preventDefault();
+
+            const $btn = $(e.currentTarget);
+            const $status = $('#gps-test-email-status');
+            const email = $('#gps-test-email-address').val();
+            const emailType = $('#gps-test-email-type').val();
+
+            if (!email) {
+                alert('Please enter an email address.');
+                return;
+            }
+
+            // Basic email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                alert('Please enter a valid email address.');
+                return;
+            }
+
+            const originalText = $btn.text();
+            $btn.prop('disabled', true).text('Sending...');
+            $status.hide();
+
+            $.ajax({
+                url: gpsWaitlistAdmin.ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'gps_waitlist_test_email',
+                    email: email,
+                    email_type: emailType,
+                    nonce: gpsWaitlistAdmin.nonce
+                },
+                success: (response) => {
+                    if (response.success) {
+                        $status.css('color', '#00a32a').text(response.data.message).show();
+                    } else {
+                        $status.css('color', '#d63638').text(response.data.message || 'Failed to send test email.').show();
+                    }
+                    $btn.prop('disabled', false).text(originalText);
+                },
+                error: () => {
+                    $status.css('color', '#d63638').text('An error occurred. Please try again.').show();
+                    $btn.prop('disabled', false).text(originalText);
                 }
             });
         },
