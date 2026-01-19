@@ -121,10 +121,7 @@ class Waitlist {
         }
 
         wp_send_json_success([
-            'message' => sprintf(
-                __('Success! You\'ve been added to the waitlist at position #%d. We\'ll notify you if tickets become available.', 'gps-courses'),
-                $result['position']
-            ),
+            'message' => __('Success! You\'ve been added to the waitlist. We\'ll notify you when spots become available.', 'gps-courses'),
             'position' => $result['position'],
         ]);
     }
@@ -135,6 +132,9 @@ class Waitlist {
     public static function add_to_waitlist($ticket_id, $event_id, $email, $first_name = '', $last_name = '', $phone = '', $user_id = 0) {
         global $wpdb;
         $table = $wpdb->prefix . 'gps_waitlist';
+
+        // Ensure table has required columns (run migration if needed)
+        self::ensure_table_schema();
 
         // Check if already on waitlist
         $exists = $wpdb->get_var($wpdb->prepare(
@@ -172,11 +172,15 @@ class Waitlist {
             $format[] = '%d';
         }
 
+        // Debug: Log the data being inserted
+        error_log('GPS Courses Waitlist: Attempting insert with data: ' . print_r($data, true));
+
         // Insert
         $inserted = $wpdb->insert($table, $data, $format);
 
         if (!$inserted) {
-            error_log('GPS Courses: Failed to insert waitlist entry: ' . $wpdb->last_error);
+            error_log('GPS Courses: Failed to insert waitlist entry. Error: ' . $wpdb->last_error);
+            error_log('GPS Courses: Last query: ' . $wpdb->last_query);
             return new \WP_Error('insert_failed', __('Error adding to waitlist. Please try again.', 'gps-courses'));
         }
 
@@ -189,6 +193,43 @@ class Waitlist {
             'id' => $waitlist_id,
             'position' => $position,
         ];
+    }
+
+    /**
+     * Ensure table has required schema (add missing columns if needed)
+     */
+    private static function ensure_table_schema() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'gps_waitlist';
+
+        // Check if position column exists (indicates new schema)
+        $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table LIKE 'position'");
+
+        if (empty($column_exists)) {
+            error_log('GPS Courses: Waitlist table missing new columns, running migration...');
+
+            // Add new columns
+            $wpdb->query("ALTER TABLE $table
+                ADD COLUMN user_id BIGINT(20) UNSIGNED DEFAULT NULL AFTER id,
+                ADD COLUMN first_name VARCHAR(100) DEFAULT NULL AFTER email,
+                ADD COLUMN last_name VARCHAR(100) DEFAULT NULL AFTER first_name,
+                ADD COLUMN phone VARCHAR(50) DEFAULT NULL AFTER last_name,
+                ADD COLUMN position INT(11) DEFAULT 1 AFTER event_id,
+                ADD COLUMN expires_at DATETIME DEFAULT NULL AFTER notified_at,
+                ADD COLUMN notes TEXT DEFAULT NULL AFTER expires_at
+            ");
+
+            // Add indexes (suppress errors if they already exist)
+            $wpdb->suppress_errors(true);
+            $wpdb->query("ALTER TABLE $table ADD KEY user_id (user_id)");
+            $wpdb->query("ALTER TABLE $table ADD KEY position (position)");
+            $wpdb->suppress_errors(false);
+
+            // Update existing 'pending' status to 'waiting'
+            $wpdb->query("UPDATE $table SET status = 'waiting' WHERE status = 'pending'");
+
+            error_log('GPS Courses: Waitlist table migration completed');
+        }
     }
 
     /**
