@@ -78,17 +78,26 @@ class Activator {
 
         $waitlist = "CREATE TABLE {$wpdb->prefix}gps_waitlist (
             id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            user_id BIGINT(20) UNSIGNED DEFAULT NULL,
             email VARCHAR(255) NOT NULL,
+            first_name VARCHAR(100) DEFAULT NULL,
+            last_name VARCHAR(100) DEFAULT NULL,
+            phone VARCHAR(50) DEFAULT NULL,
             ticket_type_id BIGINT(20) UNSIGNED NOT NULL,
             event_id BIGINT(20) UNSIGNED NOT NULL,
+            position INT(11) DEFAULT 1,
+            status VARCHAR(20) NOT NULL DEFAULT 'waiting',
             created_at DATETIME NOT NULL,
             notified_at DATETIME DEFAULT NULL,
-            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            expires_at DATETIME DEFAULT NULL,
+            notes TEXT DEFAULT NULL,
             PRIMARY KEY  (id),
+            KEY user_id (user_id),
             KEY email (email),
             KEY ticket_type_id (ticket_type_id),
             KEY event_id (event_id),
-            KEY status (status)
+            KEY status (status),
+            KEY position (position)
         ) $charset;";
 
         $certificates = "CREATE TABLE {$wpdb->prefix}gps_certificates (
@@ -238,6 +247,82 @@ class Activator {
                     "ALTER TABLE {$wpdb->prefix}gps_ce_ledger
                      ADD COLUMN transaction_type VARCHAR(20) DEFAULT 'attendance' AFTER source"
                 );
+            }
+
+            // Migrate waitlist table if needed
+            self::migrate_waitlist_table();
+        }
+    }
+
+    /**
+     * Migrate waitlist table to new schema with additional fields
+     */
+    public static function migrate_waitlist_table() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'gps_waitlist';
+
+        // Check if migration is needed (check for position column)
+        $columns = $wpdb->get_results("SHOW COLUMNS FROM $table LIKE 'position'");
+
+        if (empty($columns)) {
+            error_log('GPS Courses: Migrating waitlist table to new schema...');
+
+            // Add new columns
+            $wpdb->query("ALTER TABLE $table
+                ADD COLUMN user_id BIGINT(20) UNSIGNED DEFAULT NULL AFTER id,
+                ADD COLUMN first_name VARCHAR(100) DEFAULT NULL AFTER email,
+                ADD COLUMN last_name VARCHAR(100) DEFAULT NULL AFTER first_name,
+                ADD COLUMN phone VARCHAR(50) DEFAULT NULL AFTER last_name,
+                ADD COLUMN position INT(11) DEFAULT 1 AFTER event_id,
+                ADD COLUMN expires_at DATETIME DEFAULT NULL AFTER notified_at,
+                ADD COLUMN notes TEXT DEFAULT NULL AFTER expires_at
+            ");
+
+            // Add indexes
+            $wpdb->query("ALTER TABLE $table ADD KEY user_id (user_id)");
+            $wpdb->query("ALTER TABLE $table ADD KEY position (position)");
+
+            // Update existing 'pending' status to 'waiting'
+            $wpdb->query("UPDATE $table SET status = 'waiting' WHERE status = 'pending'");
+
+            // Assign positions to existing entries (grouped by ticket_type_id and event_id)
+            self::reorder_all_waitlists();
+
+            error_log('GPS Courses: Waitlist table migration completed');
+        }
+    }
+
+    /**
+     * Reorder all waitlist positions after migration
+     */
+    public static function reorder_all_waitlists() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'gps_waitlist';
+
+        // Get all unique ticket_type_id + event_id combinations
+        $combinations = $wpdb->get_results(
+            "SELECT DISTINCT ticket_type_id, event_id FROM $table WHERE status = 'waiting'"
+        );
+
+        foreach ($combinations as $combo) {
+            // Get entries for this combination ordered by created_at
+            $entries = $wpdb->get_results($wpdb->prepare(
+                "SELECT id FROM $table
+                 WHERE ticket_type_id = %d AND event_id = %d AND status = 'waiting'
+                 ORDER BY created_at ASC",
+                $combo->ticket_type_id,
+                $combo->event_id
+            ));
+
+            // Assign sequential positions
+            $position = 1;
+            foreach ($entries as $entry) {
+                $wpdb->update(
+                    $table,
+                    ['position' => $position],
+                    ['id' => $entry->id]
+                );
+                $position++;
             }
         }
     }

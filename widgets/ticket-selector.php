@@ -589,10 +589,9 @@ class Ticket_Selector_Widget extends Base_Widget {
                 $sold_count = $stock_info['sold'];
                 $is_unlimited = $stock_info['unlimited'];
 
-                // Check if truly sold out:
-                // 1. Admin set quantity to 0 (disabled/sold out)
-                // 2. Has limited stock AND available is 0 (all tickets sold)
-                $is_sold_out = (!$is_unlimited && $quantity_available == 0);
+                // Check if sold out (uses new centralized method that includes manual override)
+                $is_sold_out = \GPSC\Tickets::is_sold_out($ticket->ID);
+                $is_manually_sold_out = \GPSC\Tickets::is_manually_sold_out($ticket->ID);
 
                 if ($settings['layout'] === 'table'): ?>
                     <tr class="gps-ticket-row <?php echo $is_sold_out ? 'gps-sold-out-row' : ''; ?>" data-ticket-id="<?php echo (int) $ticket->ID; ?>">
@@ -705,10 +704,27 @@ class Ticket_Selector_Widget extends Base_Widget {
 
                                 <form class="gps-waitlist-form" data-ticket-id="<?php echo (int) $ticket->ID; ?>" data-event-id="<?php echo (int) $event->ID; ?>">
                                     <div class="gps-waitlist-fields">
+                                        <div class="gps-waitlist-row">
+                                            <input type="text"
+                                                   name="waitlist_first_name"
+                                                   placeholder="<?php esc_attr_e('First Name', 'gps-courses'); ?>"
+                                                   class="gps-waitlist-input gps-waitlist-input-half"
+                                                   value="<?php echo is_user_logged_in() ? esc_attr(wp_get_current_user()->first_name) : ''; ?>">
+                                            <input type="text"
+                                                   name="waitlist_last_name"
+                                                   placeholder="<?php esc_attr_e('Last Name', 'gps-courses'); ?>"
+                                                   class="gps-waitlist-input gps-waitlist-input-half"
+                                                   value="<?php echo is_user_logged_in() ? esc_attr(wp_get_current_user()->last_name) : ''; ?>">
+                                        </div>
                                         <input type="email"
                                                name="waitlist_email"
-                                               placeholder="<?php esc_attr_e('Your email address', 'gps-courses'); ?>"
+                                               placeholder="<?php esc_attr_e('Email Address *', 'gps-courses'); ?>"
                                                required
+                                               class="gps-waitlist-input"
+                                               value="<?php echo is_user_logged_in() ? esc_attr(wp_get_current_user()->user_email) : ''; ?>">
+                                        <input type="tel"
+                                               name="waitlist_phone"
+                                               placeholder="<?php esc_attr_e('Phone (optional)', 'gps-courses'); ?>"
                                                class="gps-waitlist-input">
                                         <button type="submit" class="gps-waitlist-submit">
                                             <?php _e('Join Waitlist', 'gps-courses'); ?>
@@ -779,9 +795,15 @@ class Ticket_Selector_Widget extends Base_Widget {
 
         .gps-waitlist-fields {
             display: flex;
+            flex-direction: column;
             gap: 10px;
             max-width: 400px;
             margin: 0 auto;
+        }
+
+        .gps-waitlist-row {
+            display: flex;
+            gap: 10px;
         }
 
         .gps-waitlist-input {
@@ -791,6 +813,13 @@ class Ticket_Selector_Widget extends Base_Widget {
             border-radius: 8px;
             font-size: 14px;
             transition: border-color 0.3s;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .gps-waitlist-input-half {
+            width: calc(50% - 5px);
+            flex: none;
         }
 
         .gps-waitlist-input:focus {
@@ -808,6 +837,7 @@ class Ticket_Selector_Widget extends Base_Widget {
             cursor: pointer;
             transition: background 0.3s;
             white-space: nowrap;
+            width: 100%;
         }
 
         .gps-waitlist-submit:hover {
@@ -910,6 +940,9 @@ class Ticket_Selector_Widget extends Base_Widget {
                 var $btn = $form.find('.gps-waitlist-submit');
                 var $response = $form.find('.gps-waitlist-response');
                 var email = $form.find('[name="waitlist_email"]').val();
+                var firstName = $form.find('[name="waitlist_first_name"]').val() || '';
+                var lastName = $form.find('[name="waitlist_last_name"]').val() || '';
+                var phone = $form.find('[name="waitlist_phone"]').val() || '';
                 var ticketId = $form.data('ticket-id');
                 var eventId = $form.data('event-id');
 
@@ -922,6 +955,9 @@ class Ticket_Selector_Widget extends Base_Widget {
                     data: {
                         action: 'gps_join_waitlist',
                         email: email,
+                        first_name: firstName,
+                        last_name: lastName,
+                        phone: phone,
                         ticket_id: ticketId,
                         event_id: eventId,
                         nonce: '<?php echo wp_create_nonce('gps_waitlist'); ?>'
@@ -929,7 +965,7 @@ class Ticket_Selector_Widget extends Base_Widget {
                     success: function(response) {
                         if (response.success) {
                             $response.addClass('success').html(response.data.message).show();
-                            $form.find('[name="waitlist_email"]').val('');
+                            $form.find('input[type="email"], input[type="text"], input[type="tel"]').val('');
                             $btn.text('<?php _e('Joined!', 'gps-courses'); ?>');
                         } else {
                             $response.addClass('error').html(response.data.message).show();

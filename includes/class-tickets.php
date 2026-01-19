@@ -109,6 +109,14 @@ class Tickets {
             'show_in_rest'  => false, // Not exposed to REST API - admin only
             'auth_callback' => function() { return current_user_can('edit_posts'); },
         ]);
+
+        register_post_meta('gps_ticket', '_gps_manual_sold_out', [
+            'type'          => 'boolean',
+            'single'        => true,
+            'default'       => false,
+            'show_in_rest'  => true,
+            'auth_callback' => function() { return current_user_can('edit_posts'); },
+        ]);
     }
 
     /**
@@ -141,6 +149,7 @@ class Tickets {
         $status     = get_post_meta($post->ID, '_gps_ticket_status', true) ?: 'inactive';
         $features   = get_post_meta($post->ID, '_gps_ticket_features', true);
         $internal_label = get_post_meta($post->ID, '_gps_ticket_internal_label', true);
+        $manual_sold_out = get_post_meta($post->ID, '_gps_manual_sold_out', true);
 
         // Get all events
         $events = get_posts([
@@ -247,6 +256,31 @@ class Tickets {
                 </span>
                 <p><small><?php _e('Status is automatically updated based on availability dates', 'gps-courses'); ?></small></p>
             </div>
+
+            <div class="gps-ticket-field full-width" style="margin-top: 15px; padding: 15px; background: <?php echo $manual_sold_out ? '#fff3cd' : '#f8f9fa'; ?>; border: 2px solid <?php echo $manual_sold_out ? '#ffc107' : '#dee2e6'; ?>; border-radius: 8px;">
+                <label for="gps_manual_sold_out" style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox"
+                           name="gps_manual_sold_out"
+                           id="gps_manual_sold_out"
+                           value="1"
+                           style="width: 20px; height: 20px; margin-right: 10px;"
+                           <?php checked($manual_sold_out, '1'); ?>>
+                    <span style="font-size: 14px; font-weight: 600;">
+                        <?php _e('Mark as Sold Out (Manual Override)', 'gps-courses'); ?>
+                    </span>
+                </label>
+                <p style="margin: 10px 0 0 30px; color: #666;">
+                    <small>
+                        <?php _e('When enabled, this ticket will display as "Sold Out" regardless of actual stock levels. Customers will be able to join a waitlist. Use this to manually close ticket sales.', 'gps-courses'); ?>
+                    </small>
+                </p>
+                <?php if ($manual_sold_out): ?>
+                <p style="margin: 10px 0 0 30px; color: #856404; font-weight: 600;">
+                    <span class="dashicons dashicons-warning" style="font-size: 16px; vertical-align: text-bottom;"></span>
+                    <?php _e('This ticket is currently marked as Sold Out manually.', 'gps-courses'); ?>
+                </p>
+                <?php endif; ?>
+            </div>
         </div>
         <?php
     }
@@ -276,6 +310,7 @@ class Tickets {
         $product_id     = (int) ($_POST['gps_wc_product_id'] ?? 0);
         $features       = sanitize_textarea_field($_POST['gps_ticket_features'] ?? '');
         $internal_label = sanitize_text_field($_POST['gps_ticket_internal_label'] ?? '');
+        $manual_sold_out = isset($_POST['gps_manual_sold_out']) ? '1' : '0';
 
         update_post_meta($post_id, '_gps_event_id', $event_id);
         update_post_meta($post_id, '_gps_ticket_type', $type);
@@ -285,6 +320,7 @@ class Tickets {
         update_post_meta($post_id, '_gps_ticket_end_date', $end_date);
         update_post_meta($post_id, '_gps_ticket_features', $features);
         update_post_meta($post_id, '_gps_ticket_internal_label', $internal_label);
+        update_post_meta($post_id, '_gps_manual_sold_out', $manual_sold_out);
 
         // Auto-create WooCommerce product if ID is 0 or empty
         if ($product_id === 0 && function_exists('wc_get_product')) {
@@ -559,6 +595,9 @@ class Tickets {
             case 'stock':
                 global $wpdb;
 
+                // Check if manually sold out
+                $manual_sold_out = get_post_meta($post_id, '_gps_manual_sold_out', true);
+
                 // Get the actual meta value to check if it's set or empty
                 $quantity_meta = get_post_meta($post_id, '_gps_ticket_quantity', true);
                 $is_unlimited = ($quantity_meta === '' || $quantity_meta === false);
@@ -605,6 +644,13 @@ class Tickets {
 
                 if ($sold > 0) {
                     echo '<br><small style="color: #646970;">(' . $sold . ' ' . __('sold', 'gps-courses') . ')</small>';
+                }
+
+                // Show manual sold out indicator
+                if ($manual_sold_out) {
+                    echo '<br><span style="background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 3px; font-size: 11px; display: inline-block; margin-top: 5px;">';
+                    echo '<strong>⚠️ ' . __('Manual Sold Out', 'gps-courses') . '</strong>';
+                    echo '</span>';
                 }
                 break;
 
@@ -711,5 +757,33 @@ class Tickets {
             'total_available' => $has_unlimited ? 999999 : $total_available,
             'unlimited' => $has_unlimited,
         ];
+    }
+
+    /**
+     * Check if a ticket is sold out (either manually or by stock)
+     *
+     * @param int $ticket_id The ticket post ID
+     * @return bool True if sold out, false otherwise
+     */
+    public static function is_sold_out($ticket_id) {
+        // Check manual override first
+        $manual_sold_out = get_post_meta($ticket_id, '_gps_manual_sold_out', true);
+        if ($manual_sold_out) {
+            return true;
+        }
+
+        // Check actual stock
+        $stock = self::get_ticket_stock($ticket_id);
+        return !$stock['unlimited'] && $stock['available'] == 0;
+    }
+
+    /**
+     * Check if ticket is manually marked as sold out
+     *
+     * @param int $ticket_id The ticket post ID
+     * @return bool True if manually sold out
+     */
+    public static function is_manually_sold_out($ticket_id) {
+        return (bool) get_post_meta($ticket_id, '_gps_manual_sold_out', true);
     }
 }

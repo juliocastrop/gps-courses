@@ -1,0 +1,248 @@
+/**
+ * GPS Courses - Waitlist Admin Styles
+ */
+
+/* Page Layout */
+.gps-waitlist-page {
+    padding: 20px 20px 20px 0;
+}
+
+/* Statistics Cards */
+.gps-waitlist-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.gps-stat-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    border-left: 4px solid #2271b1;
+}
+
+.gps-stat-card .stat-value {
+    font-size: 36px;
+    font-weight: 700;
+    color: #1d2327;
+    line-height: 1;
+    margin-bottom: 8px;
+}
+
+.gps-stat-card .stat-label {
+    color: #646970;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.gps-stat-card.gps-stat-notified {
+    border-left-color: #dba617;
+}
+
+.gps-stat-card.gps-stat-notified .stat-value {
+    color: #996800;
+}
+
+.gps-stat-card.gps-stat-converted {
+    border-left-color: #00a32a;
+}
+
+.gps-stat-card.gps-stat-converted .stat-value {
+    color: #00a32a;
+}
+
+.gps-stat-card.gps-stat-expired {
+    border-left-color: #d63638;
+}
+
+.gps-stat-card.gps-stat-expired .stat-value {
+    color: #d63638;
+}
+
+/* Filters */
+.gps-waitlist-filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.gps-waitlist-filters select {
+    min-width: 180px;
+}
+
+/* Bulk Actions */
+.gps-waitlist-bulk-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    align-items: center;
+}
+
+/* Table Styles */
+.gps-waitlist-table {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.gps-waitlist-table th,
+.gps-waitlist-table td {
+    vertical-align: middle;
+}
+
+.gps-waitlist-table .check-column {
+    width: 40px;
+}
+
+/* Position Badge */
+.gps-position-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #6200ea, #9c27b0);
+    color: #fff;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+/* Status Badges */
+.gps-status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.gps-status-waiting {
+    background: #e5f5fa;
+    color: #00527c;
+}
+
+.gps-status-notified {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.gps-status-converted {
+    background: #d4edda;
+    color: #155724;
+}
+
+.gps-status-expired {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.gps-status-removed {
+    background: #f0f0f1;
+    color: #646970;
+}
+
+/* Action Buttons */
+.gps-waitlist-table .button-small {
+    margin-right: 5px;
+    margin-bottom: 5px;
+}
+
+.gps-waitlist-notify {
+    background: #2271b1 !important;
+    border-color: #2271b1 !important;
+    color: #fff !important;
+}
+
+.gps-waitlist-notify:hover {
+    background: #135e96 !important;
+    border-color: #135e96 !important;
+}
+
+.gps-waitlist-converted {
+    background: #00a32a !important;
+    border-color: #00a32a !important;
+    color: #fff !important;
+}
+
+.gps-waitlist-converted:hover {
+    background: #008a20 !important;
+    border-color: #008a20 !important;
+}
+
+.gps-waitlist-remove {
+    color: #d63638 !important;
+    border-color: #d63638 !important;
+}
+
+.gps-waitlist-remove:hover {
+    background: #d63638 !important;
+    color: #fff !important;
+}
+
+/* Responsive */
+@media screen and (max-width: 782px) {
+    .gps-waitlist-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .gps-stat-card .stat-value {
+        font-size: 28px;
+    }
+
+    .gps-waitlist-filters,
+    .gps-waitlist-bulk-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .gps-waitlist-filters select,
+    .gps-waitlist-bulk-actions select {
+        width: 100%;
+    }
+}
+
+/* Loading States */
+.gps-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.gps-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #2271b1;
+    border-radius: 50%;
+    animation: gps-spin 1s linear infinite;
+}
+
+@keyframes gps-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Empty State */
+.gps-waitlist-table tbody tr td[colspan] {
+    text-align: center;
+    padding: 40px 20px;
+    color: #646970;
+    font-style: italic;
+}
+
+/* Notices */
+.gps-waitlist-page .notice {
+    margin: 15px 0;
+}
