@@ -152,23 +152,28 @@ class Waitlist {
         // Get next position
         $position = self::get_next_position($ticket_id, $event_id);
 
+        // Build data array - handle user_id null case properly
+        $data = [
+            'email' => $email,
+            'first_name' => $first_name,
+            'last_name' => $last_name,
+            'phone' => $phone,
+            'ticket_type_id' => $ticket_id,
+            'event_id' => $event_id,
+            'position' => $position,
+            'status' => 'waiting',
+            'created_at' => current_time('mysql'),
+        ];
+        $format = ['%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s'];
+
+        // Only include user_id if it's a valid ID
+        if ($user_id > 0) {
+            $data['user_id'] = $user_id;
+            $format[] = '%d';
+        }
+
         // Insert
-        $inserted = $wpdb->insert(
-            $table,
-            [
-                'user_id' => $user_id ?: null,
-                'email' => $email,
-                'first_name' => $first_name,
-                'last_name' => $last_name,
-                'phone' => $phone,
-                'ticket_type_id' => $ticket_id,
-                'event_id' => $event_id,
-                'position' => $position,
-                'status' => 'waiting',
-                'created_at' => current_time('mysql'),
-            ],
-            ['%d', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s']
-        );
+        $inserted = $wpdb->insert($table, $data, $format);
 
         if (!$inserted) {
             error_log('GPS Courses: Failed to insert waitlist entry: ' . $wpdb->last_error);

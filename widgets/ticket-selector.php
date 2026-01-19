@@ -698,7 +698,7 @@ class Ticket_Selector_Widget extends Base_Widget {
                                 </div>
 
                                 <div class="gps-sold-out-message">
-                                    <p><?php _e('Thank you for your interest! This ticket type is currently sold out.', 'gps-courses'); ?></p>
+                                    <p><?php _e('Thank you for your interest! This course is currently sold out.', 'gps-courses'); ?></p>
                                     <p class="gps-waitlist-cta"><?php _e('Join our waitlist to be notified if spots become available:', 'gps-courses'); ?></p>
                                 </div>
 
@@ -708,12 +708,12 @@ class Ticket_Selector_Widget extends Base_Widget {
                                             <input type="text"
                                                    name="waitlist_first_name"
                                                    placeholder="<?php esc_attr_e('First Name', 'gps-courses'); ?>"
-                                                   class="gps-waitlist-input gps-waitlist-input-half"
+                                                   class="gps-waitlist-input"
                                                    value="<?php echo is_user_logged_in() ? esc_attr(wp_get_current_user()->first_name) : ''; ?>">
                                             <input type="text"
                                                    name="waitlist_last_name"
                                                    placeholder="<?php esc_attr_e('Last Name', 'gps-courses'); ?>"
-                                                   class="gps-waitlist-input gps-waitlist-input-half"
+                                                   class="gps-waitlist-input"
                                                    value="<?php echo is_user_logged_in() ? esc_attr(wp_get_current_user()->last_name) : ''; ?>">
                                         </div>
                                         <input type="email"
@@ -804,6 +804,7 @@ class Ticket_Selector_Widget extends Base_Widget {
         .gps-waitlist-row {
             display: flex;
             gap: 10px;
+            width: 100%;
         }
 
         .gps-waitlist-input {
@@ -815,11 +816,12 @@ class Ticket_Selector_Widget extends Base_Widget {
             transition: border-color 0.3s;
             width: 100%;
             box-sizing: border-box;
+            min-width: 0;
         }
 
-        .gps-waitlist-input-half {
-            width: calc(50% - 5px);
-            flex: none;
+        .gps-waitlist-row .gps-waitlist-input {
+            flex: 1;
+            width: auto;
         }
 
         .gps-waitlist-input:focus {
