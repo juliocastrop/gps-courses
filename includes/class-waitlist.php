@@ -372,21 +372,108 @@ class Waitlist {
         // Send email
         $event_url = get_permalink($entry->event_id);
         $expires_formatted = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($expires_at));
-        $name = $entry->first_name ?: 'there';
+        $name = $entry->first_name ?: __('there', 'gps-courses');
+        $event_date = get_post_meta($entry->event_id, '_gps_start_date', true);
+        $event_date_formatted = $event_date ? date_i18n(get_option('date_format'), strtotime($event_date)) : '';
 
         $subject = sprintf(
             __('A Spot is Available! - %s', 'gps-courses'),
             $event->post_title
         );
 
-        $message = sprintf(
-            __('Hello %s,<br><br>Great news! A spot has become available for:<br><br><strong>%s</strong><br>Ticket Type: %s<br><br><strong style="color: #d63638;">You have until %s to complete your purchase.</strong><br><br><a href="%s" style="display: inline-block; padding: 12px 24px; background: #6200ea; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">Get Your Ticket Now</a><br><br>If you do not purchase within 48 hours, the spot will be offered to the next person on the waitlist.<br><br>Thank you!<br><br>GPS Dental Training', 'gps-courses'),
-            esc_html($name),
-            esc_html($event->post_title),
-            esc_html($ticket->post_title),
-            $expires_formatted,
-            esc_url($event_url)
-        );
+        // Build HTML email
+        ob_start();
+        ?>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title><?php _e('A Spot is Available!', 'gps-courses'); ?></title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f5f5f5;">
+                <tr>
+                    <td align="center" style="padding: 40px 20px;">
+                        <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+
+                            <!-- Header -->
+                            <tr>
+                                <td style="padding: 40px 40px 20px;">
+                                    <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: #1e293b;">
+                                        🎉 <?php _e('Great News! A Spot is Available', 'gps-courses'); ?>
+                                    </h1>
+                                    <p style="margin: 10px 0 0; font-size: 16px; color: #64748b;">
+                                        <?php printf(__('Hello %s, a spot has just opened up for a course you\'re interested in!', 'gps-courses'), esc_html($name)); ?>
+                                    </p>
+                                </td>
+                            </tr>
+
+                            <!-- Course Info -->
+                            <tr>
+                                <td style="padding: 20px 40px;">
+                                    <div style="background-color: #f0fdf4; padding: 25px; border-radius: 8px; border-left: 4px solid #22c55e;">
+                                        <h2 style="margin: 0 0 10px; font-size: 20px; font-weight: 600; color: #1e293b;">
+                                            <?php echo esc_html($event->post_title); ?>
+                                        </h2>
+                                        <?php if ($event_date_formatted): ?>
+                                        <p style="margin: 0 0 5px; font-size: 14px; color: #64748b;">
+                                            <strong><?php _e('Date:', 'gps-courses'); ?></strong> <?php echo esc_html($event_date_formatted); ?>
+                                        </p>
+                                        <?php endif; ?>
+                                        <p style="margin: 0; font-size: 14px; color: #64748b;">
+                                            <strong><?php _e('Ticket Type:', 'gps-courses'); ?></strong> <?php echo esc_html($ticket->post_title); ?>
+                                        </p>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <!-- Urgency Notice -->
+                            <tr>
+                                <td style="padding: 20px 40px;">
+                                    <div style="background-color: #fef2f2; padding: 20px; border-radius: 8px; border: 1px solid #fecaca;">
+                                        <p style="margin: 0; font-size: 16px; color: #dc2626; font-weight: 600;">
+                                            ⏰ <?php _e('Act Fast! This offer expires:', 'gps-courses'); ?>
+                                        </p>
+                                        <p style="margin: 10px 0 0; font-size: 18px; color: #1e293b; font-weight: bold;">
+                                            <?php echo esc_html($expires_formatted); ?>
+                                        </p>
+                                        <p style="margin: 10px 0 0; font-size: 14px; color: #64748b;">
+                                            <?php _e('If you don\'t complete your purchase in time, the spot will be offered to the next person on the waitlist.', 'gps-courses'); ?>
+                                        </p>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <!-- CTA Button -->
+                            <tr>
+                                <td style="padding: 20px 40px 30px;" align="center">
+                                    <a href="<?php echo esc_url($event_url); ?>" style="display: inline-block; padding: 16px 40px; background-color: #22c55e; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 18px; font-weight: 600;">
+                                        <?php _e('Get Your Ticket Now', 'gps-courses'); ?>
+                                    </a>
+                                </td>
+                            </tr>
+
+                            <!-- Footer -->
+                            <tr>
+                                <td style="padding: 25px 40px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; border-radius: 0 0 8px 8px;">
+                                    <p style="margin: 0; font-size: 14px; color: #64748b;">
+                                        <?php _e('Don\'t miss this opportunity!', 'gps-courses'); ?>
+                                    </p>
+                                    <p style="margin: 10px 0 0; font-size: 14px; font-weight: 600; color: #1e293b;">
+                                        GPS Dental Training
+                                    </p>
+                                </td>
+                            </tr>
+
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+        <?php
+        $message = ob_get_clean();
 
         $headers = ['Content-Type: text/html; charset=UTF-8'];
 
@@ -415,20 +502,106 @@ class Waitlist {
             return false;
         }
 
-        $name = $entry->first_name ?: 'there';
+        $name = $entry->first_name ?: __('there', 'gps-courses');
+        $event_url = get_permalink($entry->event_id);
+        $event_date = get_post_meta($entry->event_id, '_gps_start_date', true);
+        $event_date_formatted = $event_date ? date_i18n(get_option('date_format'), strtotime($event_date)) : '';
 
         $subject = sprintf(
             __('You\'re on the Waitlist - %s', 'gps-courses'),
             $event->post_title
         );
 
-        $message = sprintf(
-            __('Hello %s,<br><br>You have been added to the waitlist for:<br><br><strong>%s</strong><br>Ticket Type: %s<br><br>Your position: <strong>#%d</strong><br><br>We will notify you by email if a spot becomes available. You will have 48 hours to complete your purchase once notified.<br><br>Thank you for your interest!<br><br>GPS Dental Training', 'gps-courses'),
-            esc_html($name),
-            esc_html($event->post_title),
-            esc_html($ticket->post_title),
-            $entry->position
-        );
+        // Build HTML email
+        ob_start();
+        ?>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title><?php _e('You\'re on the Waitlist', 'gps-courses'); ?></title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f5f5f5;">
+                <tr>
+                    <td align="center" style="padding: 40px 20px;">
+                        <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+
+                            <!-- Header -->
+                            <tr>
+                                <td style="padding: 40px 40px 20px;">
+                                    <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: #1e293b;">
+                                        <?php _e('You\'re on the Waitlist!', 'gps-courses'); ?>
+                                    </h1>
+                                    <p style="margin: 10px 0 0; font-size: 16px; color: #64748b;">
+                                        <?php printf(__('Hello %s, we\'ve added you to the waitlist for this course.', 'gps-courses'), esc_html($name)); ?>
+                                    </p>
+                                </td>
+                            </tr>
+
+                            <!-- Course Info -->
+                            <tr>
+                                <td style="padding: 20px 40px;">
+                                    <div style="background-color: #f8fafc; padding: 25px; border-radius: 8px; border-left: 4px solid #0B52AC;">
+                                        <h2 style="margin: 0 0 10px; font-size: 20px; font-weight: 600; color: #1e293b;">
+                                            <?php echo esc_html($event->post_title); ?>
+                                        </h2>
+                                        <?php if ($event_date_formatted): ?>
+                                        <p style="margin: 0 0 5px; font-size: 14px; color: #64748b;">
+                                            <strong><?php _e('Date:', 'gps-courses'); ?></strong> <?php echo esc_html($event_date_formatted); ?>
+                                        </p>
+                                        <?php endif; ?>
+                                        <p style="margin: 0; font-size: 14px; color: #64748b;">
+                                            <strong><?php _e('Ticket Type:', 'gps-courses'); ?></strong> <?php echo esc_html($ticket->post_title); ?>
+                                        </p>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <!-- What Happens Next -->
+                            <tr>
+                                <td style="padding: 20px 40px;">
+                                    <h3 style="margin: 0 0 15px; font-size: 18px; font-weight: 600; color: #1e293b;">
+                                        <?php _e('What happens next?', 'gps-courses'); ?>
+                                    </h3>
+                                    <ul style="margin: 0; padding: 0 0 0 20px; color: #475569; font-size: 14px; line-height: 1.8;">
+                                        <li><?php _e('We\'ll notify you by email as soon as a spot becomes available.', 'gps-courses'); ?></li>
+                                        <li><?php _e('You\'ll have 48 hours to complete your purchase once notified.', 'gps-courses'); ?></li>
+                                        <li><?php _e('If you don\'t complete the purchase in time, the spot will be offered to the next person on the waitlist.', 'gps-courses'); ?></li>
+                                    </ul>
+                                </td>
+                            </tr>
+
+                            <!-- CTA Button -->
+                            <tr>
+                                <td style="padding: 20px 40px 30px;">
+                                    <a href="<?php echo esc_url($event_url); ?>" style="display: inline-block; padding: 14px 30px; background-color: #0B52AC; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: 600;">
+                                        <?php _e('View Course Details', 'gps-courses'); ?>
+                                    </a>
+                                </td>
+                            </tr>
+
+                            <!-- Footer -->
+                            <tr>
+                                <td style="padding: 25px 40px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; border-radius: 0 0 8px 8px;">
+                                    <p style="margin: 0; font-size: 14px; color: #64748b;">
+                                        <?php _e('Thank you for your interest!', 'gps-courses'); ?>
+                                    </p>
+                                    <p style="margin: 10px 0 0; font-size: 14px; font-weight: 600; color: #1e293b;">
+                                        GPS Dental Training
+                                    </p>
+                                </td>
+                            </tr>
+
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+        <?php
+        $message = ob_get_clean();
 
         $headers = ['Content-Type: text/html; charset=UTF-8'];
 
