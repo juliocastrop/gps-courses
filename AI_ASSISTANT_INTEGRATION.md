@@ -2,52 +2,263 @@
 
 ## Contexto
 
-El plugin GPS Courses ahora tiene funcionalidad de **Sold Out manual** y **Waitlist mejorada**. El AI Assistant del plugin de carritos abandonados necesita poder identificar cuando un curso está sold out y guiar al usuario apropiadamente.
+El plugin GPS Courses tiene funcionalidad de **Sold Out manual** y **Waitlist mejorada**. El AI Assistant del plugin de carritos abandonados puede usar la REST API o funciones PHP para identificar cuando un curso está sold out y guiar al usuario apropiadamente.
 
 ---
 
-## Funciones Disponibles en GPS Courses
+## OPCION 1: REST API (Recomendado para AI Assistant)
 
-El plugin GPS Courses expone las siguientes funciones que el AI Assistant puede usar:
+La forma más fácil de verificar disponibilidad es usando los endpoints REST públicos.
 
-### 1. Verificar si un ticket está Sold Out
+### Verificar Disponibilidad de un Evento/Curso
+
+```
+GET /wp-json/gps-courses/v1/availability/event/{event_id}
+```
+
+**Respuesta de ejemplo (curso disponible):**
+```json
+{
+  "success": true,
+  "event": {
+    "id": 123,
+    "title": "Implant Fundamentals Course",
+    "url": "https://gpsdentaltraining.com/event/implant-fundamentals/",
+    "start_date": "2025-03-15",
+    "start_date_formatted": "March 15, 2025"
+  },
+  "availability": {
+    "is_available": true,
+    "is_sold_out": false,
+    "has_active_tickets": true,
+    "reason": "available"
+  },
+  "tickets": [
+    {
+      "id": 456,
+      "name": "Early Bird",
+      "price": 1500,
+      "is_sold_out": false,
+      "is_manual_sold_out": false,
+      "stock": {
+        "total": 20,
+        "sold": 12,
+        "available": 8,
+        "unlimited": false
+      }
+    }
+  ],
+  "waitlist_enabled": false
+}
+```
+
+**Respuesta de ejemplo (curso SOLD OUT):**
+```json
+{
+  "success": true,
+  "event": {
+    "id": 123,
+    "title": "Implant Fundamentals Course",
+    "url": "https://gpsdentaltraining.com/event/implant-fundamentals/",
+    "start_date": "2025-03-15",
+    "start_date_formatted": "March 15, 2025"
+  },
+  "availability": {
+    "is_available": false,
+    "is_sold_out": true,
+    "has_active_tickets": true,
+    "reason": "sold_out"
+  },
+  "tickets": [
+    {
+      "id": 456,
+      "name": "General Admission",
+      "price": 1800,
+      "is_sold_out": true,
+      "is_manual_sold_out": true,
+      "stock": {
+        "total": 12,
+        "sold": 7,
+        "available": 5,
+        "unlimited": false
+      }
+    }
+  ],
+  "waitlist_enabled": true
+}
+```
+
+**Campos clave para el AI:**
+| Campo | Descripción |
+|-------|-------------|
+| `availability.is_sold_out` | **TRUE** = curso no disponible, ofrecer waitlist |
+| `availability.is_available` | **TRUE** = curso disponible para compra |
+| `availability.reason` | `available`, `sold_out`, `manual_override`, o `no_tickets` |
+| `tickets[].is_manual_sold_out` | **TRUE** = admin marcó como sold out aunque hay stock |
+| `waitlist_enabled` | **TRUE** = el usuario puede unirse a la waitlist |
+
+### Verificar Disponibilidad de un Ticket Específico
+
+```
+GET /wp-json/gps-courses/v1/availability/ticket/{ticket_id}
+```
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "ticket": {
+    "id": 456,
+    "name": "Early Bird",
+    "price": 1500,
+    "status": "active"
+  },
+  "event": {
+    "id": 123,
+    "title": "Implant Fundamentals Course",
+    "url": "https://gpsdentaltraining.com/event/implant-fundamentals/"
+  },
+  "availability": {
+    "is_sold_out": true,
+    "is_manual_sold_out": true,
+    "stock": {
+      "total": 12,
+      "sold": 7,
+      "available": 5,
+      "unlimited": false
+    },
+    "reason": "manual_override"
+  },
+  "waitlist_enabled": true
+}
+```
+
+### Agregar Usuario a Waitlist
+
+```
+POST /wp-json/gps-courses/v1/waitlist/add
+Content-Type: application/json
+
+{
+  "ticket_id": 456,
+  "event_id": 123,
+  "email": "user@example.com",
+  "first_name": "John",
+  "last_name": "Doe",
+  "phone": "555-123-4567"
+}
+```
+
+**Respuesta exitosa:**
+```json
+{
+  "success": true,
+  "message": "Successfully added to waitlist",
+  "data": {
+    "waitlist_id": 789,
+    "position": 3,
+    "email": "user@example.com",
+    "event": "Implant Fundamentals Course",
+    "ticket": "Early Bird"
+  }
+}
+```
+
+**Respuesta si ya está en waitlist:**
+```json
+{
+  "success": false,
+  "error": "You're already on the waitlist for this ticket!",
+  "error_code": "already_on_waitlist"
+}
+```
+
+### Verificar si Email está en Waitlist
+
+```
+GET /wp-json/gps-courses/v1/waitlist/check?email=user@example.com&event_id=123
+```
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "email": "user@example.com",
+  "on_waitlist": true,
+  "entries": [
+    {
+      "id": 789,
+      "event_id": 123,
+      "event_title": "Implant Fundamentals Course",
+      "ticket_id": 456,
+      "ticket_title": "Early Bird",
+      "position": 3,
+      "status": "waiting",
+      "created_at": "2025-01-15 10:30:00"
+    }
+  ],
+  "count": 1
+}
+```
+
+---
+
+## OPCION 2: Funciones PHP (Para integración directa en código)
+
+### Verificar Disponibilidad de Curso
+
+```php
+// Función simple que retorna toda la info necesaria
+$availability = \GPSC\gps_check_course_availability($event_id);
+
+// $availability contiene:
+// [
+//     'is_sold_out' => bool,      // TRUE si TODOS los tickets están sold out
+//     'is_available' => bool,     // TRUE si hay tickets disponibles
+//     'reason' => string,         // 'available', 'sold_out', 'manual_override', 'no_tickets'
+//     'tickets' => array,         // Info detallada de cada ticket
+//     'message' => string,        // Mensaje legible para el usuario
+// ]
+
+if ($availability['is_sold_out']) {
+    // Ofrecer waitlist
+    echo $availability['message'];
+    // "Implant Course is currently sold out. Customers can join the waitlist..."
+}
+```
+
+### Verificar Disponibilidad de Ticket
+
+```php
+$ticket_status = \GPSC\gps_check_ticket_availability($ticket_id);
+
+// $ticket_status contiene:
+// [
+//     'is_sold_out' => bool,
+//     'is_manual' => bool,        // TRUE si fue marcado manualmente
+//     'available' => int,         // Cantidad disponible (-1 si unlimited)
+//     'reason' => string,         // 'available', 'stock_depleted', 'manual_override'
+// ]
+```
+
+### Métodos de Clase Directos
 
 ```php
 // Verificar si GPS Courses está activo
 if (class_exists('\GPSC\Tickets')) {
-    // Retorna true si el ticket está sold out (manual o por stock)
+    // Verificar si ticket está sold out (manual O por stock)
     $is_sold_out = \GPSC\Tickets::is_sold_out($ticket_id);
-}
-```
 
-### 2. Verificar si es Sold Out Manual
-
-```php
-if (class_exists('\GPSC\Tickets')) {
-    // Retorna true solo si fue marcado manualmente como sold out
+    // Verificar si es sold out MANUAL específicamente
     $is_manual = \GPSC\Tickets::is_manually_sold_out($ticket_id);
-}
-```
 
-### 3. Obtener Stock de un Ticket
-
-```php
-if (class_exists('\GPSC\Tickets')) {
+    // Obtener info de stock
     $stock = \GPSC\Tickets::get_ticket_stock($ticket_id);
     // Retorna: ['total' => int, 'sold' => int, 'available' => int, 'unlimited' => bool]
 }
 ```
 
-### 4. Obtener Disponibilidad de un Evento
-
-```php
-if (class_exists('\GPSC\Tickets')) {
-    $availability = \GPSC\Tickets::get_event_availability($event_id);
-    // Retorna: ['total_available' => int, 'unlimited' => bool]
-}
-```
-
-### 5. Agregar a Waitlist Programáticamente
+### Agregar a Waitlist via PHP
 
 ```php
 if (class_exists('\GPSC\Waitlist')) {
@@ -62,36 +273,79 @@ if (class_exists('\GPSC\Waitlist')) {
     );
 
     if (is_wp_error($result)) {
-        // Error: $result->get_error_message()
+        echo $result->get_error_message();
     } else {
-        // Éxito: $result['id'] = waitlist ID, $result['position'] = posición en cola
-    }
-}
-```
-
-### 6. Verificar si Email ya está en Waitlist
-
-```php
-if (class_exists('\GPSC\Waitlist')) {
-    global $wpdb;
-    $table = $wpdb->prefix . 'gps_waitlist';
-
-    $exists = $wpdb->get_var($wpdb->prepare(
-        "SELECT id FROM $table
-         WHERE email = %s AND ticket_type_id = %d AND event_id = %d
-         AND status IN ('waiting', 'notified')",
-        $email, $ticket_id, $event_id
-    ));
-
-    if ($exists) {
-        // Ya está en waitlist
+        echo "Added to waitlist at position #" . $result['position'];
     }
 }
 ```
 
 ---
 
+## Lógica Recomendada para el AI Assistant
+
+### Flujo de Decisión
+
+```
+1. Usuario menciona un curso o tiene carrito abandonado con un curso
+
+2. AI hace llamada a:
+   GET /wp-json/gps-courses/v1/availability/event/{event_id}
+
+3. Verifica la respuesta:
+
+   SI availability.is_available = true:
+      → "Great news! Tickets are available for [Course Name].
+         Would you like me to help you complete your registration?"
+
+   SI availability.is_sold_out = true:
+      → Verificar si ya está en waitlist:
+         GET /wp-json/gps-courses/v1/waitlist/check?email={user_email}&event_id={event_id}
+
+      SI on_waitlist = true:
+         → "You're already on the waitlist for [Course Name] at position #{X}.
+            We'll notify you as soon as a spot opens up!"
+
+      SI on_waitlist = false:
+         → "I see that [Course Name] is currently sold out. However, you can join
+            our waitlist and we'll notify you immediately if a spot becomes available.
+            Would you like me to add you? I'll just need your name and email."
+
+4. SI el usuario quiere unirse a waitlist:
+   POST /wp-json/gps-courses/v1/waitlist/add
+   {
+     "ticket_id": {first_ticket_id},
+     "event_id": {event_id},
+     "email": "{user_email}",
+     "first_name": "{user_name}",
+     ...
+   }
+
+   → "Perfect! You've been added to the waitlist at position #{position}.
+      You'll receive a confirmation email shortly. When a spot opens up,
+      you'll have 48 hours to complete your purchase."
+```
+
+### Respuestas Sugeridas
+
+**Si el curso está disponible:**
+> "Great news! Tickets are available for [Course Name]. Would you like me to help you complete your registration?"
+
+**Si el curso está sold out:**
+> "I see that [Course Name] is currently sold out. However, you can join our waitlist and we'll notify you immediately if a spot becomes available. Would you like me to add you to the waitlist? I'll just need your name and email."
+
+**Si ya está en waitlist:**
+> "You're already on the waitlist for [Course Name] at position #[X]. We'll notify you as soon as a spot opens up!"
+
+---
+
 ## Información de Base de Datos
+
+### Meta Field para Sold Out Manual
+
+- **Post Type:** `gps_ticket`
+- **Meta Key:** `_gps_manual_sold_out`
+- **Valores:** `'1'` (sold out) o `''`/`'0'` (disponible)
 
 ### Tabla: wp_gps_waitlist
 
@@ -111,257 +365,65 @@ if (class_exists('\GPSC\Waitlist')) {
 | notified_at | DATETIME | Fecha de notificación |
 | expires_at | DATETIME | Fecha de expiración (48h después de notificación) |
 
-### Meta Field para Sold Out Manual
-
-- **Post Type:** `gps_ticket`
-- **Meta Key:** `_gps_manual_sold_out`
-- **Valores:** `'1'` (sold out) o `''`/`'0'` (disponible)
-
 ---
 
-## Lógica Recomendada para el AI Assistant
+## Estados de Waitlist
 
-### Cuando el usuario pregunta por un curso:
-
-```php
-function get_course_availability_info($event_id) {
-    if (!class_exists('\GPSC\Tickets')) {
-        return ['available' => true, 'message' => 'Course availability information not available.'];
-    }
-
-    // Obtener todos los tickets del evento
-    $tickets = get_posts([
-        'post_type' => 'gps_ticket',
-        'meta_query' => [
-            ['key' => '_gps_event_id', 'value' => $event_id]
-        ],
-        'posts_per_page' => -1
-    ]);
-
-    $all_sold_out = true;
-    $ticket_info = [];
-
-    foreach ($tickets as $ticket) {
-        $is_sold_out = \GPSC\Tickets::is_sold_out($ticket->ID);
-        $stock = \GPSC\Tickets::get_ticket_stock($ticket->ID);
-
-        $ticket_info[] = [
-            'name' => $ticket->post_title,
-            'sold_out' => $is_sold_out,
-            'available' => $stock['available'],
-            'unlimited' => $stock['unlimited']
-        ];
-
-        if (!$is_sold_out) {
-            $all_sold_out = false;
-        }
-    }
-
-    if ($all_sold_out) {
-        return [
-            'available' => false,
-            'message' => 'This course is currently sold out. You can join our waitlist to be notified when spots become available.',
-            'action' => 'waitlist',
-            'tickets' => $ticket_info
-        ];
-    }
-
-    return [
-        'available' => true,
-        'message' => 'Tickets are available for this course.',
-        'tickets' => $ticket_info
-    ];
-}
-```
-
-### Respuestas sugeridas del AI:
-
-**Si el curso está disponible:**
-> "Great news! Tickets are available for [Course Name]. Would you like me to help you complete your registration?"
-
-**Si el curso está sold out:**
-> "I see that [Course Name] is currently sold out. However, you can join our waitlist and we'll notify you immediately if a spot becomes available. Would you like me to add you to the waitlist? I'll just need your name and email."
-
-**Si ya está en waitlist:**
-> "You're already on the waitlist for [Course Name] at position #[X]. We'll notify you as soon as a spot opens up!"
-
----
-
-## Obtener Información del Evento
-
-```php
-function get_event_details($event_id) {
-    $event = get_post($event_id);
-    if (!$event || $event->post_type !== 'gps_event') {
-        return null;
-    }
-
-    return [
-        'id' => $event->ID,
-        'title' => $event->post_title,
-        'start_date' => get_post_meta($event_id, '_gps_start_date', true),
-        'end_date' => get_post_meta($event_id, '_gps_end_date', true),
-        'location' => get_post_meta($event_id, '_gps_location', true),
-        'ce_credits' => get_post_meta($event_id, '_gps_ce_credits', true),
-        'url' => get_permalink($event_id)
-    ];
-}
-```
-
----
-
-## Flujo de Conversación Sugerido
-
-```
-Usuario: "I want to register for the Implant Course"
-
-AI: [Busca el evento por nombre]
-    [Verifica disponibilidad con get_course_availability_info()]
-
-    SI disponible:
-        "The Implant Fundamentals Course on [fecha] has tickets available!
-         Would you like me to help you complete your registration?"
-
-    SI sold out:
-        "The Implant Fundamentals Course is currently sold out, but I can
-         add you to our waitlist. You'll be notified immediately when a
-         spot becomes available. Can I have your name and email to add
-         you to the waitlist?"
-
-Usuario: "Yes, add me to the waitlist"
-
-AI: [Recopila información: nombre, email, teléfono opcional]
-    [Usa \GPSC\Waitlist::add_to_waitlist()]
-
-    "Perfect! I've added you to the waitlist at position #[X]. You'll
-     receive an email confirmation shortly, and we'll notify you as soon
-     as a spot opens up. The notification will be valid for 48 hours,
-     so please act quickly when you receive it!"
-```
+| Estado | Descripción |
+|--------|-------------|
+| `waiting` | En espera de que se abra un lugar |
+| `notified` | Se le notificó que hay lugar disponible (tiene 48h) |
+| `converted` | Completó la compra exitosamente |
+| `expired` | No compró dentro de las 48h |
+| `removed` | Removido manualmente por admin |
 
 ---
 
 ## Notas Importantes
 
-1. **Sold Out Manual vs Stock:** Un ticket puede estar sold out por dos razones:
-   - Manualmente marcado por admin (override)
-   - Stock agotado naturalmente
+1. **Sold Out Manual vs Stock:** Un ticket puede estar sold out por:
+   - `manual_override`: Admin lo marcó manualmente (aún puede haber stock real)
+   - `stock_depleted`: El stock se agotó naturalmente
 
-2. **Expiración de Notificaciones:** Cuando se notifica a alguien de la waitlist, tienen 48 horas para comprar antes de que expire.
+2. **Expiración de Notificaciones:** Cuando se notifica a alguien, tienen 48 horas para comprar.
 
-3. **Posiciones en Cola:** Las posiciones se reordenan automáticamente cuando alguien es removido o convierte.
+3. **Posiciones en Cola:** Se reordenan automáticamente cuando alguien convierte o es removido.
 
-4. **Estados de Waitlist:**
-   - `waiting` - En espera de notificación
-   - `notified` - Notificado, tiene 48h para comprar
-   - `converted` - Completó la compra
-   - `expired` - No compró en las 48h
-   - `removed` - Removido manualmente por admin
-
-5. **URL del Curso:** Siempre incluir el enlace al curso cuando sea relevante para que el usuario pueda ver detalles o registrarse en waitlist manualmente.
+4. **URL del Curso:** Siempre incluir el enlace para que el usuario pueda ver detalles o registrarse manualmente.
 
 ---
 
-## Ejemplo de Implementación Completa
+## Ejemplo de Integración en PHP
 
 ```php
-// En el plugin de AI Assistant, agregar esta función helper
-function gps_check_course_and_respond($event_id, $user_email = '') {
-    // Verificar que GPS Courses esté activo
-    if (!class_exists('\GPSC\Tickets')) {
-        return [
-            'type' => 'error',
-            'message' => 'Course system not available.'
-        ];
+/**
+ * Función helper para el AI Assistant usando REST API internamente
+ */
+function ai_get_course_status($event_id, $user_email = '') {
+    // Usar REST API internamente
+    $request = new WP_REST_Request('GET', '/gps-courses/v1/availability/event/' . $event_id);
+    $response = rest_do_request($request);
+
+    if ($response->is_error()) {
+        return ['error' => 'Course not found'];
     }
 
-    // Obtener info del evento
-    $event = get_post($event_id);
-    if (!$event) {
-        return [
-            'type' => 'not_found',
-            'message' => 'Course not found.'
-        ];
+    $data = $response->get_data();
+
+    // Si está sold out y tenemos email, verificar waitlist
+    if ($data['availability']['is_sold_out'] && $user_email) {
+        $waitlist_request = new WP_REST_Request('GET', '/gps-courses/v1/waitlist/check');
+        $waitlist_request->set_query_params([
+            'email' => $user_email,
+            'event_id' => $event_id,
+        ]);
+        $waitlist_response = rest_do_request($waitlist_request);
+        $waitlist_data = $waitlist_response->get_data();
+
+        $data['user_waitlist_status'] = $waitlist_data;
     }
 
-    // Obtener tickets
-    $tickets = get_posts([
-        'post_type' => 'gps_ticket',
-        'meta_query' => [
-            ['key' => '_gps_event_id', 'value' => $event_id],
-            ['key' => '_gps_ticket_status', 'value' => 'active']
-        ],
-        'posts_per_page' => -1
-    ]);
-
-    $available_tickets = [];
-    $sold_out_tickets = [];
-
-    foreach ($tickets as $ticket) {
-        if (\GPSC\Tickets::is_sold_out($ticket->ID)) {
-            $sold_out_tickets[] = $ticket;
-        } else {
-            $stock = \GPSC\Tickets::get_ticket_stock($ticket->ID);
-            $available_tickets[] = [
-                'ticket' => $ticket,
-                'stock' => $stock
-            ];
-        }
-    }
-
-    // Si hay tickets disponibles
-    if (!empty($available_tickets)) {
-        return [
-            'type' => 'available',
-            'event' => $event,
-            'tickets' => $available_tickets,
-            'message' => sprintf(
-                'Great news! %s has %d ticket type(s) available.',
-                $event->post_title,
-                count($available_tickets)
-            ),
-            'url' => get_permalink($event_id)
-        ];
-    }
-
-    // Todo sold out - verificar waitlist
-    if (!empty($user_email) && class_exists('\GPSC\Waitlist')) {
-        global $wpdb;
-        $table = $wpdb->prefix . 'gps_waitlist';
-
-        // Verificar si ya está en waitlist para algún ticket
-        $existing = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM $table
-             WHERE email = %s AND event_id = %d AND status IN ('waiting', 'notified')
-             ORDER BY position ASC LIMIT 1",
-            $user_email, $event_id
-        ));
-
-        if ($existing) {
-            return [
-                'type' => 'already_on_waitlist',
-                'event' => $event,
-                'position' => $existing->position,
-                'status' => $existing->status,
-                'message' => sprintf(
-                    "You're already on the waitlist for %s at position #%d!",
-                    $event->post_title,
-                    $existing->position
-                )
-            ];
-        }
-    }
-
-    return [
-        'type' => 'sold_out',
-        'event' => $event,
-        'tickets' => $sold_out_tickets,
-        'message' => sprintf(
-            '%s is currently sold out. Would you like to join the waitlist?',
-            $event->post_title
-        ),
-        'url' => get_permalink($event_id)
-    ];
+    return $data;
 }
 ```
 

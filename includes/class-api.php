@@ -83,6 +83,32 @@ class API {
             'callback' => [__CLASS__, 'get_event_attendance'],
             'permission_callback' => [__CLASS__, 'permissions_check'],
         ]);
+
+        // Public availability endpoint (for AI Assistant integration)
+        register_rest_route($namespace, '/availability/event/(?P<event_id>\d+)', [
+            'methods' => 'GET',
+            'callback' => [__CLASS__, 'get_event_availability'],
+            'permission_callback' => '__return_true', // Public endpoint
+        ]);
+
+        register_rest_route($namespace, '/availability/ticket/(?P<ticket_id>\d+)', [
+            'methods' => 'GET',
+            'callback' => [__CLASS__, 'get_ticket_availability'],
+            'permission_callback' => '__return_true', // Public endpoint
+        ]);
+
+        // Waitlist endpoint for AI Assistant
+        register_rest_route($namespace, '/waitlist/add', [
+            'methods' => 'POST',
+            'callback' => [__CLASS__, 'add_to_waitlist'],
+            'permission_callback' => '__return_true', // Public endpoint
+        ]);
+
+        register_rest_route($namespace, '/waitlist/check', [
+            'methods' => 'GET',
+            'callback' => [__CLASS__, 'check_waitlist_status'],
+            'permission_callback' => '__return_true', // Public endpoint
+        ]);
     }
 
     /**
@@ -408,6 +434,263 @@ class API {
             'capacity' => (int) get_post_meta($event_id, '_gps_capacity', true),
             'registration_deadline' => get_post_meta($event_id, '_gps_registration_deadline', true),
         ];
+    }
+
+    /**
+     * Get event availability (Public endpoint for AI Assistant)
+     *
+     * @param \WP_REST_Request $request
+     * @return \WP_REST_Response
+     */
+    public static function get_event_availability($request) {
+        $event_id = (int) $request->get_param('event_id');
+
+        $event = get_post($event_id);
+        if (!$event || $event->post_type !== 'gps_event') {
+            return new \WP_REST_Response([
+                'success' => false,
+                'error' => 'Event not found',
+                'event_id' => $event_id,
+            ], 404);
+        }
+
+        // Get all active tickets for this event
+        $tickets = get_posts([
+            'post_type' => 'gps_ticket',
+            'posts_per_page' => -1,
+            'meta_query' => [
+                ['key' => '_gps_event_id', 'value' => $event_id],
+            ],
+        ]);
+
+        $all_sold_out = true;
+        $has_tickets = false;
+        $ticket_info = [];
+
+        foreach ($tickets as $ticket) {
+            $status = get_post_meta($ticket->ID, '_gps_ticket_status', true);
+            if ($status !== 'active') {
+                continue;
+            }
+
+            $has_tickets = true;
+            $is_sold_out = Tickets::is_sold_out($ticket->ID);
+            $is_manual_sold_out = Tickets::is_manually_sold_out($ticket->ID);
+            $stock = Tickets::get_ticket_stock($ticket->ID);
+
+            $ticket_info[] = [
+                'id' => $ticket->ID,
+                'name' => $ticket->post_title,
+                'price' => (float) get_post_meta($ticket->ID, '_gps_ticket_price', true),
+                'is_sold_out' => $is_sold_out,
+                'is_manual_sold_out' => $is_manual_sold_out,
+                'stock' => [
+                    'total' => $stock['total'],
+                    'sold' => $stock['sold'],
+                    'available' => $stock['available'],
+                    'unlimited' => $stock['unlimited'],
+                ],
+            ];
+
+            if (!$is_sold_out) {
+                $all_sold_out = false;
+            }
+        }
+
+        // Get event details
+        $start_date = get_post_meta($event_id, '_gps_start_date', true);
+        $end_date = get_post_meta($event_id, '_gps_end_date', true);
+
+        $response = [
+            'success' => true,
+            'event' => [
+                'id' => $event_id,
+                'title' => $event->post_title,
+                'url' => get_permalink($event_id),
+                'start_date' => $start_date,
+                'end_date' => $end_date,
+                'start_date_formatted' => $start_date ? date_i18n(get_option('date_format'), strtotime($start_date)) : '',
+            ],
+            'availability' => [
+                'is_available' => !$all_sold_out && $has_tickets,
+                'is_sold_out' => $all_sold_out || !$has_tickets,
+                'has_active_tickets' => $has_tickets,
+                'reason' => !$has_tickets ? 'no_tickets' : ($all_sold_out ? 'sold_out' : 'available'),
+            ],
+            'tickets' => $ticket_info,
+            'waitlist_enabled' => $all_sold_out || !$has_tickets,
+        ];
+
+        return new \WP_REST_Response($response, 200);
+    }
+
+    /**
+     * Get single ticket availability (Public endpoint for AI Assistant)
+     *
+     * @param \WP_REST_Request $request
+     * @return \WP_REST_Response
+     */
+    public static function get_ticket_availability($request) {
+        $ticket_id = (int) $request->get_param('ticket_id');
+
+        $ticket = get_post($ticket_id);
+        if (!$ticket || $ticket->post_type !== 'gps_ticket') {
+            return new \WP_REST_Response([
+                'success' => false,
+                'error' => 'Ticket not found',
+                'ticket_id' => $ticket_id,
+            ], 404);
+        }
+
+        $event_id = (int) get_post_meta($ticket_id, '_gps_event_id', true);
+        $event = get_post($event_id);
+
+        $is_sold_out = Tickets::is_sold_out($ticket_id);
+        $is_manual_sold_out = Tickets::is_manually_sold_out($ticket_id);
+        $stock = Tickets::get_ticket_stock($ticket_id);
+        $status = get_post_meta($ticket_id, '_gps_ticket_status', true);
+
+        return new \WP_REST_Response([
+            'success' => true,
+            'ticket' => [
+                'id' => $ticket_id,
+                'name' => $ticket->post_title,
+                'price' => (float) get_post_meta($ticket_id, '_gps_ticket_price', true),
+                'status' => $status ?: 'inactive',
+            ],
+            'event' => $event ? [
+                'id' => $event_id,
+                'title' => $event->post_title,
+                'url' => get_permalink($event_id),
+            ] : null,
+            'availability' => [
+                'is_sold_out' => $is_sold_out,
+                'is_manual_sold_out' => $is_manual_sold_out,
+                'stock' => $stock,
+                'reason' => $is_manual_sold_out ? 'manual_override' : ($is_sold_out ? 'stock_depleted' : 'available'),
+            ],
+            'waitlist_enabled' => $is_sold_out,
+        ], 200);
+    }
+
+    /**
+     * Add to waitlist via API (for AI Assistant)
+     *
+     * @param \WP_REST_Request $request
+     * @return \WP_REST_Response
+     */
+    public static function add_to_waitlist($request) {
+        $ticket_id = (int) $request->get_param('ticket_id');
+        $event_id = (int) $request->get_param('event_id');
+        $email = sanitize_email($request->get_param('email'));
+        $first_name = sanitize_text_field($request->get_param('first_name') ?: '');
+        $last_name = sanitize_text_field($request->get_param('last_name') ?: '');
+        $phone = sanitize_text_field($request->get_param('phone') ?: '');
+
+        // Validate required fields
+        if (!$ticket_id || !$event_id || !$email || !is_email($email)) {
+            return new \WP_REST_Response([
+                'success' => false,
+                'error' => 'Missing required fields: ticket_id, event_id, and valid email are required',
+            ], 400);
+        }
+
+        // Verify ticket and event exist
+        $ticket = get_post($ticket_id);
+        $event = get_post($event_id);
+
+        if (!$ticket || !$event) {
+            return new \WP_REST_Response([
+                'success' => false,
+                'error' => 'Invalid ticket or event ID',
+            ], 404);
+        }
+
+        // Add to waitlist
+        $result = Waitlist::add_to_waitlist($ticket_id, $event_id, $email, $first_name, $last_name, $phone);
+
+        if (is_wp_error($result)) {
+            return new \WP_REST_Response([
+                'success' => false,
+                'error' => $result->get_error_message(),
+                'error_code' => $result->get_error_code(),
+            ], 400);
+        }
+
+        return new \WP_REST_Response([
+            'success' => true,
+            'message' => 'Successfully added to waitlist',
+            'data' => [
+                'waitlist_id' => $result['id'],
+                'position' => $result['position'],
+                'email' => $email,
+                'event' => $event->post_title,
+                'ticket' => $ticket->post_title,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Check waitlist status for an email (for AI Assistant)
+     *
+     * @param \WP_REST_Request $request
+     * @return \WP_REST_Response
+     */
+    public static function check_waitlist_status($request) {
+        $email = sanitize_email($request->get_param('email'));
+        $event_id = (int) $request->get_param('event_id');
+
+        if (!$email || !is_email($email)) {
+            return new \WP_REST_Response([
+                'success' => false,
+                'error' => 'Valid email is required',
+            ], 400);
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'gps_waitlist';
+
+        $where = "email = %s AND status IN ('waiting', 'notified')";
+        $params = [$email];
+
+        if ($event_id) {
+            $where .= " AND event_id = %d";
+            $params[] = $event_id;
+        }
+
+        $entries = $wpdb->get_results($wpdb->prepare(
+            "SELECT w.*, p.post_title as event_title, t.post_title as ticket_title
+             FROM $table w
+             LEFT JOIN {$wpdb->posts} p ON w.event_id = p.ID
+             LEFT JOIN {$wpdb->posts} t ON w.ticket_type_id = t.ID
+             WHERE $where
+             ORDER BY w.created_at DESC",
+            $params
+        ));
+
+        $waitlist_entries = [];
+        foreach ($entries as $entry) {
+            $waitlist_entries[] = [
+                'id' => $entry->id,
+                'event_id' => $entry->event_id,
+                'event_title' => $entry->event_title,
+                'ticket_id' => $entry->ticket_type_id,
+                'ticket_title' => $entry->ticket_title,
+                'position' => $entry->position,
+                'status' => $entry->status,
+                'created_at' => $entry->created_at,
+                'notified_at' => $entry->notified_at,
+                'expires_at' => $entry->expires_at,
+            ];
+        }
+
+        return new \WP_REST_Response([
+            'success' => true,
+            'email' => $email,
+            'on_waitlist' => !empty($waitlist_entries),
+            'entries' => $waitlist_entries,
+            'count' => count($waitlist_entries),
+        ], 200);
     }
 
     /**
