@@ -19,6 +19,7 @@ class Waitlist {
         add_action('wp_ajax_gps_admin_notify_waitlist', [__CLASS__, 'ajax_admin_notify']);
         add_action('wp_ajax_gps_admin_mark_converted', [__CLASS__, 'ajax_admin_mark_converted']);
         add_action('wp_ajax_gps_waitlist_bulk_action', [__CLASS__, 'ajax_bulk_action']);
+        add_action('wp_ajax_gps_waitlist_test_email', [__CLASS__, 'ajax_test_email']);
 
         // Admin menu
         add_action('admin_menu', [__CLASS__, 'add_admin_menu']);
@@ -881,6 +882,402 @@ class Waitlist {
     }
 
     /**
+     * Admin AJAX - Send test email
+     */
+    public static function ajax_test_email() {
+        check_ajax_referer('gps_waitlist_admin', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('Permission denied.', 'gps-courses')]);
+        }
+
+        $email = sanitize_email($_POST['email'] ?? '');
+        $type = sanitize_text_field($_POST['email_type'] ?? 'confirmation');
+
+        if (empty($email) || !is_email($email)) {
+            wp_send_json_error(['message' => __('Please enter a valid email address.', 'gps-courses')]);
+        }
+
+        // Create mock data for test email
+        $mock_entry = (object) [
+            'id' => 0,
+            'first_name' => 'Test',
+            'last_name' => 'User',
+            'email' => $email,
+            'phone' => '(555) 123-4567',
+            'ticket_type_id' => 0,
+            'event_id' => 0,
+            'position' => 1,
+            'status' => 'waiting',
+            'created_at' => current_time('mysql'),
+            'notified_at' => null,
+            'expires_at' => date('Y-m-d H:i:s', strtotime('+48 hours')),
+        ];
+
+        // Get a real event for the test if one exists
+        $sample_event = get_posts([
+            'post_type' => 'gps_event',
+            'posts_per_page' => 1,
+            'post_status' => 'publish',
+        ]);
+
+        if (!empty($sample_event)) {
+            $event = $sample_event[0];
+            $mock_entry->event_id = $event->ID;
+
+            // Get a ticket for this event
+            $sample_ticket = get_posts([
+                'post_type' => 'gps_ticket',
+                'posts_per_page' => 1,
+                'meta_query' => [
+                    ['key' => '_gps_event_id', 'value' => $event->ID],
+                ],
+            ]);
+
+            if (!empty($sample_ticket)) {
+                $mock_entry->ticket_type_id = $sample_ticket[0]->ID;
+            }
+        }
+
+        // If no real event, create mock data
+        if (empty($mock_entry->event_id)) {
+            // Send with mock data
+            $sent = self::send_test_email_with_mock_data($email, $type);
+        } else {
+            // Send with real event data
+            if ($type === 'confirmation') {
+                $sent = self::send_test_waitlist_confirmation($mock_entry);
+            } else {
+                $sent = self::send_test_spot_available($mock_entry);
+            }
+        }
+
+        if ($sent) {
+            wp_send_json_success([
+                'message' => sprintf(__('Test email sent successfully to %s', 'gps-courses'), $email),
+            ]);
+        } else {
+            wp_send_json_error([
+                'message' => __('Failed to send test email. Please check your email configuration.', 'gps-courses'),
+            ]);
+        }
+    }
+
+    /**
+     * Send test waitlist confirmation email
+     */
+    private static function send_test_waitlist_confirmation($entry) {
+        $ticket = get_post($entry->ticket_type_id);
+        $event = get_post($entry->event_id);
+
+        if (!$ticket || !$event) {
+            return self::send_test_email_with_mock_data($entry->email, 'confirmation');
+        }
+
+        $name = $entry->first_name ?: __('there', 'gps-courses');
+        $event_url = get_permalink($entry->event_id);
+        $event_date = get_post_meta($entry->event_id, '_gps_start_date', true);
+        $event_date_formatted = $event_date ? date_i18n(get_option('date_format'), strtotime($event_date)) : '';
+
+        $subject = sprintf(
+            __('[TEST] You\'re on the Waitlist - %s', 'gps-courses'),
+            $event->post_title
+        );
+
+        // Build HTML email (same as regular confirmation)
+        ob_start();
+        ?>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f5f5f5;">
+                <tr>
+                    <td align="center" style="padding: 40px 20px;">
+                        <div style="background: #fef3c7; padding: 10px 20px; border-radius: 6px; margin-bottom: 20px; max-width: 600px;">
+                            <strong style="color: #92400e;">⚠️ <?php _e('This is a TEST email', 'gps-courses'); ?></strong>
+                        </div>
+                        <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                            <tr>
+                                <td style="padding: 40px 40px 20px;">
+                                    <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: #1e293b;">
+                                        <?php _e('You\'re on the Waitlist!', 'gps-courses'); ?>
+                                    </h1>
+                                    <p style="margin: 10px 0 0; font-size: 16px; color: #64748b;">
+                                        <?php printf(__('Hello %s, we\'ve added you to the waitlist for this course.', 'gps-courses'), esc_html($name)); ?>
+                                    </p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 20px 40px;">
+                                    <div style="background-color: #f8fafc; padding: 25px; border-radius: 8px; border-left: 4px solid #0B52AC;">
+                                        <h2 style="margin: 0 0 10px; font-size: 20px; font-weight: 600; color: #1e293b;">
+                                            <?php echo esc_html($event->post_title); ?>
+                                        </h2>
+                                        <?php if ($event_date_formatted): ?>
+                                        <p style="margin: 0 0 5px; font-size: 14px; color: #64748b;">
+                                            <strong><?php _e('Date:', 'gps-courses'); ?></strong> <?php echo esc_html($event_date_formatted); ?>
+                                        </p>
+                                        <?php endif; ?>
+                                        <p style="margin: 0; font-size: 14px; color: #64748b;">
+                                            <strong><?php _e('Ticket Type:', 'gps-courses'); ?></strong> <?php echo esc_html($ticket->post_title); ?>
+                                        </p>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 20px 40px;">
+                                    <h3 style="margin: 0 0 15px; font-size: 18px; font-weight: 600; color: #1e293b;">
+                                        <?php _e('What happens next?', 'gps-courses'); ?>
+                                    </h3>
+                                    <ul style="margin: 0; padding: 0 0 0 20px; color: #475569; font-size: 14px; line-height: 1.8;">
+                                        <li><?php _e('We\'ll notify you by email as soon as a spot becomes available.', 'gps-courses'); ?></li>
+                                        <li><?php _e('You\'ll have 48 hours to complete your purchase once notified.', 'gps-courses'); ?></li>
+                                    </ul>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 20px 40px 30px;">
+                                    <a href="<?php echo esc_url($event_url); ?>" style="display: inline-block; padding: 14px 30px; background-color: #0B52AC; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: 600;">
+                                        <?php _e('View Course Details', 'gps-courses'); ?>
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 25px 40px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; border-radius: 0 0 8px 8px;">
+                                    <p style="margin: 0; font-size: 14px; color: #64748b;"><?php _e('Thank you for your interest!', 'gps-courses'); ?></p>
+                                    <p style="margin: 10px 0 0; font-size: 14px; font-weight: 600; color: #1e293b;">GPS Dental Training</p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+        <?php
+        $message = ob_get_clean();
+
+        $headers = ['Content-Type: text/html; charset=UTF-8'];
+        return wp_mail($entry->email, $subject, $message, $headers);
+    }
+
+    /**
+     * Send test spot available email
+     */
+    private static function send_test_spot_available($entry) {
+        $ticket = get_post($entry->ticket_type_id);
+        $event = get_post($entry->event_id);
+
+        if (!$ticket || !$event) {
+            return self::send_test_email_with_mock_data($entry->email, 'spot_available');
+        }
+
+        $name = $entry->first_name ?: __('there', 'gps-courses');
+        $event_url = get_permalink($entry->event_id);
+        $event_date = get_post_meta($entry->event_id, '_gps_start_date', true);
+        $event_date_formatted = $event_date ? date_i18n(get_option('date_format'), strtotime($event_date)) : '';
+        $expires_formatted = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($entry->expires_at));
+
+        $subject = sprintf(
+            __('[TEST] A Spot is Available! - %s', 'gps-courses'),
+            $event->post_title
+        );
+
+        ob_start();
+        ?>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f5f5f5;">
+                <tr>
+                    <td align="center" style="padding: 40px 20px;">
+                        <div style="background: #fef3c7; padding: 10px 20px; border-radius: 6px; margin-bottom: 20px; max-width: 600px;">
+                            <strong style="color: #92400e;">⚠️ <?php _e('This is a TEST email', 'gps-courses'); ?></strong>
+                        </div>
+                        <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                            <tr>
+                                <td style="padding: 40px 40px 20px;">
+                                    <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: #1e293b;">
+                                        🎉 <?php _e('Great News! A Spot is Available', 'gps-courses'); ?>
+                                    </h1>
+                                    <p style="margin: 10px 0 0; font-size: 16px; color: #64748b;">
+                                        <?php printf(__('Hello %s, a spot has just opened up for a course you\'re interested in!', 'gps-courses'), esc_html($name)); ?>
+                                    </p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 20px 40px;">
+                                    <div style="background-color: #f0fdf4; padding: 25px; border-radius: 8px; border-left: 4px solid #22c55e;">
+                                        <h2 style="margin: 0 0 10px; font-size: 20px; font-weight: 600; color: #1e293b;">
+                                            <?php echo esc_html($event->post_title); ?>
+                                        </h2>
+                                        <?php if ($event_date_formatted): ?>
+                                        <p style="margin: 0 0 5px; font-size: 14px; color: #64748b;">
+                                            <strong><?php _e('Date:', 'gps-courses'); ?></strong> <?php echo esc_html($event_date_formatted); ?>
+                                        </p>
+                                        <?php endif; ?>
+                                        <p style="margin: 0; font-size: 14px; color: #64748b;">
+                                            <strong><?php _e('Ticket Type:', 'gps-courses'); ?></strong> <?php echo esc_html($ticket->post_title); ?>
+                                        </p>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 20px 40px;">
+                                    <div style="background-color: #fef2f2; padding: 20px; border-radius: 8px; border: 1px solid #fecaca;">
+                                        <p style="margin: 0; font-size: 16px; color: #dc2626; font-weight: 600;">
+                                            ⏰ <?php _e('Act Fast! This offer expires:', 'gps-courses'); ?>
+                                        </p>
+                                        <p style="margin: 10px 0 0; font-size: 18px; color: #1e293b; font-weight: bold;">
+                                            <?php echo esc_html($expires_formatted); ?>
+                                        </p>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 20px 40px 30px;" align="center">
+                                    <a href="<?php echo esc_url($event_url); ?>" style="display: inline-block; padding: 16px 40px; background-color: #22c55e; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 18px; font-weight: 600;">
+                                        <?php _e('Get Your Ticket Now', 'gps-courses'); ?>
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 25px 40px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; border-radius: 0 0 8px 8px;">
+                                    <p style="margin: 0; font-size: 14px; color: #64748b;"><?php _e('Don\'t miss this opportunity!', 'gps-courses'); ?></p>
+                                    <p style="margin: 10px 0 0; font-size: 14px; font-weight: 600; color: #1e293b;">GPS Dental Training</p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+        <?php
+        $message = ob_get_clean();
+
+        $headers = ['Content-Type: text/html; charset=UTF-8'];
+        return wp_mail($entry->email, $subject, $message, $headers);
+    }
+
+    /**
+     * Send test email with mock data (when no real events exist)
+     */
+    private static function send_test_email_with_mock_data($email, $type) {
+        $subject = $type === 'confirmation'
+            ? __('[TEST] You\'re on the Waitlist - Sample Course', 'gps-courses')
+            : __('[TEST] A Spot is Available! - Sample Course', 'gps-courses');
+
+        $expires_formatted = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime('+48 hours'));
+
+        ob_start();
+        ?>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f5f5f5;">
+                <tr>
+                    <td align="center" style="padding: 40px 20px;">
+                        <div style="background: #fef3c7; padding: 10px 20px; border-radius: 6px; margin-bottom: 20px; max-width: 600px;">
+                            <strong style="color: #92400e;">⚠️ <?php _e('This is a TEST email with sample data', 'gps-courses'); ?></strong>
+                        </div>
+                        <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                            <tr>
+                                <td style="padding: 40px 40px 20px;">
+                                    <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: #1e293b;">
+                                        <?php if ($type === 'confirmation'): ?>
+                                            <?php _e('You\'re on the Waitlist!', 'gps-courses'); ?>
+                                        <?php else: ?>
+                                            🎉 <?php _e('Great News! A Spot is Available', 'gps-courses'); ?>
+                                        <?php endif; ?>
+                                    </h1>
+                                    <p style="margin: 10px 0 0; font-size: 16px; color: #64748b;">
+                                        <?php _e('Hello Test User, this is a sample waitlist email.', 'gps-courses'); ?>
+                                    </p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 20px 40px;">
+                                    <div style="background-color: <?php echo $type === 'confirmation' ? '#f8fafc' : '#f0fdf4'; ?>; padding: 25px; border-radius: 8px; border-left: 4px solid <?php echo $type === 'confirmation' ? '#0B52AC' : '#22c55e'; ?>;">
+                                        <h2 style="margin: 0 0 10px; font-size: 20px; font-weight: 600; color: #1e293b;">
+                                            Sample Course: Mastering Dental Implants
+                                        </h2>
+                                        <p style="margin: 0 0 5px; font-size: 14px; color: #64748b;">
+                                            <strong><?php _e('Date:', 'gps-courses'); ?></strong> <?php echo date_i18n(get_option('date_format'), strtotime('+30 days')); ?>
+                                        </p>
+                                        <p style="margin: 0; font-size: 14px; color: #64748b;">
+                                            <strong><?php _e('Ticket Type:', 'gps-courses'); ?></strong> Early Bird
+                                        </p>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php if ($type === 'spot_available'): ?>
+                            <tr>
+                                <td style="padding: 20px 40px;">
+                                    <div style="background-color: #fef2f2; padding: 20px; border-radius: 8px; border: 1px solid #fecaca;">
+                                        <p style="margin: 0; font-size: 16px; color: #dc2626; font-weight: 600;">
+                                            ⏰ <?php _e('Act Fast! This offer expires:', 'gps-courses'); ?>
+                                        </p>
+                                        <p style="margin: 10px 0 0; font-size: 18px; color: #1e293b; font-weight: bold;">
+                                            <?php echo esc_html($expires_formatted); ?>
+                                        </p>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php else: ?>
+                            <tr>
+                                <td style="padding: 20px 40px;">
+                                    <h3 style="margin: 0 0 15px; font-size: 18px; font-weight: 600; color: #1e293b;">
+                                        <?php _e('What happens next?', 'gps-courses'); ?>
+                                    </h3>
+                                    <ul style="margin: 0; padding: 0 0 0 20px; color: #475569; font-size: 14px; line-height: 1.8;">
+                                        <li><?php _e('We\'ll notify you by email as soon as a spot becomes available.', 'gps-courses'); ?></li>
+                                        <li><?php _e('You\'ll have 48 hours to complete your purchase once notified.', 'gps-courses'); ?></li>
+                                    </ul>
+                                </td>
+                            </tr>
+                            <?php endif; ?>
+                            <tr>
+                                <td style="padding: 20px 40px 30px;" align="<?php echo $type === 'spot_available' ? 'center' : 'left'; ?>">
+                                    <a href="<?php echo home_url(); ?>" style="display: inline-block; padding: <?php echo $type === 'spot_available' ? '16px 40px' : '14px 30px'; ?>; background-color: <?php echo $type === 'spot_available' ? '#22c55e' : '#0B52AC'; ?>; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: <?php echo $type === 'spot_available' ? '18px' : '16px'; ?>; font-weight: 600;">
+                                        <?php echo $type === 'spot_available' ? __('Get Your Ticket Now', 'gps-courses') : __('View Course Details', 'gps-courses'); ?>
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 25px 40px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; border-radius: 0 0 8px 8px;">
+                                    <p style="margin: 0; font-size: 14px; color: #64748b;">
+                                        <?php echo $type === 'spot_available' ? __('Don\'t miss this opportunity!', 'gps-courses') : __('Thank you for your interest!', 'gps-courses'); ?>
+                                    </p>
+                                    <p style="margin: 10px 0 0; font-size: 14px; font-weight: 600; color: #1e293b;">GPS Dental Training</p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+        <?php
+        $message = ob_get_clean();
+
+        $headers = ['Content-Type: text/html; charset=UTF-8'];
+        return wp_mail($email, $subject, $message, $headers);
+    }
+
+    /**
      * Render admin page
      */
     public static function render_admin_page() {
@@ -919,6 +1316,27 @@ class Waitlist {
         ?>
         <div class="wrap gps-waitlist-page">
             <h1><?php _e('Waitlist Management', 'gps-courses'); ?></h1>
+
+            <!-- Test Email Section -->
+            <div class="gps-test-email-section" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
+                <h3 style="margin-top: 0;"><?php _e('Send Test Email', 'gps-courses'); ?></h3>
+                <p style="color: #666; margin-bottom: 15px;"><?php _e('Test how waitlist emails look by sending a sample to your email address.', 'gps-courses'); ?></p>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                    <input type="email"
+                           id="gps-test-email-address"
+                           placeholder="<?php esc_attr_e('Enter email address', 'gps-courses'); ?>"
+                           value="<?php echo esc_attr(wp_get_current_user()->user_email); ?>"
+                           style="width: 300px; padding: 8px 12px;">
+                    <select id="gps-test-email-type" style="padding: 8px 12px;">
+                        <option value="confirmation"><?php _e('Waitlist Confirmation', 'gps-courses'); ?></option>
+                        <option value="spot_available"><?php _e('Spot Available Notification', 'gps-courses'); ?></option>
+                    </select>
+                    <button type="button" id="gps-send-test-email" class="button button-primary">
+                        <?php _e('Send Test Email', 'gps-courses'); ?>
+                    </button>
+                    <span id="gps-test-email-status" style="display: none;"></span>
+                </div>
+            </div>
 
             <!-- Statistics Cards -->
             <div class="gps-waitlist-stats">
