@@ -2707,9 +2707,9 @@ class Woo {
 
         <style>
             .gps-checkout-refund-policy {
-                background: linear-gradient(135deg, #fff9f0 0%, #fff3e0 100%);
-                border: 1px solid rgba(255, 152, 0, 0.3);
-                border-left: 4px solid #ff9800;
+                background: linear-gradient(135deg, rgba(11, 82, 172, 0.04) 0%, rgba(11, 82, 172, 0.08) 100%);
+                border: 1px solid rgba(11, 82, 172, 0.2);
+                border-left: 4px solid #0B52AC;
                 border-radius: 8px;
                 padding: 16px 20px;
                 margin: 20px 0;
@@ -2719,13 +2719,14 @@ class Woo {
                 display: flex;
                 align-items: center;
                 gap: 8px;
-                color: #e65100;
+                color: #0C2044;
                 margin-bottom: 10px;
                 font-size: 14px;
             }
 
             .gps-checkout-refund-policy .gps-policy-header svg {
                 flex-shrink: 0;
+                color: #0B52AC;
             }
 
             .gps-checkout-refund-policy .gps-policy-details {
@@ -2737,7 +2738,7 @@ class Woo {
             .gps-checkout-refund-policy .gps-policy-details li {
                 padding: 4px 0 4px 20px;
                 position: relative;
-                color: #5d4037;
+                color: #0C2044;
                 font-size: 13px;
                 line-height: 1.5;
             }
@@ -2747,7 +2748,7 @@ class Woo {
                 position: absolute;
                 left: 6px;
                 font-weight: 700;
-                color: #ff9800;
+                color: #DDC89D;
             }
         </style>
         <?php
