@@ -770,6 +770,7 @@ class Ticket_Selector_Widget extends Base_Widget {
             position: relative;
             display: inline-block;
             margin-top: 20px;
+            margin-bottom: 150px; /* Space for tooltip */
         }
 
         .gps-policy-trigger {
@@ -777,10 +778,10 @@ class Ticket_Selector_Widget extends Base_Widget {
             align-items: center;
             gap: 6px;
             padding: 8px 16px;
-            background: rgba(255, 152, 0, 0.1);
-            border: 1px solid rgba(255, 152, 0, 0.3);
+            background: rgba(11, 82, 172, 0.08);
+            border: 1px solid rgba(11, 82, 172, 0.25);
             border-radius: 20px;
-            color: #e65100;
+            color: #0B52AC;
             font-size: 13px;
             font-weight: 500;
             cursor: help;
@@ -794,25 +795,28 @@ class Ticket_Selector_Widget extends Base_Widget {
         }
 
         .gps-policy-trigger:hover {
-            background: rgba(255, 152, 0, 0.15);
-            border-color: rgba(255, 152, 0, 0.5);
+            background: rgba(11, 82, 172, 0.12);
+            border-color: rgba(11, 82, 172, 0.4);
+            color: #173D84;
         }
 
         .gps-policy-tooltip {
             position: absolute;
-            bottom: calc(100% + 10px);
+            bottom: calc(100% + 12px);
             left: 50%;
             transform: translateX(-50%);
             background: white;
-            border: 2px solid #ff9800;
+            border: 2px solid #DDC89D;
             border-radius: 12px;
             padding: 16px 20px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-            min-width: 300px;
+            box-shadow: 0 8px 24px rgba(11, 82, 172, 0.2);
+            min-width: 320px;
+            max-width: 90vw;
             opacity: 0;
             visibility: hidden;
+            pointer-events: none;
             transition: all 0.3s ease;
-            z-index: 1000;
+            z-index: 9999;
         }
 
         .gps-policy-tooltip::before {
@@ -822,7 +826,7 @@ class Ticket_Selector_Widget extends Base_Widget {
             left: 50%;
             transform: translateX(-50%);
             border: 8px solid transparent;
-            border-top-color: #ff9800;
+            border-top-color: #DDC89D;
         }
 
         .gps-policy-tooltip::after {
@@ -839,11 +843,12 @@ class Ticket_Selector_Widget extends Base_Widget {
         .gps-refund-policy-pill:hover .gps-policy-tooltip {
             opacity: 1;
             visibility: visible;
+            pointer-events: auto;
         }
 
         .gps-policy-tooltip h4 {
             margin: 0 0 12px 0;
-            color: #e65100;
+            color: #0C2044;
             font-size: 14px;
             font-weight: 600;
         }
@@ -857,9 +862,9 @@ class Ticket_Selector_Widget extends Base_Widget {
         .gps-policy-tooltip li {
             padding: 6px 0 6px 20px;
             position: relative;
-            color: #5d4037;
+            color: #0C2044;
             font-size: 13px;
-            line-height: 1.4;
+            line-height: 1.5;
         }
 
         .gps-policy-tooltip li::before {
@@ -867,7 +872,7 @@ class Ticket_Selector_Widget extends Base_Widget {
             position: absolute;
             left: 6px;
             font-weight: 700;
-            color: #ff9800;
+            color: #DDC89D;
         }
 
         /* Sold Out Card Styling */
