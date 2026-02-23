@@ -460,7 +460,7 @@ class Seminar_Schedule_Widget extends Base_Widget {
                 align-items: center;
                 gap: 8px;
                 background: linear-gradient(135deg, #0B52AC 0%, #173D84 100%);
-                color: #fff;
+                color: #DDC89D;
                 padding: 12px 24px;
                 border-radius: 8px;
                 font-weight: 600;
@@ -475,7 +475,7 @@ class Seminar_Schedule_Widget extends Base_Widget {
                 background: linear-gradient(135deg, #173D84 0%, #0C2044 100%);
                 transform: translateY(-2px);
                 box-shadow: 0 6px 20px rgba(11, 82, 172, 0.4);
-                color: #fff;
+                color: #ffffff;
             }
 
             .gps-register-btn:active {
