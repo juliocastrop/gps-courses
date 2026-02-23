@@ -17,6 +17,7 @@ class Plugin {
         require_once GPSC_PATH . 'includes/class-qrcode.php';
         require_once GPSC_PATH . 'includes/class-emails.php';
         require_once GPSC_PATH . 'includes/class-email-settings.php';
+        require_once GPSC_PATH . 'includes/class-email-template-manager.php';
         require_once GPSC_PATH . 'includes/class-waitlist.php';
         require_once GPSC_PATH . 'includes/class-elementor.php';
         require_once GPSC_PATH . 'includes/class-attendance.php';
@@ -51,6 +52,7 @@ class Plugin {
         Schedules::init();
         Emails::init();
         Email_Settings::init();
+        Email_Template_Manager::init();
         Waitlist::init();
         Elementor_Integration::init();
         Attendance::init();
