@@ -227,6 +227,24 @@ class Seminar_Schedule_Widget extends Base_Widget {
                                     <?php echo wpautop(esc_html($session->description)); ?>
                                 </div>
                             <?php endif; ?>
+
+                            <?php
+                            // Get seminar product ID for registration link
+                            $product_id = get_post_meta($seminar_id, '_gps_wc_product_id', true);
+                            if ($product_id && $is_upcoming):
+                                $product_url = get_permalink($product_id);
+                            ?>
+                                <div class="gps-session-register">
+                                    <a href="<?php echo esc_url($product_url); ?>" class="gps-register-btn">
+                                        <?php _e('Register Now', 'gps-courses'); ?>
+                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10.5 5a.5.5 0 01.5.5v4a.5.5 0 01-1 0v-4a.5.5 0 01.5-.5z"/>
+                                            <path fill-rule="evenodd" d="M7.646 4.646a.5.5 0 01.708 0l3 3a.5.5 0 010 .708l-3 3a.5.5 0 01-.708-.708L10.293 8 7.646 5.354a.5.5 0 010-.708z"/>
+                                            <path fill-rule="evenodd" d="M4.5 8a.5.5 0 01.5-.5h5.5a.5.5 0 010 1H5a.5.5 0 01-.5-.5z"/>
+                                        </svg>
+                                    </a>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -427,6 +445,43 @@ class Seminar_Schedule_Widget extends Base_Widget {
                 font-size: 14px;
                 padding-top: 15px;
                 border-top: 1px solid #f0f0f0;
+            }
+
+            .gps-session-register {
+                margin-top: 15px;
+                padding-top: 15px;
+                border-top: 1px solid #f0f0f0;
+            }
+
+            .gps-register-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                background: linear-gradient(135deg, #2271b1 0%, #135e96 100%);
+                color: #fff;
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-weight: 600;
+                font-size: 14px;
+                text-decoration: none;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 12px rgba(34, 113, 177, 0.2);
+            }
+
+            .gps-register-btn:hover {
+                background: linear-gradient(135deg, #135e96 0%, #0a4a78 100%);
+                transform: translateY(-2px);
+                box-shadow: 0 6px 16px rgba(34, 113, 177, 0.3);
+                color: #fff;
+            }
+
+            .gps-register-btn svg {
+                flex-shrink: 0;
+                transition: transform 0.3s ease;
+            }
+
+            .gps-register-btn:hover svg {
+                transform: translateX(4px);
             }
 
             @media (max-width: 768px) {

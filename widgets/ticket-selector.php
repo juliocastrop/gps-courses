@@ -562,6 +562,21 @@ class Ticket_Selector_Widget extends Base_Widget {
         ?>
         <div class="gps-ticket-selector <?php echo esc_attr($layout_class); ?>">
 
+            <!-- Refund Policy Notice -->
+            <div class="gps-refund-policy-notice">
+                <div class="gps-policy-header">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                    </svg>
+                    <strong><?php _e('Course Refund Policy', 'gps-courses'); ?></strong>
+                </div>
+                <ul class="gps-policy-list">
+                    <li><?php _e('Cancellations made 30 days or more before the course start date: 100% refund', 'gps-courses'); ?></li>
+                    <li><?php _e('Cancellations made 15–29 days before the course start date: 50% refund', 'gps-courses'); ?></li>
+                    <li><?php _e('Cancellations made 14 days or less before the course start date: No refund', 'gps-courses'); ?></li>
+                </ul>
+            </div>
+
             <?php if ($settings['layout'] === 'table'): ?>
             <table class="gps-tickets-table">
                 <thead>
@@ -747,6 +762,50 @@ class Ticket_Selector_Widget extends Base_Widget {
         </div>
 
         <style>
+        /* Refund Policy Notice */
+        .gps-refund-policy-notice {
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+            border: 2px solid #ff9800;
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin-bottom: 30px;
+        }
+
+        .gps-policy-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #e65100;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+
+        .gps-policy-header svg {
+            flex-shrink: 0;
+        }
+
+        .gps-policy-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .gps-policy-list li {
+            padding: 8px 0 8px 28px;
+            position: relative;
+            color: #5d4037;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .gps-policy-list li::before {
+            content: '•';
+            position: absolute;
+            left: 12px;
+            font-weight: 700;
+            color: #ff9800;
+        }
+
         /* Sold Out Card Styling */
         .gps-ticket-sold-out {
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
