@@ -562,21 +562,6 @@ class Ticket_Selector_Widget extends Base_Widget {
         ?>
         <div class="gps-ticket-selector <?php echo esc_attr($layout_class); ?>">
 
-            <!-- Refund Policy Notice -->
-            <div class="gps-refund-policy-notice">
-                <div class="gps-policy-header">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                    </svg>
-                    <strong><?php _e('Course Refund Policy', 'gps-courses'); ?></strong>
-                </div>
-                <ul class="gps-policy-list">
-                    <li><?php _e('Cancellations made 30 days or more before the course start date: 100% refund', 'gps-courses'); ?></li>
-                    <li><?php _e('Cancellations made 15–29 days before the course start date: 50% refund', 'gps-courses'); ?></li>
-                    <li><?php _e('Cancellations made 14 days or less before the course start date: No refund', 'gps-courses'); ?></li>
-                </ul>
-            </div>
-
             <?php if ($settings['layout'] === 'table'): ?>
             <table class="gps-tickets-table">
                 <thead>
@@ -759,49 +744,128 @@ class Ticket_Selector_Widget extends Base_Widget {
             </table>
             <?php endif; ?>
 
+            <!-- Refund Policy Pill (Subtle) -->
+            <div class="gps-refund-policy-pill">
+                <div class="gps-policy-trigger">
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                    </svg>
+                    <span><?php _e('Refund Policy', 'gps-courses'); ?></span>
+                </div>
+                <div class="gps-policy-tooltip">
+                    <h4><?php _e('Course Refund Policy', 'gps-courses'); ?></h4>
+                    <ul>
+                        <li><?php _e('30+ days before: 100% refund', 'gps-courses'); ?></li>
+                        <li><?php _e('15-29 days before: 50% refund', 'gps-courses'); ?></li>
+                        <li><?php _e('14 days or less: No refund', 'gps-courses'); ?></li>
+                    </ul>
+                </div>
+            </div>
+
         </div>
 
         <style>
-        /* Refund Policy Notice */
-        .gps-refund-policy-notice {
-            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+        /* Refund Policy Pill (Subtle) */
+        .gps-refund-policy-pill {
+            position: relative;
+            display: inline-block;
+            margin-top: 20px;
+        }
+
+        .gps-policy-trigger {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: rgba(255, 152, 0, 0.1);
+            border: 1px solid rgba(255, 152, 0, 0.3);
+            border-radius: 20px;
+            color: #e65100;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: help;
+            transition: all 0.3s ease;
+        }
+
+        .gps-policy-trigger svg {
+            flex-shrink: 0;
+            width: 16px;
+            height: 16px;
+        }
+
+        .gps-policy-trigger:hover {
+            background: rgba(255, 152, 0, 0.15);
+            border-color: rgba(255, 152, 0, 0.5);
+        }
+
+        .gps-policy-tooltip {
+            position: absolute;
+            bottom: calc(100% + 10px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
             border: 2px solid #ff9800;
             border-radius: 12px;
-            padding: 20px 24px;
-            margin-bottom: 30px;
+            padding: 16px 20px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            min-width: 300px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
         }
 
-        .gps-policy-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        .gps-policy-tooltip::before {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 8px solid transparent;
+            border-top-color: #ff9800;
+        }
+
+        .gps-policy-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: white;
+            margin-top: -2px;
+        }
+
+        .gps-refund-policy-pill:hover .gps-policy-tooltip {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .gps-policy-tooltip h4 {
+            margin: 0 0 12px 0;
             color: #e65100;
-            margin-bottom: 12px;
-            font-size: 16px;
+            font-size: 14px;
+            font-weight: 600;
         }
 
-        .gps-policy-header svg {
-            flex-shrink: 0;
-        }
-
-        .gps-policy-list {
+        .gps-policy-tooltip ul {
             list-style: none;
             padding: 0;
             margin: 0;
         }
 
-        .gps-policy-list li {
-            padding: 8px 0 8px 28px;
+        .gps-policy-tooltip li {
+            padding: 6px 0 6px 20px;
             position: relative;
             color: #5d4037;
-            font-size: 14px;
-            line-height: 1.5;
+            font-size: 13px;
+            line-height: 1.4;
         }
 
-        .gps-policy-list li::before {
+        .gps-policy-tooltip li::before {
             content: '•';
             position: absolute;
-            left: 12px;
+            left: 6px;
             font-weight: 700;
             color: #ff9800;
         }

@@ -86,6 +86,9 @@ class Woo {
         // Redirect product links to event/course page in cart and checkout
         add_filter('woocommerce_cart_item_permalink', [__CLASS__, 'change_cart_item_permalink'], 10, 3);
         add_filter('woocommerce_order_item_permalink', [__CLASS__, 'change_order_item_permalink'], 10, 3);
+
+        // Add refund policy to checkout
+        add_action('woocommerce_review_order_before_payment', [__CLASS__, 'display_refund_policy_checkout']);
     }
 
     /**
@@ -2117,15 +2120,192 @@ class Woo {
                     </div>
                     <?php endif; ?>
 
-                    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                    <?php
+                    // Check if user can request makeup
+                    $can_request_makeup = !$registration->makeup_used;
+                    $missed_sessions = [];
+                    $pending_makeup_request = Seminar_Makeup_Requests::get_pending_request($registration->id);
+
+                    if ($can_request_makeup && !$pending_makeup_request) {
+                        // Find missed sessions (past sessions not attended)
+                        foreach ($sessions as $session) {
+                            $is_past = strtotime($session->session_date) < time();
+                            $attended = isset($attendance_records[$session->id]);
+                            if ($is_past && !$attended) {
+                                $missed_sessions[] = $session;
+                            }
+                        }
+                    }
+                    ?>
+
+                    <?php if ($pending_makeup_request): ?>
+                    <div style="margin-top: 20px; padding: 15px; background: #fef3c7; border-radius: 6px; border-left: 3px solid #f59e0b;">
+                        <div style="font-weight: 600; color: #92400e; margin-bottom: 5px;">
+                            <?php _e('Makeup Request Pending', 'gps-courses'); ?>
+                        </div>
+                        <div style="font-size: 14px; color: #b45309;">
+                            <?php printf(
+                                __('Your makeup request for Session #%d is being reviewed. You will be notified once a decision is made.', 'gps-courses'),
+                                $pending_makeup_request->missed_session_number ?? 'N/A'
+                            ); ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
+                    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
                         <a href="<?php echo get_permalink($registration->seminar_id); ?>" class="woocommerce-button button view">
                             <?php _e('View Seminar Details', 'gps-courses'); ?>
                         </a>
+
+                        <?php if ($can_request_makeup && !empty($missed_sessions) && !$pending_makeup_request): ?>
+                        <button type="button"
+                                class="woocommerce-button button alt gps-request-makeup-btn"
+                                data-registration-id="<?php echo $registration->id; ?>"
+                                data-seminar-title="<?php echo esc_attr($registration->seminar_title); ?>"
+                                data-missed-sessions='<?php echo json_encode(array_map(function($s) {
+                                    return [
+                                        'id' => $s->id,
+                                        'number' => $s->session_number,
+                                        'topic' => $s->topic,
+                                        'date' => date_i18n('M j, Y', strtotime($s->session_date))
+                                    ];
+                                }, $missed_sessions)); ?>'>
+                            <?php _e('Request Makeup Session', 'gps-courses'); ?>
+                        </button>
+                        <?php elseif ($registration->makeup_used): ?>
+                        <span style="font-size: 13px; color: #64748b; font-style: italic;">
+                            <?php _e('(Makeup session already used)', 'gps-courses'); ?>
+                        </span>
+                        <?php endif; ?>
                     </div>
                 </div>
                 <?php endforeach; ?>
             <?php endif; ?>
         </div>
+
+        <!-- Makeup Request Modal -->
+        <div id="gps-makeup-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 9999; align-items: center; justify-content: center;">
+            <div style="background: #fff; padding: 30px; border-radius: 12px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative;">
+                <button type="button" id="gps-makeup-modal-close" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b;">&times;</button>
+
+                <h3 style="margin: 0 0 20px 0; color: #1e293b; font-size: 20px;"><?php _e('Request Makeup Session', 'gps-courses'); ?></h3>
+
+                <form id="gps-makeup-request-form">
+                    <input type="hidden" name="registration_id" id="makeup-registration-id">
+                    <input type="hidden" name="nonce" value="<?php echo wp_create_nonce('gps_seminars_nonce'); ?>">
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151;">
+                            <?php _e('Which session did you miss?', 'gps-courses'); ?> <span style="color: #ef4444;">*</span>
+                        </label>
+                        <select name="missed_session_id" id="makeup-missed-session" required style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                            <option value=""><?php _e('Select a session...', 'gps-courses'); ?></option>
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151;">
+                            <?php _e('Reason for missing (optional)', 'gps-courses'); ?>
+                        </label>
+                        <textarea name="reason" id="makeup-reason" rows="3" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; resize: vertical;"
+                                  placeholder="<?php esc_attr_e('Briefly explain why you missed the session...', 'gps-courses'); ?>"></textarea>
+                    </div>
+
+                    <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 3px solid #0284c7;">
+                        <div style="font-size: 13px; color: #0c4a6e;">
+                            <strong><?php _e('Note:', 'gps-courses'); ?></strong>
+                            <?php _e('You have ONE makeup session per registration. Once approved, you can attend any upcoming session. Use your same QR code when checking in.', 'gps-courses'); ?>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button type="button" id="gps-makeup-cancel" class="button" style="padding: 10px 20px;">
+                            <?php _e('Cancel', 'gps-courses'); ?>
+                        </button>
+                        <button type="submit" class="button alt" style="padding: 10px 20px; background: #3b82f6; color: #fff; border: none;">
+                            <?php _e('Submit Request', 'gps-courses'); ?>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script>
+        jQuery(document).ready(function($) {
+            var $modal = $('#gps-makeup-modal');
+            var $form = $('#gps-makeup-request-form');
+            var $sessionSelect = $('#makeup-missed-session');
+
+            // Open modal
+            $('.gps-request-makeup-btn').on('click', function() {
+                var registrationId = $(this).data('registration-id');
+                var seminarTitle = $(this).data('seminar-title');
+                var missedSessions = $(this).data('missed-sessions');
+
+                $('#makeup-registration-id').val(registrationId);
+
+                // Populate sessions dropdown
+                $sessionSelect.html('<option value=""><?php _e('Select a session...', 'gps-courses'); ?></option>');
+                if (missedSessions && missedSessions.length > 0) {
+                    $.each(missedSessions, function(i, session) {
+                        $sessionSelect.append(
+                            '<option value="' + session.id + '">' +
+                            'Session #' + session.number + ' - ' + session.topic + ' (' + session.date + ')' +
+                            '</option>'
+                        );
+                    });
+                }
+
+                $modal.css('display', 'flex');
+            });
+
+            // Close modal
+            $('#gps-makeup-modal-close, #gps-makeup-cancel').on('click', function() {
+                $modal.hide();
+            });
+
+            $modal.on('click', function(e) {
+                if (e.target === this) {
+                    $modal.hide();
+                }
+            });
+
+            // Submit form
+            $form.on('submit', function(e) {
+                e.preventDefault();
+
+                var $submitBtn = $form.find('button[type="submit"]');
+                var originalText = $submitBtn.text();
+
+                $submitBtn.prop('disabled', true).text('<?php _e('Submitting...', 'gps-courses'); ?>');
+
+                $.ajax({
+                    url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                    method: 'POST',
+                    data: {
+                        action: 'gps_submit_makeup_request',
+                        nonce: $form.find('input[name="nonce"]').val(),
+                        registration_id: $('#makeup-registration-id').val(),
+                        missed_session_id: $('#makeup-missed-session').val(),
+                        reason: $('#makeup-reason').val()
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            alert('<?php _e('Your makeup request has been submitted! You will be notified once it is reviewed.', 'gps-courses'); ?>');
+                            location.reload();
+                        } else {
+                            alert(response.data.message || '<?php _e('Failed to submit request', 'gps-courses'); ?>');
+                            $submitBtn.prop('disabled', false).text(originalText);
+                        }
+                    },
+                    error: function() {
+                        alert('<?php _e('Connection error. Please try again.', 'gps-courses'); ?>');
+                        $submitBtn.prop('disabled', false).text(originalText);
+                    }
+                });
+            });
+        });
+        </script>
         <?php
 
         // Store cached content (cache for 10 minutes)
@@ -2484,5 +2664,109 @@ class Woo {
         self::sync_product_stock($ticket->ticket_type_id);
 
         error_log('GPS Courses: Stock synced after ticket #' . $ticket_id . ' created for order #' . $order_id);
+    }
+
+    /**
+     * Display refund policy notice in checkout
+     */
+    public static function display_refund_policy_checkout() {
+        // Check if cart contains GPS products
+        $has_gps_product = false;
+
+        foreach (WC()->cart->get_cart() as $cart_item) {
+            $product_id = $cart_item['product_id'];
+
+            // Check if this is a GPS ticket or seminar product
+            $ticket_type_id = self::get_ticket_type_for_product($product_id);
+            $seminar_id = self::get_seminar_for_product($product_id);
+
+            if ($ticket_type_id || $seminar_id) {
+                $has_gps_product = true;
+                break;
+            }
+        }
+
+        if (!$has_gps_product) {
+            return;
+        }
+
+        ?>
+        <div class="gps-checkout-refund-policy">
+            <div class="gps-policy-header">
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                </svg>
+                <strong><?php _e('Refund Policy', 'gps-courses'); ?></strong>
+            </div>
+            <ul class="gps-policy-details">
+                <li><?php _e('30+ days before course: 100% refund', 'gps-courses'); ?></li>
+                <li><?php _e('15-29 days before course: 50% refund', 'gps-courses'); ?></li>
+                <li><?php _e('14 days or less: No refund', 'gps-courses'); ?></li>
+            </ul>
+        </div>
+
+        <style>
+            .gps-checkout-refund-policy {
+                background: linear-gradient(135deg, #fff9f0 0%, #fff3e0 100%);
+                border: 1px solid rgba(255, 152, 0, 0.3);
+                border-left: 4px solid #ff9800;
+                border-radius: 8px;
+                padding: 16px 20px;
+                margin: 20px 0;
+            }
+
+            .gps-checkout-refund-policy .gps-policy-header {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                color: #e65100;
+                margin-bottom: 10px;
+                font-size: 14px;
+            }
+
+            .gps-checkout-refund-policy .gps-policy-header svg {
+                flex-shrink: 0;
+            }
+
+            .gps-checkout-refund-policy .gps-policy-details {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+            }
+
+            .gps-checkout-refund-policy .gps-policy-details li {
+                padding: 4px 0 4px 20px;
+                position: relative;
+                color: #5d4037;
+                font-size: 13px;
+                line-height: 1.5;
+            }
+
+            .gps-checkout-refund-policy .gps-policy-details li::before {
+                content: '•';
+                position: absolute;
+                left: 6px;
+                font-weight: 700;
+                color: #ff9800;
+            }
+        </style>
+        <?php
+    }
+
+    /**
+     * Helper: Get seminar for product
+     */
+    private static function get_seminar_for_product($product_id) {
+        global $wpdb;
+
+        $seminar_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->postmeta}
+             WHERE meta_key = '_gps_seminar_product_id'
+             AND meta_value = %d
+             LIMIT 1",
+            $product_id
+        ));
+
+        return $seminar_id;
     }
 }
