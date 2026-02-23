@@ -230,7 +230,7 @@ class Seminar_Schedule_Widget extends Base_Widget {
 
                             <?php
                             // Get seminar product ID for registration link
-                            $product_id = get_post_meta($seminar_id, '_gps_wc_product_id', true);
+                            $product_id = get_post_meta($seminar_id, '_gps_seminar_product_id', true);
                             if ($product_id && $is_upcoming):
                                 $product_url = get_permalink($product_id);
                             ?>
