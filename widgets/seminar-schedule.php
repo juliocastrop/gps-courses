@@ -101,7 +101,7 @@ class Seminar_Schedule_Widget extends Base_Widget {
             [
                 'label' => __('Timeline Color', 'gps-courses'),
                 'type' => Controls_Manager::COLOR,
-                'default' => '#2271b1',
+                'default' => '#0B52AC',
                 'selectors' => [
                     '{{WRAPPER}} .gps-schedule-timeline::before' => 'background-color: {{VALUE}};',
                     '{{WRAPPER}} .gps-schedule-item::before' => 'background-color: {{VALUE}};',
@@ -129,7 +129,7 @@ class Seminar_Schedule_Widget extends Base_Widget {
             [
                 'label' => __('Upcoming Session Color', 'gps-courses'),
                 'type' => Controls_Manager::COLOR,
-                'default' => '#2271b1',
+                'default' => '#0B52AC',
                 'selectors' => [
                     '{{WRAPPER}} .gps-schedule-item.upcoming .gps-session-number' => 'background-color: {{VALUE}};',
                 ],
@@ -303,7 +303,7 @@ class Seminar_Schedule_Widget extends Base_Widget {
                 width: 15px;
                 height: 15px;
                 border-radius: 50%;
-                background: #2271b1;
+                background: #0B52AC;
                 border: 3px solid #fff;
                 box-shadow: 0 0 0 3px #e0e0e0;
             }
@@ -352,7 +352,7 @@ class Seminar_Schedule_Widget extends Base_Widget {
                 flex-shrink: 0;
                 width: 60px;
                 height: 60px;
-                background: #2271b1;
+                background: #0B52AC;
                 color: #fff;
                 border-radius: 50%;
                 display: flex;
@@ -361,10 +361,12 @@ class Seminar_Schedule_Widget extends Base_Widget {
                 font-size: 24px;
                 font-weight: 700;
                 position: relative;
+                box-shadow: 0 2px 8px rgba(11, 82, 172, 0.2);
             }
 
             .gps-schedule-item.completed .gps-session-number {
                 background: #46b450;
+                box-shadow: 0 2px 8px rgba(70, 180, 80, 0.2);
             }
 
             .gps-check-icon {
@@ -415,8 +417,8 @@ class Seminar_Schedule_Widget extends Base_Widget {
             }
 
             .gps-status-badge.upcoming {
-                background: #e5f5fa;
-                color: #00527c;
+                background: rgba(11, 82, 172, 0.1);
+                color: #0B52AC;
             }
 
             .gps-session-meta {
@@ -457,7 +459,7 @@ class Seminar_Schedule_Widget extends Base_Widget {
                 display: inline-flex;
                 align-items: center;
                 gap: 8px;
-                background: linear-gradient(135deg, #2271b1 0%, #135e96 100%);
+                background: linear-gradient(135deg, #0B52AC 0%, #173D84 100%);
                 color: #fff;
                 padding: 12px 24px;
                 border-radius: 8px;
@@ -465,14 +467,20 @@ class Seminar_Schedule_Widget extends Base_Widget {
                 font-size: 14px;
                 text-decoration: none;
                 transition: all 0.3s ease;
-                box-shadow: 0 4px 12px rgba(34, 113, 177, 0.2);
+                box-shadow: 0 4px 12px rgba(11, 82, 172, 0.25);
+                border: none;
             }
 
             .gps-register-btn:hover {
-                background: linear-gradient(135deg, #135e96 0%, #0a4a78 100%);
+                background: linear-gradient(135deg, #173D84 0%, #0C2044 100%);
                 transform: translateY(-2px);
-                box-shadow: 0 6px 16px rgba(34, 113, 177, 0.3);
+                box-shadow: 0 6px 20px rgba(11, 82, 172, 0.4);
                 color: #fff;
+            }
+
+            .gps-register-btn:active {
+                transform: translateY(0);
+                box-shadow: 0 2px 8px rgba(11, 82, 172, 0.3);
             }
 
             .gps-register-btn svg {
