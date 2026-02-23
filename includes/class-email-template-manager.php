@@ -77,7 +77,7 @@ class Email_Template_Manager {
      */
     public static function add_admin_menu() {
         add_submenu_page(
-            'gps-courses-settings',
+            'gps-dashboard',
             __('Email Templates', 'gps-courses'),
             __('Email Templates', 'gps-courses'),
             'manage_options',
