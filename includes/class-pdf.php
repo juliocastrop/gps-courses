@@ -166,15 +166,16 @@ class PDF_Generator {
         $pdf->SetX(15);
         $pdf->SetFont('helvetica', 'B', 11);
         $pdf->SetTextColor(0, 0, 0);
+        $effective = Tickets_Admin::get_effective_attendee($ticket);
         $pdf->Cell(50, 7, 'Name:', 0, 0, 'L');
         $pdf->SetFont('helvetica', '', 11);
-        $pdf->Cell(0, 7, $ticket->attendee_name, 0, 1, 'L');
+        $pdf->Cell(0, 7, $effective->name, 0, 1, 'L');
 
         $pdf->SetX(15);
         $pdf->SetFont('helvetica', 'B', 11);
         $pdf->Cell(50, 7, 'Email:', 0, 0, 'L');
         $pdf->SetFont('helvetica', '', 11);
-        $pdf->Cell(0, 7, $ticket->attendee_email, 0, 1, 'L');
+        $pdf->Cell(0, 7, $effective->email, 0, 1, 'L');
 
         $pdf->SetXY(15, $y_start + 35);
         $pdf->Ln(10);
@@ -278,8 +279,9 @@ class PDF_Generator {
             $pdf->Ln(5);
 
             $pdf->SetFont('helvetica', '', 12);
+            $eff = Tickets_Admin::get_effective_attendee($ticket);
             $pdf->Cell(50, 8, 'Attendee:', 0, 0, 'L');
-            $pdf->Cell(0, 8, $ticket->attendee_name, 0, 1, 'L');
+            $pdf->Cell(0, 8, $eff->name, 0, 1, 'L');
 
             $pdf->Cell(50, 8, 'Ticket Code:', 0, 0, 'L');
             $pdf->Cell(0, 8, $ticket->ticket_code, 0, 1, 'L');

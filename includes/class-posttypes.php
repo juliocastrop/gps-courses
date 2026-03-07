@@ -519,6 +519,7 @@ class Posttypes {
 
         // Other fields
         $ce_credits = floatval($_POST['gps_ce_credits'] ?? 0);
+        $instructor = sanitize_text_field($_POST['gps_instructor'] ?? '');
         $description = wp_kses_post($_POST['gps_description'] ?? '');
         $course_description = sanitize_textarea_field($_POST['gps_course_description'] ?? '');
         $objectives = sanitize_textarea_field($_POST['gps_objectives'] ?? '');
@@ -535,6 +536,7 @@ class Posttypes {
         update_post_meta($post_id, '_gps_zip', $zip);
         update_post_meta($post_id, '_gps_country', $country);
         update_post_meta($post_id, '_gps_ce_credits', $ce_credits);
+        update_post_meta($post_id, '_gps_instructor', $instructor);
         update_post_meta($post_id, '_gps_description', $description);
         update_post_meta($post_id, '_gps_course_description', $course_description);
         update_post_meta($post_id, '_gps_objectives', $objectives);
@@ -996,6 +998,7 @@ class Posttypes {
         $description = get_post_meta($post->ID, '_gps_description', true);
         $course_description = get_post_meta($post->ID, '_gps_course_description', true);
         $ce_credits = get_post_meta($post->ID, '_gps_ce_credits', true);
+        $instructor = get_post_meta($post->ID, '_gps_instructor', true);
         $objectives = get_post_meta($post->ID, '_gps_objectives', true);
 
         // Get taxonomies - handle new posts and errors
@@ -1168,6 +1171,16 @@ class Posttypes {
                         <input type="number" id="gps_ce_credits" name="gps_ce_credits"
                                value="<?php echo esc_attr($ce_credits); ?>" min="0" step="0.5" class="widefat" />
                         <p class="description"><?php _e('Number of CE credits offered', 'gps-courses'); ?></p>
+                    </div>
+
+                    <div class="gps-form-field">
+                        <label for="gps_instructor">
+                            <?php _e('Instructor', 'gps-courses'); ?>
+                        </label>
+                        <input type="text" id="gps_instructor" name="gps_instructor"
+                               value="<?php echo esc_attr($instructor); ?>" class="widefat"
+                               placeholder="Dr Carlos Castro DDS, FACP" />
+                        <p class="description"><?php _e('Instructor name for certificates. Leave blank to use default.', 'gps-courses'); ?></p>
                     </div>
 
                     <div class="gps-form-field">

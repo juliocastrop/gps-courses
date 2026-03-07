@@ -104,8 +104,10 @@ class Certificate_Validation {
 
         // Get event details
         $event_date = get_post_meta($certificate->event_id, '_gps_start_date', true);
+        $event_end_date = get_post_meta($certificate->event_id, '_gps_end_date', true);
         $venue = get_post_meta($certificate->event_id, '_gps_venue', true);
         $instructor = get_post_meta($certificate->event_id, '_gps_instructor', true);
+        $ce_credits = get_post_meta($certificate->event_id, '_gps_ce_credits', true);
 
         return [
             'valid' => true,
@@ -113,9 +115,10 @@ class Certificate_Validation {
                 'attendee_name' => $certificate->attendee_name,
                 'attendee_email' => $certificate->attendee_email,
                 'event_title' => $certificate->event_title,
-                'event_date' => $event_date ? date_i18n('F j, Y', strtotime($event_date)) : '',
+                'event_date' => Certificates::format_event_date_range($event_date, $event_end_date),
                 'venue' => $venue,
                 'instructor' => $instructor ?: 'Dr Carlos Castro DDS, FACP',
+                'ce_credits' => $ce_credits ? floatval($ce_credits) : 0,
                 'generated_at' => $certificate->generated_at ? date_i18n('F j, Y g:i A', strtotime($certificate->generated_at)) : '',
                 'certificate_code' => $certificate->ticket_code,
                 'certificate_url' => $certificate->certificate_url,
@@ -127,9 +130,11 @@ class Certificate_Validation {
      * Render validation page
      */
     private static function render_validation_page($validation_result, $code) {
-        // Get site title
         $site_name = get_bloginfo('name');
         $site_url = home_url();
+
+        // Get logo from certificate settings
+        $logo = Certificate_Settings::get('logo');
 
         ?>
         <!DOCTYPE html>
@@ -139,158 +144,190 @@ class Certificate_Validation {
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <meta name="robots" content="noindex, nofollow">
             <title><?php _e('Certificate Validation', 'gps-courses'); ?> - <?php echo esc_html($site_name); ?></title>
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
             <style>
-                * {
-                    margin: 0;
-                    padding: 0;
-                    box-sizing: border-box;
-                }
+                * { margin: 0; padding: 0; box-sizing: border-box; }
 
                 body {
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                    background: #0C2044;
                     min-height: 100vh;
                     display: flex;
+                    flex-direction: column;
                     align-items: center;
-                    justify-content: center;
-                    padding: 20px;
+                    justify-content: flex-start;
+                    padding: 40px 20px 60px 20px;
+                    position: relative;
+                }
+
+                /* Subtle background pattern */
+                body::before {
+                    content: '';
+                    position: absolute;
+                    top: 0; left: 0; right: 0; bottom: 0;
+                    background:
+                        radial-gradient(circle at 20% 20%, rgba(221, 200, 157, 0.08) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(11, 82, 172, 0.12) 0%, transparent 50%);
+                    pointer-events: none;
                 }
 
                 .container {
-                    max-width: 600px;
+                    max-width: 560px;
                     width: 100%;
+                    position: relative;
+                    z-index: 1;
                 }
 
                 .validation-card {
-                    background: white;
-                    border-radius: 16px;
-                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                    background: #fff;
+                    border-radius: 20px;
+                    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
                     overflow: hidden;
-                    animation: slideUp 0.4s ease-out;
+                    animation: slideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1);
                 }
 
                 @keyframes slideUp {
-                    from {
-                        opacity: 0;
-                        transform: translateY(30px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
+                    from { opacity: 0; transform: translateY(40px); }
+                    to { opacity: 1; transform: translateY(0); }
                 }
 
                 .validation-header {
-                    padding: 30px;
+                    background: linear-gradient(135deg, #0C2044 0%, #173D84 100%);
+                    padding: 32px 30px;
                     text-align: center;
-                    border-bottom: 1px solid #e0e0e0;
+                    position: relative;
+                }
+
+                .validation-header::after {
+                    content: '';
+                    position: absolute;
+                    bottom: 0; left: 0; right: 0;
+                    height: 3px;
+                    background: linear-gradient(90deg, #DDC89D, #BC9D67, #DDC89D);
+                }
+
+                .header-logo {
+                    max-height: 50px;
+                    max-width: 220px;
+                    margin-bottom: 14px;
                 }
 
                 .validation-header h1 {
-                    font-size: 24px;
-                    color: #333;
-                    margin-bottom: 8px;
-                }
-
-                .validation-header .site-link {
-                    color: #667eea;
-                    text-decoration: none;
-                    font-size: 14px;
-                }
-
-                .validation-header .site-link:hover {
-                    text-decoration: underline;
+                    font-size: 13px;
+                    color: #DDC89D;
+                    text-transform: uppercase;
+                    letter-spacing: 3px;
+                    font-weight: 500;
+                    margin: 0;
                 }
 
                 .validation-status {
-                    padding: 40px 30px;
+                    padding: 36px 30px 28px;
                     text-align: center;
                 }
 
                 .status-icon {
-                    width: 80px;
-                    height: 80px;
-                    margin: 0 auto 20px;
+                    width: 72px;
+                    height: 72px;
+                    margin: 0 auto 18px;
                     border-radius: 50%;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    font-size: 40px;
+                    font-size: 36px;
                 }
 
                 .status-icon.valid {
-                    background: #d4edda;
+                    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
                     color: #155724;
+                    box-shadow: 0 4px 16px rgba(21, 87, 36, 0.15);
                 }
 
                 .status-icon.invalid {
-                    background: #f8d7da;
+                    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
                     color: #721c24;
+                    box-shadow: 0 4px 16px rgba(114, 28, 36, 0.15);
                 }
 
                 .status-title {
-                    font-size: 28px;
-                    font-weight: 600;
-                    margin-bottom: 12px;
+                    font-size: 24px;
+                    font-weight: 700;
+                    margin-bottom: 8px;
                 }
 
-                .status-title.valid {
-                    color: #155724;
-                }
-
-                .status-title.invalid {
-                    color: #721c24;
-                }
+                .status-title.valid { color: #155724; }
+                .status-title.invalid { color: #721c24; }
 
                 .status-message {
                     color: #666;
-                    font-size: 16px;
+                    font-size: 15px;
                     line-height: 1.6;
+                    font-weight: 400;
                 }
 
                 .certificate-details {
-                    padding: 0 30px 30px;
+                    padding: 0 30px 24px;
                 }
 
                 .detail-group {
-                    margin-bottom: 20px;
-                    padding-bottom: 20px;
+                    padding: 16px 0;
                     border-bottom: 1px solid #f0f0f0;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
                 }
 
                 .detail-group:last-child {
                     border-bottom: none;
-                    margin-bottom: 0;
                 }
 
                 .detail-label {
-                    font-size: 12px;
+                    font-size: 11px;
                     text-transform: uppercase;
-                    letter-spacing: 0.5px;
+                    letter-spacing: 1px;
                     color: #999;
-                    margin-bottom: 6px;
                     font-weight: 600;
                 }
 
                 .detail-value {
                     font-size: 16px;
-                    color: #333;
+                    color: #0C2044;
                     font-weight: 500;
                 }
 
+                .detail-value.highlight {
+                    color: #0B52AC;
+                    font-weight: 600;
+                }
+
                 .certificate-code {
-                    background: #f8f9fa;
-                    padding: 12px;
-                    border-radius: 8px;
+                    background: linear-gradient(135deg, #f8f6f1 0%, #f0ece3 100%);
+                    padding: 14px 16px;
+                    border-radius: 10px;
                     font-family: 'Courier New', monospace;
                     font-size: 18px;
-                    letter-spacing: 1px;
-                    color: #667eea;
+                    letter-spacing: 2px;
+                    color: #0B52AC;
                     font-weight: bold;
+                    border: 1px solid #DDC89D;
+                }
+
+                .ce-credits-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    background: linear-gradient(135deg, #0C2044 0%, #173D84 100%);
+                    color: #DDC89D;
+                    padding: 8px 16px;
+                    border-radius: 8px;
+                    font-size: 15px;
+                    font-weight: 600;
                 }
 
                 .action-buttons {
-                    padding: 0 30px 30px;
+                    padding: 0 30px 28px;
                     display: flex;
                     gap: 12px;
                 }
@@ -299,68 +336,76 @@ class Certificate_Validation {
                     flex: 1;
                     padding: 14px 24px;
                     border: none;
-                    border-radius: 8px;
-                    font-size: 15px;
+                    border-radius: 10px;
+                    font-size: 14px;
                     font-weight: 600;
                     cursor: pointer;
                     text-decoration: none;
                     text-align: center;
-                    transition: all 0.2s;
+                    transition: all 0.25s ease;
                     display: inline-block;
+                    font-family: 'Inter', sans-serif;
                 }
 
                 .btn-primary {
-                    background: #667eea;
-                    color: white;
+                    background: linear-gradient(135deg, #0B52AC 0%, #173D84 100%);
+                    color: #fff;
                 }
 
                 .btn-primary:hover {
-                    background: #5568d3;
                     transform: translateY(-2px);
-                    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+                    box-shadow: 0 6px 20px rgba(11, 82, 172, 0.35);
                 }
 
                 .btn-secondary {
-                    background: #f8f9fa;
-                    color: #333;
-                    border: 1px solid #e0e0e0;
+                    background: #f8f6f1;
+                    color: #0C2044;
+                    border: 1px solid #DDC89D;
                 }
 
                 .btn-secondary:hover {
-                    background: #e9ecef;
+                    background: #f0ece3;
                     transform: translateY(-2px);
                 }
 
+                .btn-download {
+                    background: linear-gradient(135deg, #BC9D67 0%, #DDC89D 100%);
+                    color: #0C2044;
+                }
+
+                .btn-download:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 20px rgba(188, 157, 103, 0.4);
+                }
+
                 .footer-note {
-                    padding: 20px 30px;
-                    background: #f8f9fa;
+                    padding: 18px 30px;
+                    background: #f8f6f1;
                     text-align: center;
-                    font-size: 13px;
-                    color: #666;
+                    font-size: 12px;
+                    color: #888;
+                    border-top: 1px solid #f0ece3;
+                    line-height: 1.6;
+                }
+
+                .footer-note strong {
+                    color: #0C2044;
+                    font-weight: 600;
                 }
 
                 @media (max-width: 600px) {
-                    .validation-header h1 {
-                        font-size: 20px;
-                    }
+                    body { padding: 12px; }
 
-                    .status-icon {
-                        width: 60px;
-                        height: 60px;
-                        font-size: 30px;
-                    }
+                    .validation-header { padding: 24px 20px; }
+                    .header-logo { max-height: 40px; }
 
-                    .status-title {
-                        font-size: 22px;
-                    }
+                    .validation-status { padding: 28px 20px 20px; }
+                    .status-icon { width: 60px; height: 60px; font-size: 28px; }
+                    .status-title { font-size: 20px; }
 
-                    .action-buttons {
-                        flex-direction: column;
-                    }
-
-                    .certificate-code {
-                        font-size: 14px;
-                    }
+                    .certificate-details { padding: 0 20px 20px; }
+                    .action-buttons { flex-direction: column; padding: 0 20px 24px; }
+                    .certificate-code { font-size: 14px; letter-spacing: 1px; }
                 }
             </style>
         </head>
@@ -368,15 +413,17 @@ class Certificate_Validation {
             <div class="container">
                 <div class="validation-card">
                     <div class="validation-header">
+                        <?php if (!empty($logo)): ?>
+                            <img src="<?php echo esc_url($logo); ?>" alt="<?php echo esc_attr($site_name); ?>" class="header-logo"><br>
+                        <?php endif; ?>
                         <h1><?php _e('Certificate Validation', 'gps-courses'); ?></h1>
-                        <a href="<?php echo esc_url($site_url); ?>" class="site-link"><?php echo esc_html($site_name); ?></a>
                     </div>
 
                     <?php if ($validation_result['valid']): ?>
                         <?php $cert = $validation_result['certificate']; ?>
 
                         <div class="validation-status">
-                            <div class="status-icon valid">✓</div>
+                            <div class="status-icon valid">&#10003;</div>
                             <h2 class="status-title valid"><?php _e('Valid Certificate', 'gps-courses'); ?></h2>
                             <p class="status-message">
                                 <?php _e('This certificate has been verified and is authentic.', 'gps-courses'); ?>
@@ -391,11 +438,11 @@ class Certificate_Validation {
 
                             <div class="detail-group">
                                 <div class="detail-label"><?php _e('Recipient', 'gps-courses'); ?></div>
-                                <div class="detail-value"><?php echo esc_html($cert['attendee_name']); ?></div>
+                                <div class="detail-value highlight"><?php echo esc_html($cert['attendee_name']); ?></div>
                             </div>
 
                             <div class="detail-group">
-                                <div class="detail-label"><?php _e('Course/Event', 'gps-courses'); ?></div>
+                                <div class="detail-label"><?php _e('Course / Event', 'gps-courses'); ?></div>
                                 <div class="detail-value"><?php echo esc_html($cert['event_title']); ?></div>
                             </div>
 
@@ -420,6 +467,18 @@ class Certificate_Validation {
                             </div>
                             <?php endif; ?>
 
+                            <?php if (!empty($cert['ce_credits']) && $cert['ce_credits'] > 0): ?>
+                            <div class="detail-group">
+                                <div class="detail-label"><?php _e('CE Credits Awarded', 'gps-courses'); ?></div>
+                                <div class="ce-credits-badge">
+                                    <?php
+                                    $credits_val = $cert['ce_credits'];
+                                    echo esc_html(number_format($credits_val, ($credits_val == intval($credits_val)) ? 0 : 1) . ' ' . ($credits_val == 1 ? 'Credit Hour' : 'Credit Hours'));
+                                    ?>
+                                </div>
+                            </div>
+                            <?php endif; ?>
+
                             <div class="detail-group">
                                 <div class="detail-label"><?php _e('Issue Date', 'gps-courses'); ?></div>
                                 <div class="detail-value"><?php echo esc_html($cert['generated_at']); ?></div>
@@ -428,44 +487,45 @@ class Certificate_Validation {
 
                         <?php if (!empty($cert['certificate_url'])): ?>
                         <div class="action-buttons">
-                            <a href="<?php echo esc_url($cert['certificate_url']); ?>" class="btn btn-primary" target="_blank">
-                                <?php _e('View Certificate', 'gps-courses'); ?>
+                            <a href="<?php echo esc_url($cert['certificate_url']); ?>" class="btn btn-download" target="_blank">
+                                <?php _e('Download Certificate', 'gps-courses'); ?>
                             </a>
                             <a href="<?php echo esc_url($site_url); ?>" class="btn btn-secondary">
-                                <?php _e('Back to Home', 'gps-courses'); ?>
+                                <?php _e('Visit Website', 'gps-courses'); ?>
                             </a>
                         </div>
                         <?php endif; ?>
 
                         <div class="footer-note">
-                            <?php _e('This certificate was issued by', 'gps-courses'); ?> <?php echo esc_html($site_name); ?><br>
-                            <?php _e('Verification timestamp:', 'gps-courses'); ?> <?php echo esc_html(date_i18n('F j, Y g:i A')); ?>
+                            <?php _e('Issued by', 'gps-courses'); ?> <strong><?php echo esc_html($site_name); ?></strong><br>
+                            <?php _e('Verified on', 'gps-courses'); ?> <?php echo esc_html(date_i18n('F j, Y \a\t g:i A')); ?>
                         </div>
 
                     <?php else: ?>
 
                         <div class="validation-status">
-                            <div class="status-icon invalid">✕</div>
+                            <div class="status-icon invalid">&#10007;</div>
                             <h2 class="status-title invalid"><?php _e('Invalid Certificate', 'gps-courses'); ?></h2>
                             <p class="status-message">
                                 <?php echo esc_html($validation_result['message']); ?>
                             </p>
                             <?php if (!empty($code)): ?>
                                 <div style="margin-top: 20px;">
-                                    <div class="detail-label"><?php _e('Code Provided', 'gps-courses'); ?></div>
-                                    <div class="certificate-code"><?php echo esc_html($code); ?></div>
+                                    <div class="detail-label" style="text-align: center; margin-bottom: 8px;"><?php _e('Code Provided', 'gps-courses'); ?></div>
+                                    <div class="certificate-code" style="text-align: center;"><?php echo esc_html($code); ?></div>
                                 </div>
                             <?php endif; ?>
                         </div>
 
                         <div class="action-buttons">
                             <a href="<?php echo esc_url($site_url); ?>" class="btn btn-primary">
-                                <?php _e('Back to Home', 'gps-courses'); ?>
+                                <?php _e('Visit Website', 'gps-courses'); ?>
                             </a>
                         </div>
 
                         <div class="footer-note">
-                            <?php _e('If you believe this is an error, please contact us for assistance.', 'gps-courses'); ?>
+                            <?php _e('If you believe this is an error, please contact us at', 'gps-courses'); ?>
+                            <strong>info@gpsdentaltraining.com</strong>
                         </div>
 
                     <?php endif; ?>
@@ -503,16 +563,17 @@ class Certificate_Validation {
                     max-width: 500px;
                     margin: 30px auto;
                     padding: 30px;
-                    background: #f8f9fa;
-                    border-radius: 12px;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                    background: #f8f6f1;
+                    border-radius: 14px;
+                    box-shadow: 0 2px 12px rgba(12, 32, 68, 0.08);
+                    border: 1px solid #e8e0d0;
                 }
                 .gps-validator-title {
-                    font-size: 24px;
-                    font-weight: 600;
+                    font-size: 22px;
+                    font-weight: 700;
                     margin-bottom: 20px;
                     text-align: center;
-                    color: #333;
+                    color: #0C2044;
                 }
                 .gps-validator-form {
                     display: flex;
@@ -522,28 +583,32 @@ class Certificate_Validation {
                 .gps-validator-input {
                     flex: 1;
                     padding: 12px 16px;
-                    border: 2px solid #e0e0e0;
-                    border-radius: 8px;
+                    border: 2px solid #DDC89D;
+                    border-radius: 10px;
                     font-size: 16px;
                     transition: border-color 0.2s;
+                    font-family: 'Courier New', monospace;
+                    letter-spacing: 1px;
                 }
                 .gps-validator-input:focus {
                     outline: none;
-                    border-color: #667eea;
+                    border-color: #0B52AC;
+                    box-shadow: 0 0 0 3px rgba(11, 82, 172, 0.1);
                 }
                 .gps-validator-button {
                     padding: 12px 30px;
-                    background: #667eea;
+                    background: linear-gradient(135deg, #0B52AC 0%, #173D84 100%);
                     color: white;
                     border: none;
-                    border-radius: 8px;
-                    font-size: 16px;
+                    border-radius: 10px;
+                    font-size: 15px;
                     font-weight: 600;
                     cursor: pointer;
-                    transition: background 0.2s;
+                    transition: all 0.25s ease;
                 }
                 .gps-validator-button:hover {
-                    background: #5568d3;
+                    transform: translateY(-1px);
+                    box-shadow: 0 4px 12px rgba(11, 82, 172, 0.3);
                 }
                 .gps-validator-button:disabled {
                     background: #ccc;
@@ -551,7 +616,7 @@ class Certificate_Validation {
                 }
                 .gps-validator-result {
                     padding: 15px;
-                    border-radius: 8px;
+                    border-radius: 10px;
                     margin-top: 20px;
                     display: none;
                 }
@@ -567,7 +632,7 @@ class Certificate_Validation {
                 }
                 .gps-validator-help {
                     font-size: 13px;
-                    color: #666;
+                    color: #888;
                     text-align: center;
                     margin-top: 10px;
                 }

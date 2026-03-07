@@ -51,6 +51,9 @@ class Activator {
             order_item_id BIGINT(20) UNSIGNED DEFAULT NULL,
             attendee_name VARCHAR(255) DEFAULT NULL,
             attendee_email VARCHAR(255) DEFAULT NULL,
+            designated_attendee_name VARCHAR(255) DEFAULT NULL,
+            designated_attendee_email VARCHAR(255) DEFAULT NULL,
+            designated_attendee_id BIGINT(20) UNSIGNED DEFAULT NULL,
             qr_code_path VARCHAR(255) DEFAULT NULL,
             status VARCHAR(20) DEFAULT 'valid',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -251,6 +254,9 @@ class Activator {
 
             // Migrate waitlist table if needed
             self::migrate_waitlist_table();
+
+            // Add designated attendee columns if needed
+            self::migrate_tickets_designated_attendee();
         }
     }
 
@@ -289,6 +295,28 @@ class Activator {
             self::reorder_all_waitlists();
 
             error_log('GPS Courses: Waitlist table migration completed');
+        }
+    }
+
+    /**
+     * Add designated attendee columns to tickets table
+     */
+    public static function migrate_tickets_designated_attendee() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'gps_tickets';
+
+        $columns = $wpdb->get_results("SHOW COLUMNS FROM $table LIKE 'designated_attendee_name'");
+
+        if (empty($columns)) {
+            error_log('GPS Courses: Adding designated attendee columns to tickets table...');
+
+            $wpdb->query("ALTER TABLE $table
+                ADD COLUMN designated_attendee_name VARCHAR(255) DEFAULT NULL AFTER attendee_email,
+                ADD COLUMN designated_attendee_email VARCHAR(255) DEFAULT NULL AFTER designated_attendee_name,
+                ADD COLUMN designated_attendee_id BIGINT(20) UNSIGNED DEFAULT NULL AFTER designated_attendee_email
+            ");
+
+            error_log('GPS Courses: Designated attendee columns added successfully');
         }
     }
 

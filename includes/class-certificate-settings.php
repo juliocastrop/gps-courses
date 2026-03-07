@@ -966,22 +966,22 @@ class Certificate_Settings {
                 html += '</div>';
 
                 // Main title
-                html += '<div style="text-align: center; margin: 18px 0 12px 0;">';
-                html += '<div style="font-size: 36px; font-weight: bold; color: ' + primaryColor + '; letter-spacing: 2px;">' + (settings.main_title || 'CERTIFICATE') + '</div>';
-                html += '<div style="font-size: 15px; color: ' + secondaryColor + '; margin-top: 5px; letter-spacing: 1px;">' + (settings.main_subtitle || 'OF COMPLETION') + '</div>';
+                html += '<div style="text-align: center; margin: 12px 0 8px 0;">';
+                html += '<div style="font-size: 32px; font-weight: bold; color: ' + primaryColor + '; letter-spacing: 2px;">' + (settings.main_title || 'CERTIFICATE') + '</div>';
+                html += '<div style="font-size: 14px; color: ' + primaryColor + '; margin-top: 3px; letter-spacing: 1px;">' + (settings.main_subtitle || 'OF COMPLETION') + '</div>';
                 html += '</div>';
 
                 // Description
-                html += '<div style="text-align: center; margin: 12px 30px; font-size: 11px; line-height: 1.5; color: #333;">';
+                html += '<div style="text-align: center; margin: 8px 30px; font-size: 10px; line-height: 1.4; color: #555;">';
                 html += (settings.description_text || 'This letter certifies completion of the course.');
                 html += '</div>';
 
                 // Participant name
-                html += '<div style="text-align: center; margin: 15px 0; font-size: 26px; font-weight: bold; color: ' + primaryColor + ';">John Doe Sample</div>';
+                html += '<div style="text-align: center; margin: 10px 0 4px 0; font-size: 24px; font-weight: bold; color: ' + primaryColor + ';">John Doe Sample</div>';
 
-                // Program provider (appears after name on actual cert)
+                // Program provider
                 if (settings.program_provider) {
-                    html += '<div style="text-align: center; margin: 8px 0; font-size: 11px; color: #666;">';
+                    html += '<div style="text-align: center; margin: 4px 0; font-size: 10px; font-weight: bold; color: #444;">';
                     html += settings.program_provider;
                     html += '</div>';
                 }
@@ -995,48 +995,53 @@ class Certificate_Settings {
                     // Period dates
                     html += '<div style="text-align: center; margin: 12px 0; font-size: 14px; font-weight: bold; color: ' + dateColor + ';">January 1, 2025 - June 30, 2025</div>';
                 } else {
-                    // Course Title label and value
-                    html += '<div style="text-align: center; margin: 10px 0; font-size: 11px; color: #666;">Course Title</div>';
-                    html += '<div style="text-align: center; margin: 5px 0; font-size: 17px; font-weight: bold; color: ' + primaryColor + ';">Sample Course Title - Advanced Dental Implants</div>';
-
                     // Event date
-                    html += '<div style="text-align: center; margin: 12px 0; font-size: 14px; font-weight: bold; color: ' + dateColor + ';">November 19, 2025</div>';
+                    html += '<div style="text-align: center; margin: 8px 0; font-size: 12px; color: ' + dateColor + ';">March 6-7, 2026</div>';
 
-                    // Course method
-                    html += '<div style="text-align: center; margin: 8px 0; font-size: 11px; color: #555;">';
-                    html += '<strong>' + (settings.course_method_label || 'Course Method:') + '</strong> ' + (settings.course_method_default || 'In Person');
-                    html += '</div>';
+                    // Course Title label and value
+                    html += '<div style="text-align: center; margin: 8px 0; font-size: 10px; color: #999;">' + (settings.course_title_label || 'Course Title') + '</div>';
+                    html += '<div style="text-align: center; margin: 3px 0; font-size: 16px; font-weight: bold; color: ' + primaryColor + ';">Sample Course Title - Advanced Dental Implants</div>';
 
-                    // Location
-                    html += '<div style="text-align: center; margin: 6px 0; font-size: 11px; color: #555;">';
-                    html += '<strong>' + (settings.location_label || 'Course Location:') + '</strong> GPS Dental Training Center';
-                    html += '</div>';
+                    // CE Credits
+                    html += '<div style="text-align: center; margin: 8px 0; font-size: 12px; font-weight: bold; color: ' + secondaryColor + ';">7 CE Credit Hours</div>';
                 }
 
                 // Certificate code
-                html += '<div style="text-align: center; margin: 15px 0;">';
-                html += '<div style="background: ' + codeBg + '; color: white; padding: 6px 18px; display: inline-block; border-radius: 4px; font-size: 11px; font-weight: bold;">';
+                html += '<div style="text-align: center; margin: 10px 0;">';
+                html += '<div style="background: ' + codeBg + '; color: white; padding: 5px 16px; display: inline-block; border-radius: 4px; font-size: 10px; font-weight: bold;">';
                 html += (settings.code_label || 'CODE') + ' #PREVIEW-' + Math.random().toString(36).substr(2, 6).toUpperCase();
                 html += '</div>';
                 html += '</div>';
 
                 // Signature section
                 if (settings.signature_image) {
-                    html += '<div style="text-align: center; margin: 18px 0 8px 0;">';
-                    html += '<img src="' + settings.signature_image + '" style="max-height: 45px; max-width: 180px;" />';
+                    html += '<div style="text-align: center; margin: 12px 0 6px 0;">';
+                    html += '<img src="' + settings.signature_image + '" style="max-height: 40px; max-width: 160px;" />';
                     html += '</div>';
                 } else {
-                    html += '<div style="text-align: center; margin: 18px 0 8px 0; font-size: 36px; color: #bbb;">✓</div>';
+                    html += '<div style="text-align: center; margin: 12px 0 6px 0; font-size: 30px; color: #bbb;">&#10003;</div>';
                 }
 
                 // Instructor label
-                html += '<div style="text-align: center; margin: 6px 0; font-size: 11px; font-weight: bold; color: ' + primaryColor + ';">';
+                html += '<div style="text-align: center; margin: 4px 0; font-size: 10px; font-weight: bold; color: ' + primaryColor + ';">';
                 html += (settings.instructor_label || 'Instructor Name:') + ' Dr Carlos Castro DDS, FACP';
                 html += '</div>';
 
+                // Course method
+                if (certificateType !== 'seminar') {
+                    html += '<div style="text-align: center; margin: 3px 0; font-size: 10px; font-weight: bold; color: ' + primaryColor + ';">';
+                    html += (settings.course_method_label || 'Course Method:') + ' ' + (settings.course_method_default || 'In Person');
+                    html += '</div>';
+
+                    // Location
+                    html += '<div style="text-align: center; margin: 3px 0; font-size: 10px; color: #555;">';
+                    html += (settings.location_label || 'Course Location:') + ' GPS Dental Training Center';
+                    html += '</div>';
+                }
+
                 // Program name (for seminars)
                 if (certificateType === 'seminar') {
-                    html += '<div style="text-align: center; margin: 6px 0; font-size: 11px; font-weight: bold; color: ' + primaryColor + ';">GPS Monthly Seminars Program</div>';
+                    html += '<div style="text-align: center; margin: 4px 0; font-size: 10px; font-weight: bold; color: ' + primaryColor + ';">GPS Monthly Seminars Program</div>';
                 }
 
                 // QR Code placeholder (positioned at bottom right or left based on settings)

@@ -42,6 +42,13 @@ class Plugin {
 
         require_once GPSC_PATH . 'includes/helpers.php';
 
+        // Check for DB updates on plugin version change
+        $stored_version = get_option('gps_courses_db_version', '0');
+        if (version_compare($stored_version, GPSC_VERSION, '<')) {
+            Activator::maybe_create_tables();
+            update_option('gps_courses_db_version', GPSC_VERSION);
+        }
+
         // Hooks base
         add_action('init', [__CLASS__, 'register']);
         add_action('admin_init', [Activator::class, 'handle_recreate_tables_request']);

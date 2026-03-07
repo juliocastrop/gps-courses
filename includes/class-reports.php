@@ -425,7 +425,10 @@ class Reports {
 
         global $wpdb;
 
-        $sql = "SELECT t.*, p.post_title as event_title,
+        $sql = "SELECT t.*,
+                       COALESCE(t.designated_attendee_name, t.attendee_name) as attendee_name,
+                       COALESCE(t.designated_attendee_email, t.attendee_email) as attendee_email,
+                       p.post_title as event_title,
                        a.checked_in_at, a.check_in_method
                 FROM {$wpdb->prefix}gps_tickets t
                 INNER JOIN {$wpdb->posts} p ON t.event_id = p.ID
@@ -595,7 +598,10 @@ class Reports {
         global $wpdb;
 
         // Get recipients based on filter
-        $sql = "SELECT DISTINCT t.attendee_name, t.attendee_email, t.ticket_code
+        $sql = "SELECT DISTINCT
+                    COALESCE(t.designated_attendee_name, t.attendee_name) as attendee_name,
+                    COALESCE(t.designated_attendee_email, t.attendee_email) as attendee_email,
+                    t.ticket_code
                 FROM {$wpdb->prefix}gps_tickets t";
 
         if ($recipients === 'checked_in') {

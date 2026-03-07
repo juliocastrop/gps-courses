@@ -253,7 +253,7 @@ class Attendance {
                     <!-- Recent Check-ins -->
                     <div class="recent-checkins">
                         <h3><?php _e('Recent Check-ins', 'gps-courses'); ?></h3>
-                        <div id="recent-checkins-list"></div>
+                        <div id="gps-recent-checkins"></div>
                     </div>
                 </div>
             </div>
@@ -273,7 +273,7 @@ class Attendance {
             'post_status' => 'publish',
             'posts_per_page' => -1,
             'orderby' => 'meta_value',
-            'meta_key' => '_gps_date_start',
+            'meta_key' => '_gps_start_date',
             'order' => 'DESC',
         ]);
 
@@ -286,7 +286,7 @@ class Attendance {
                     <option value=""><?php _e('— Select Event —', 'gps-courses'); ?></option>
                     <?php foreach ($events as $event): ?>
                         <?php
-                        $start_date = get_post_meta($event->ID, '_gps_date_start', true);
+                        $start_date = get_post_meta($event->ID, '_gps_start_date', true);
                         $date_label = $start_date ? ' - ' . date_i18n('M j, Y', strtotime($start_date)) : '';
                         ?>
                         <option value="<?php echo (int) $event->ID; ?>">
@@ -365,20 +365,28 @@ class Attendance {
         }
 
         $ticket_code = isset($_POST['ticket_code']) ? sanitize_text_field($_POST['ticket_code']) : '';
+        $ticket_id = isset($_POST['ticket_id']) ? (int) $_POST['ticket_id'] : 0;
         $event_id = isset($_POST['event_id']) ? (int) $_POST['event_id'] : 0;
-
-        if (empty($ticket_code) || empty($event_id)) {
-            wp_send_json_error(['message' => __('Invalid data', 'gps-courses')]);
-        }
+        $notes = isset($_POST['notes']) ? sanitize_text_field($_POST['notes']) : '';
 
         global $wpdb;
+        $ticket = null;
 
-        // Find ticket by code
-        $ticket = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}gps_tickets WHERE ticket_code = %s AND event_id = %d",
-            $ticket_code,
-            $event_id
-        ));
+        // Find ticket by ID (from search check-in) or by code + event (from manual entry)
+        if ($ticket_id) {
+            $ticket = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}gps_tickets WHERE id = %d",
+                $ticket_id
+            ));
+        } elseif (!empty($ticket_code) && $event_id) {
+            $ticket = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}gps_tickets WHERE ticket_code = %s AND event_id = %d",
+                $ticket_code,
+                $event_id
+            ));
+        } else {
+            wp_send_json_error(['message' => __('Please provide a ticket code or select an attendee.', 'gps-courses')]);
+        }
 
         if (!$ticket) {
             wp_send_json_error(['message' => __('Ticket not found', 'gps-courses')]);
@@ -422,6 +430,7 @@ class Attendance {
 
         global $wpdb;
 
+        $like = '%' . $wpdb->esc_like($search) . '%';
         $tickets = $wpdb->get_results($wpdb->prepare(
             "SELECT t.*,
                     p.post_title as event_title,
@@ -430,23 +439,24 @@ class Attendance {
              FROM {$wpdb->prefix}gps_tickets t
              INNER JOIN {$wpdb->posts} p ON t.event_id = p.ID
              WHERE t.event_id = %d
-             AND (t.attendee_name LIKE %s OR t.attendee_email LIKE %s OR t.ticket_code LIKE %s)
-             ORDER BY t.attendee_name ASC
+             AND (t.attendee_name LIKE %s OR t.attendee_email LIKE %s
+                  OR t.designated_attendee_name LIKE %s OR t.designated_attendee_email LIKE %s
+                  OR t.ticket_code LIKE %s)
+             ORDER BY COALESCE(t.designated_attendee_name, t.attendee_name) ASC
              LIMIT 20",
             $event_id,
-            '%' . $wpdb->esc_like($search) . '%',
-            '%' . $wpdb->esc_like($search) . '%',
-            '%' . $wpdb->esc_like($search) . '%'
+            $like, $like, $like, $like, $like
         ));
 
-        // Format results for frontend
+        // Format results for frontend using effective attendee
         $results = [];
         foreach ($tickets as $ticket) {
+            $effective = Tickets_Admin::get_effective_attendee($ticket);
             $results[] = [
                 'ticket_id' => $ticket->id,
                 'ticket_code' => $ticket->ticket_code,
-                'attendee_name' => $ticket->attendee_name,
-                'attendee_email' => $ticket->attendee_email,
+                'attendee_name' => $effective->name,
+                'attendee_email' => $effective->email,
                 'event_title' => $ticket->event_title,
                 'checked_in' => ($ticket->is_checked_in > 0),
                 'checked_in_at' => $ticket->checked_in_at ? date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($ticket->checked_in_at)) : null,
@@ -553,13 +563,17 @@ class Attendance {
             ];
         }
 
+        // Resolve effective attendee (designated or buyer)
+        $effective = Tickets_Admin::get_effective_attendee($ticket);
+        $effective_user_id = $effective->user_id;
+
         // Insert attendance record
         $inserted = $wpdb->insert(
             $wpdb->prefix . 'gps_attendance',
             [
                 'ticket_id' => $ticket_id,
                 'event_id' => $ticket->event_id,
-                'user_id' => $ticket->user_id,
+                'user_id' => $effective_user_id,
                 'checked_in_at' => current_time('mysql'),
                 'checked_in_by' => $checked_in_by,
                 'check_in_method' => $method,
@@ -598,19 +612,19 @@ class Attendance {
             ['%d', '%d']
         );
 
-        // Award CE credits
+        // Award CE credits to the effective attendee
         $credits = (int) get_post_meta($ticket->event_id, '_gps_ce_credits', true);
         if ($credits > 0) {
             Credits::award(
-                $ticket->user_id,
+                $effective_user_id,
                 $ticket->event_id,
                 'attendance',
                 'Awarded upon check-in'
             );
 
             // Trigger credits email
-            do_action('gps_credits_awarded', $ticket->user_id, $ticket->event_id, $credits);
-            do_action('gps_credits_awarded_notification', $ticket->user_id, $ticket->event_id, $credits);
+            do_action('gps_credits_awarded', $effective_user_id, $ticket->event_id, $credits);
+            do_action('gps_credits_awarded_notification', $effective_user_id, $ticket->event_id, $credits);
         }
 
         // Get attendee info
@@ -691,7 +705,7 @@ class Attendance {
         $recent = $wpdb->get_results(
             "SELECT a.*,
                     t.ticket_code,
-                    t.attendee_name,
+                    COALESCE(t.designated_attendee_name, t.attendee_name) as attendee_name,
                     p.post_title as event_title
              FROM {$wpdb->prefix}gps_attendance a
              INNER JOIN {$wpdb->prefix}gps_tickets t ON a.ticket_id = t.id

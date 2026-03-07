@@ -205,9 +205,9 @@ class Certificates {
             "SELECT DISTINCT
                 t.id as ticket_id,
                 t.ticket_code,
-                t.attendee_name as user_name,
-                t.attendee_email as user_email,
-                t.user_id,
+                COALESCE(t.designated_attendee_name, t.attendee_name) as user_name,
+                COALESCE(t.designated_attendee_email, t.attendee_email) as user_email,
+                COALESCE(t.designated_attendee_id, t.user_id) as user_id,
                 a.checked_in_at,
                 c.certificate_path,
                 c.certificate_url,
@@ -216,7 +216,7 @@ class Certificates {
             INNER JOIN {$wpdb->prefix}gps_attendance a ON t.id = a.ticket_id
             LEFT JOIN {$wpdb->prefix}gps_certificates c ON c.ticket_id = t.id
             WHERE t.event_id = %d
-            ORDER BY t.attendee_name ASC",
+            ORDER BY COALESCE(t.designated_attendee_name, t.attendee_name) ASC",
             $event_id
         ));
 
@@ -414,8 +414,10 @@ class Certificates {
         // Get event details
         $event = get_post($ticket->event_id);
         $start_date = get_post_meta($ticket->event_id, '_gps_start_date', true);
+        $end_date = get_post_meta($ticket->event_id, '_gps_end_date', true);
         $venue = get_post_meta($ticket->event_id, '_gps_venue', true);
         $instructor = get_post_meta($ticket->event_id, '_gps_instructor', true);
+        $ce_credits = get_post_meta($ticket->event_id, '_gps_ce_credits', true);
 
         // Create certificate directory if it doesn't exist
         $upload_dir = wp_upload_dir();
@@ -430,7 +432,7 @@ class Certificates {
         $cert_url = $upload_dir['baseurl'] . '/gps-certificates/' . $cert_filename;
 
         // Create PDF
-        $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
+        $pdf = new TCPDF('L', 'mm', 'LETTER', true, 'UTF-8', false);
 
         // Set document information
         $pdf->SetCreator('GPS Dental Training');
@@ -448,13 +450,17 @@ class Certificates {
         // Add a page
         $pdf->AddPage();
 
+        // Resolve effective attendee (designated or buyer)
+        $effective = Tickets_Admin::get_effective_attendee($ticket);
+
         // Render certificate content
         self::render_certificate_content($pdf, [
-            'attendee_name' => $ticket->attendee_name,
+            'attendee_name' => $effective->name,
             'event_title' => $event->post_title,
-            'event_date' => $start_date ? date('F j, Y', strtotime($start_date)) : '',
+            'event_date' => self::format_event_date_range($start_date, $end_date),
             'venue' => $venue,
             'instructor' => $instructor ?: 'Dr Carlos Castro DDS, FACP',
+            'ce_credits' => $ce_credits ? floatval($ce_credits) : 0,
             'certificate_code' => $ticket->ticket_code,
         ]);
 
@@ -479,7 +485,7 @@ class Certificates {
                 $wpdb->prefix . 'gps_certificates',
                 [
                     'ticket_id' => $ticket_id,
-                    'user_id' => $ticket->user_id,
+                    'user_id' => $effective->user_id,
                     'event_id' => $ticket->event_id,
                     'certificate_path' => $cert_path,
                     'certificate_url' => $cert_url,
@@ -500,8 +506,8 @@ class Certificates {
      * Render certificate content
      */
     private static function render_certificate_content($pdf, $data) {
-        $w = 297; // A4 landscape width in mm
-        $h = 210; // A4 landscape height in mm
+        $w = 279; // Letter landscape width in mm
+        $h = 216; // Letter landscape height in mm
 
         // Get settings
         $logo = Certificate_Settings::get('logo');
@@ -592,151 +598,131 @@ class Certificates {
             $pdf->Cell($w - 40, 6, $header_subtitle, 0, 1, 'C');
         }
 
-        // Main Certificate Title - moved up
+        // Main Certificate Title
         $pdf->SetFont('helvetica', 'B', $main_title_size);
         $pdf->SetTextColor($primary_rgb[0], $primary_rgb[1], $primary_rgb[2]);
-        $pdf->SetXY(20, 48);
+        $pdf->SetXY(20, 50);
         $pdf->Cell($w - 40, 10, $main_title, 0, 1, 'C');
 
-        // OF COMPLETION Box - moved up, no border
+        // OF COMPLETION Box
         $pdf->SetFont('helvetica', '', $main_subtitle_size);
         $pdf->SetTextColor($primary_rgb[0], $primary_rgb[1], $primary_rgb[2]);
-        $pdf->SetXY(20, 60);
+        $pdf->SetXY(20, 63);
         $pdf->Cell($w - 40, 8, $main_subtitle, 0, 1, 'C');
 
-        // Description Text - moved up and reduced spacing
+        // Description Text
         $pdf->SetFont('helvetica', '', $description_size);
         $pdf->SetTextColor(80, 80, 80);
-        $pdf->SetXY(40, 72);
+        $pdf->SetXY(40, 76);
         $pdf->MultiCell($w - 80, 4, $description, 0, 'C');
 
-        // Attendee Name (Large) - moved up
+        // Attendee Name (Large)
         $pdf->SetFont('helvetica', 'B', $attendee_name_size);
         $pdf->SetTextColor($primary_rgb[0], $primary_rgb[1], $primary_rgb[2]);
-        $pdf->SetXY(20, 85);
+        $pdf->SetXY(20, 90);
         $pdf->Cell($w - 40, 8, $data['attendee_name'], 0, 1, 'C');
 
-        // Program Provider - moved up
+        // Program Provider
         $pdf->SetFont('helvetica', 'B', $description_size);
         $pdf->SetTextColor(60, 60, 60);
-        $pdf->SetXY(20, 96);
+        $pdf->SetXY(20, 101);
         $pdf->Cell($w - 40, 4, $program_provider, 0, 1, 'C');
 
-        // Event Date - moved up
+        // Event Date
         $pdf->SetFont('helvetica', '', $date_size);
         $pdf->SetTextColor($date_rgb[0], $date_rgb[1], $date_rgb[2]);
-        $pdf->SetXY(20, 102);
+        $pdf->SetXY(20, 107);
         $pdf->Cell($w - 40, 5, $data['event_date'], 0, 1, 'C');
 
-        // Course Title Label - moved up
+        // Course Title Label
         $pdf->SetFont('helvetica', '', $footer_size);
         $pdf->SetTextColor(100, 100, 100);
-        $pdf->SetXY(20, 112);
+        $pdf->SetXY(20, 117);
         $pdf->Cell($w - 40, 3, $course_title_label, 0, 1, 'C');
 
-        // Event Title (Course Name) - moved up
+        // Event Title (Course Name)
         $pdf->SetFont('helvetica', 'B', $event_title_size);
         $pdf->SetTextColor($primary_rgb[0], $primary_rgb[1], $primary_rgb[2]);
-        $pdf->SetXY(30, 118);
+        $pdf->SetXY(30, 123);
         $pdf->Cell($w - 60, 7, $data['event_title'], 0, 1, 'C');
 
-        // Certificate Code with Background - moved up
+        // CE Credits awarded
+        $next_y = 129;
+        if (!empty($data['ce_credits']) && $data['ce_credits'] > 0) {
+            $pdf->SetFont('helvetica', 'B', $footer_size + 1);
+            $pdf->SetTextColor($secondary_rgb[0], $secondary_rgb[1], $secondary_rgb[2]);
+            $pdf->SetXY(20, $next_y);
+            $credits_val = $data['ce_credits'];
+            $credits_text = number_format($credits_val, ($credits_val == intval($credits_val)) ? 0 : 1) . ' ' . ($credits_val == 1 ? 'CE Credit Hour' : 'CE Credit Hours');
+            $pdf->Cell($w - 40, 5, $credits_text, 0, 1, 'C');
+            $next_y += 6;
+        }
+
+        // Certificate Code with Background
         $pdf->SetFont('helvetica', '', $footer_size);
         $pdf->SetFillColor($code_bg_rgb[0], $code_bg_rgb[1], $code_bg_rgb[2]);
         $pdf->SetTextColor(255, 255, 255);
-        $pdf->RoundedRect(($w - 70) / 2, 130, 70, 7, 2, '1111', 'F');
-        $pdf->SetXY(($w - 70) / 2, 131);
+        $pdf->RoundedRect(($w - 70) / 2, $next_y, 70, 7, 2, '1111', 'F');
+        $pdf->SetXY(($w - 70) / 2, $next_y + 1);
         $pdf->Cell(70, 5, $code_label . ' #' . $data['certificate_code'], 0, 1, 'C', false);
 
-        // Instructor Signature - moved up and reduced size
+        // Instructor Signature
+        $sig_start_y = $next_y + 8;
+        $sig_height = 16;
         if (!empty($signature_image)) {
-            // Convert URL to file path
             $upload_dir = \wp_upload_dir();
             $signature_path = str_replace($upload_dir['baseurl'], $upload_dir['basedir'], $signature_image);
 
             if (file_exists($signature_path)) {
                 list($img_width, $img_height) = @getimagesize($signature_path);
                 if ($img_width && $img_height) {
-                    $sig_height = 12;
                     $sig_width = ($img_width / $img_height) * $sig_height;
                     $sig_x = ($w - $sig_width) / 2;
-                    $pdf->Image($signature_path, $sig_x, 141, $sig_width, $sig_height, '', '', '', true, 300);
+                    $pdf->Image($signature_path, $sig_x, $sig_start_y, $sig_width, $sig_height, '', '', '', true, 300);
                 }
             }
         } else {
-            // Signature Placeholder
             $pdf->SetFont('zapfdingbats', '', 20);
             $pdf->SetTextColor(100, 100, 100);
-            $pdf->SetXY(20, 142);
+            $pdf->SetXY(20, $sig_start_y + 1);
             $pdf->Cell($w - 40, 7, chr(252), 0, 1, 'C');
         }
 
-        // Instructor Name - centered to align with signature
+        // Instructor Name - right below signature
+        $text_y = $sig_start_y + $sig_height + 1;
         $pdf->SetFont('helvetica', 'B', $footer_size);
         $pdf->SetTextColor($primary_rgb[0], $primary_rgb[1], $primary_rgb[2]);
-        $pdf->SetXY(20, 155);
+        $pdf->SetXY(20, $text_y);
         $pdf->Cell($w - 40, 4, $instructor_label . ' ' . $data['instructor'], 0, 1, 'C');
 
-        // Course Method - new line, centered
+        // Course Method
         $pdf->SetFont('helvetica', 'B', $footer_size);
         $pdf->SetTextColor($primary_rgb[0], $primary_rgb[1], $primary_rgb[2]);
-        $pdf->SetXY(20, 160);
+        $pdf->SetXY(20, $text_y + 5);
         $pdf->Cell($w - 40, 4, $course_method_label . ' ' . $course_method, 0, 1, 'C');
 
-        // Course Location - moved up
+        // Course Location
         if (!empty($data['venue'])) {
             $pdf->SetFont('helvetica', '', $footer_size);
             $pdf->SetTextColor(80, 80, 80);
-            $pdf->SetXY(20, 166);
+            $pdf->SetXY(20, $text_y + 10);
             $pdf->Cell($w - 40, 4, $location_label . ' ' . $data['venue'], 0, 1, 'C');
         }
 
-        // QR Code for Certificate Validation - positioned first to avoid overlap
-        if ($enable_qr_code && !empty($data['certificate_code'])) {
-            // Generate QR code content (validation URL)
-            $validation_url = home_url('/certificate-validation?code=' . $data['certificate_code']);
+        // Bottom bar: PACE + QR inside one container
+        $bar_y = 179;
+        $bar_height = 25;
+        $bar_start_x = 15;
+        $bar_width = $w - 30;
 
-            // Create QR code using TCPDF's built-in 2D barcode
-            $qr_size = 18; // Reduced size from 20 to 18mm
-            $qr_y = 173; // Position from top - moved down
-
-            if ($qr_code_position === 'bottom-left') {
-                $qr_x = 18;
-            } else {
-                // bottom-right (default)
-                $qr_x = $w - $qr_size - 18;
-            }
-
-            // write2DBarcode($code, $type, $x, $y, $w, $h, $style, $align)
-            $pdf->write2DBarcode($validation_url, 'QRCODE,L', $qr_x, $qr_y, $qr_size, $qr_size, [], 'N');
-        }
-
-        // PACE Section at Bottom - full height background with rounded corners
         if ($show_pace) {
-            // Light background for PACE section - extends close to bottom border without overlap
-            $pace_y = 173;
-            $pace_height = 25; // Reduced from 27mm to 25mm to avoid border overlap
-
             $pdf->SetFillColor(240, 245, 250);
+            $pdf->RoundedRect($bar_start_x, $bar_y, $bar_width, $bar_height, 3.5, '1111', 'F');
 
-            // Adjust PACE section width if QR code is on the left
-            if ($enable_qr_code && $qr_code_position === 'bottom-left') {
-                // Start PACE section after QR code
-                $pace_start_x = 45;
-                $pace_width = $w - 60;
-                $pdf->RoundedRect($pace_start_x, $pace_y, $pace_width, $pace_height, 3.5, '1111', 'F');
-                $pace_x = $pace_start_x + 5;
-            } else {
-                // Standard full width, QR code will be on the right
-                $pace_start_x = 15;
-                $pace_width = ($enable_qr_code) ? $w - 55 : $w - 30;
-                $pdf->RoundedRect($pace_start_x, $pace_y, $pace_width, $pace_height, 3.5, '1111', 'F');
-                $pace_x = $pace_start_x + 10;
-            }
+            $pace_x = $bar_start_x + 10;
 
-            // PACE Logo (if available) - vertically centered in the section
+            // PACE Logo - vertically centered
             if (!empty($pace_logo)) {
-                // Convert URL to file path
                 $upload_dir = \wp_upload_dir();
                 $pace_logo_path = str_replace($upload_dir['baseurl'], $upload_dir['basedir'], $pace_logo);
 
@@ -745,30 +731,61 @@ class Certificates {
                     if ($img_width && $img_height) {
                         $pace_logo_height = 12;
                         $pace_logo_width = ($img_width / $img_height) * $pace_logo_height;
-                        // Center vertically in pace section
-                        $logo_y = $pace_y + ($pace_height - $pace_logo_height) / 2;
+                        $logo_y = $bar_y + ($bar_height - $pace_logo_height) / 2;
                         $pdf->Image($pace_logo_path, $pace_x, $logo_y, $pace_logo_width, $pace_logo_height, '', '', '', true, 300);
                         $pace_x += $pace_logo_width + 6;
                     }
                 }
             }
 
-            // PACE Text - vertically centered
+            // PACE Text - vertically centered, leave room for QR
             if (!empty($pace_text)) {
                 $pdf->SetFont('helvetica', '', $pace_text_size);
                 $pdf->SetTextColor(40, 40, 40);
-                // Center text vertically
-                $pdf->SetXY($pace_x, $pace_y + 3);
-                // Limit width to prevent overflow with QR code
-                $available_width = $pace_start_x + $pace_width - $pace_x - 5;
+                $pdf->SetXY($pace_x, $bar_y + 3);
+                $qr_reserved = ($enable_qr_code) ? 28 : 5;
+                $available_width = $bar_start_x + $bar_width - $pace_x - $qr_reserved;
                 $pdf->MultiCell($available_width, 2, $pace_text, 0, 'L');
             }
+        }
+
+        // QR Code inside bar, aligned right and vertically centered
+        if ($enable_qr_code && !empty($data['certificate_code'])) {
+            $validation_url = home_url('/certificate-validation?code=' . $data['certificate_code']);
+            $qr_size = 20;
+            $qr_x = $bar_start_x + $bar_width - $qr_size - 3;
+            $qr_y = $bar_y + ($bar_height - $qr_size) / 2;
+            $pdf->write2DBarcode($validation_url, 'QRCODE,L', $qr_x, $qr_y, $qr_size, $qr_size, [], 'N');
         }
     }
 
     /**
      * Convert hex color to RGB array
      */
+    public static function format_event_date_range($start_date, $end_date) {
+        if (!$start_date) {
+            return '';
+        }
+        $start_ts = strtotime($start_date);
+        $formatted_start = date('F j, Y', $start_ts);
+
+        if (!$end_date || $end_date === $start_date) {
+            return $formatted_start;
+        }
+
+        $end_ts = strtotime($end_date);
+        // Same month and year: "March 6-7, 2026"
+        if (date('F Y', $start_ts) === date('F Y', $end_ts)) {
+            return date('F j', $start_ts) . '-' . date('j, Y', $end_ts);
+        }
+        // Same year, different month: "March 6 - April 7, 2026"
+        if (date('Y', $start_ts) === date('Y', $end_ts)) {
+            return date('F j', $start_ts) . ' - ' . date('F j, Y', $end_ts);
+        }
+        // Different year
+        return $formatted_start . ' - ' . date('F j, Y', $end_ts);
+    }
+
     private static function hex_to_rgb($hex) {
         $hex = str_replace('#', '', $hex);
         if (strlen($hex) == 3) {
@@ -816,12 +833,15 @@ class Certificates {
 
         $event = get_post($ticket->event_id);
 
+        // Resolve effective attendee (designated or buyer)
+        $effective = Tickets_Admin::get_effective_attendee($ticket);
+
         // Prepare email
-        $to = $ticket->attendee_email;
+        $to = $effective->email;
         $subject = sprintf(__('Your Certificate of Completion - %s', 'gps-courses'), $event->post_title);
 
         $message = self::get_certificate_email_template([
-            'attendee_name' => $ticket->attendee_name,
+            'attendee_name' => $effective->name,
             'event_title' => $event->post_title,
             'certificate_url' => $existing->certificate_url,
         ]);
@@ -1002,7 +1022,7 @@ class Certificates {
 
         try {
             // Create PDF
-            $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
+            $pdf = new TCPDF('L', 'mm', 'LETTER', true, 'UTF-8', false);
 
             // Set document information
             $pdf->SetCreator('GPS Dental Training');
@@ -1024,9 +1044,10 @@ class Certificates {
             self::render_certificate_content_preview($pdf, [
                 'attendee_name' => 'John Doe Sample',
                 'event_title' => 'Sample Course Title - Advanced Dental Implants',
-                'event_date' => date('F j, Y'),
+                'event_date' => date('F j', strtotime('+0 days')) . '-' . date('j, Y', strtotime('+1 day')),
                 'venue' => 'GPS Dental Training Center',
                 'instructor' => 'Dr Carlos Castro DDS, FACP',
+                'ce_credits' => 7,
                 'certificate_code' => 'PREVIEW-' . strtoupper(substr(md5(time()), 0, 8)),
             ], $preview_settings);
 
@@ -1053,8 +1074,8 @@ class Certificates {
      * Render certificate content for preview with custom settings
      */
     private static function render_certificate_content_preview($pdf, $data, $settings) {
-        $w = 297; // A4 landscape width in mm
-        $h = 210; // A4 landscape height in mm
+        $w = 279; // Letter landscape width in mm
+        $h = 216; // Letter landscape height in mm
 
         // Helper to get setting value
         $get_setting = function($key, $default = '') use ($settings) {
@@ -1160,150 +1181,137 @@ class Certificates {
             $pdf->Cell($w - 40, 6, $header_subtitle, 0, 1, 'C');
         }
 
-        // Main Certificate Title - moved up
+        // Main Certificate Title
         $pdf->SetFont('helvetica', 'B', $main_title_size);
         $pdf->SetTextColor($primary_rgb[0], $primary_rgb[1], $primary_rgb[2]);
-        $pdf->SetXY(20, 48);
+        $pdf->SetXY(20, 50);
         $pdf->Cell($w - 40, 10, $main_title, 0, 1, 'C');
 
-        // OF COMPLETION Box - moved up, no border
+        // OF COMPLETION Box
         $pdf->SetFont('helvetica', '', $main_subtitle_size);
         $pdf->SetTextColor($primary_rgb[0], $primary_rgb[1], $primary_rgb[2]);
-        $pdf->SetXY(20, 60);
+        $pdf->SetXY(20, 63);
         $pdf->Cell($w - 40, 8, $main_subtitle, 0, 1, 'C');
 
-        // Description Text - moved up and reduced spacing
+        // Description Text
         $pdf->SetFont('helvetica', '', $description_size);
         $pdf->SetTextColor(80, 80, 80);
-        $pdf->SetXY(40, 72);
+        $pdf->SetXY(40, 76);
         $pdf->MultiCell($w - 80, 4, $description, 0, 'C');
 
-        // Attendee Name (Large) - moved up
+        // Attendee Name (Large)
         $pdf->SetFont('helvetica', 'B', $attendee_name_size);
         $pdf->SetTextColor($primary_rgb[0], $primary_rgb[1], $primary_rgb[2]);
-        $pdf->SetXY(20, 85);
+        $pdf->SetXY(20, 90);
         $pdf->Cell($w - 40, 8, $data['attendee_name'], 0, 1, 'C');
 
-        // Program Provider - moved up
+        // Program Provider
         $pdf->SetFont('helvetica', 'B', $description_size);
         $pdf->SetTextColor(60, 60, 60);
-        $pdf->SetXY(20, 96);
+        $pdf->SetXY(20, 101);
         $pdf->Cell($w - 40, 4, $program_provider, 0, 1, 'C');
 
-        // Event Date - moved up
+        // Event Date
         $pdf->SetFont('helvetica', '', $date_size);
         $pdf->SetTextColor($date_rgb[0], $date_rgb[1], $date_rgb[2]);
-        $pdf->SetXY(20, 102);
+        $pdf->SetXY(20, 107);
         $pdf->Cell($w - 40, 5, $data['event_date'], 0, 1, 'C');
 
-        // Course Title Label - moved up
+        // Course Title Label
         $pdf->SetFont('helvetica', '', $footer_size);
         $pdf->SetTextColor(100, 100, 100);
-        $pdf->SetXY(20, 112);
+        $pdf->SetXY(20, 117);
         $pdf->Cell($w - 40, 3, $course_title_label, 0, 1, 'C');
 
-        // Event Title (Course Name) - moved up
+        // Event Title (Course Name)
         $pdf->SetFont('helvetica', 'B', $event_title_size);
         $pdf->SetTextColor($primary_rgb[0], $primary_rgb[1], $primary_rgb[2]);
-        $pdf->SetXY(30, 118);
+        $pdf->SetXY(30, 123);
         $pdf->Cell($w - 60, 7, $data['event_title'], 0, 1, 'C');
 
-        // Certificate Code with Background - moved up
+        // CE Credits awarded
+        $next_y = 129;
+        if (!empty($data['ce_credits']) && $data['ce_credits'] > 0) {
+            $pdf->SetFont('helvetica', 'B', $footer_size + 1);
+            $pdf->SetTextColor($secondary_rgb[0], $secondary_rgb[1], $secondary_rgb[2]);
+            $pdf->SetXY(20, $next_y);
+            $credits_val = $data['ce_credits'];
+            $credits_text = number_format($credits_val, ($credits_val == intval($credits_val)) ? 0 : 1) . ' ' . ($credits_val == 1 ? 'CE Credit Hour' : 'CE Credit Hours');
+            $pdf->Cell($w - 40, 5, $credits_text, 0, 1, 'C');
+            $next_y += 6;
+        }
+
+        // Certificate Code with Background
         $pdf->SetFont('helvetica', '', $footer_size);
         $pdf->SetFillColor($code_bg_rgb[0], $code_bg_rgb[1], $code_bg_rgb[2]);
         $pdf->SetTextColor(255, 255, 255);
-        $pdf->RoundedRect(($w - 70) / 2, 130, 70, 7, 2, '1111', 'F');
-        $pdf->SetXY(($w - 70) / 2, 131);
+        $pdf->RoundedRect(($w - 70) / 2, $next_y, 70, 7, 2, '1111', 'F');
+        $pdf->SetXY(($w - 70) / 2, $next_y + 1);
         $pdf->Cell(70, 5, $code_label . ' #' . $data['certificate_code'], 0, 1, 'C', false);
 
-        // Instructor Signature - moved up and reduced size
+        // Instructor Signature
+        $sig_start_y = $next_y + 8;
+        $sig_height = 16;
         if (!empty($signature_image)) {
-            // Convert URL to file path
             $upload_dir = \wp_upload_dir();
             $signature_path = str_replace($upload_dir['baseurl'], $upload_dir['basedir'], $signature_image);
 
             if (file_exists($signature_path) && !preg_match('/\.svg$/i', $signature_path)) {
                 list($img_width, $img_height) = @getimagesize($signature_path);
                 if ($img_width && $img_height) {
-                    $sig_height = 12;
                     $sig_width = ($img_width / $img_height) * $sig_height;
                     $sig_x = ($w - $sig_width) / 2;
-                    $pdf->Image($signature_path, $sig_x, 141, $sig_width, $sig_height, '', '', '', true, 300);
+                    $pdf->Image($signature_path, $sig_x, $sig_start_y, $sig_width, $sig_height, '', '', '', true, 300);
                 }
             } else {
                 $pdf->SetFont('zapfdingbats', '', 20);
                 $pdf->SetTextColor(100, 100, 100);
-                $pdf->SetXY(20, 142);
+                $pdf->SetXY(20, $sig_start_y + 1);
                 $pdf->Cell($w - 40, 7, chr(252), 0, 1, 'C');
             }
         } else {
             $pdf->SetFont('zapfdingbats', '', 20);
             $pdf->SetTextColor(100, 100, 100);
-            $pdf->SetXY(20, 142);
+            $pdf->SetXY(20, $sig_start_y + 1);
             $pdf->Cell($w - 40, 7, chr(252), 0, 1, 'C');
         }
 
-        // Instructor Name - centered to align with signature
+        // Instructor Name - right below signature
+        $text_y = $sig_start_y + $sig_height + 1;
         $pdf->SetFont('helvetica', 'B', $footer_size);
         $pdf->SetTextColor($primary_rgb[0], $primary_rgb[1], $primary_rgb[2]);
-        $pdf->SetXY(20, 155);
+        $pdf->SetXY(20, $text_y);
         $pdf->Cell($w - 40, 4, $instructor_label . ' ' . $data['instructor'], 0, 1, 'C');
 
-        // Course Method - new line, centered
+        // Course Method
         $pdf->SetFont('helvetica', 'B', $footer_size);
         $pdf->SetTextColor($primary_rgb[0], $primary_rgb[1], $primary_rgb[2]);
-        $pdf->SetXY(20, 160);
+        $pdf->SetXY(20, $text_y + 5);
         $pdf->Cell($w - 40, 4, $course_method_label . ' ' . $course_method, 0, 1, 'C');
 
-        // Course Location - moved up
+        // Course Location
         if (!empty($data['venue'])) {
             $pdf->SetFont('helvetica', '', $footer_size);
             $pdf->SetTextColor(80, 80, 80);
-            $pdf->SetXY(20, 166);
+            $pdf->SetXY(20, $text_y + 10);
             $pdf->Cell($w - 40, 4, $location_label . ' ' . $data['venue'], 0, 1, 'C');
         }
 
-        // QR Code for Certificate Validation - positioned first to avoid overlap
-        if (($enable_qr_code == 'true' || $enable_qr_code === true || $enable_qr_code == 1) && !empty($data['certificate_code'])) {
-            $validation_url = home_url('/certificate-validation?code=' . $data['certificate_code']);
-            $qr_size = 18; // Reduced size from 20 to 18mm
-            $qr_y = 173; // Position from top - matches main function
+        // Bottom bar: PACE + QR inside one container
+        $bar_y = 179;
+        $bar_height = 25;
+        $bar_start_x = 15;
+        $bar_width = $w - 30;
+        $enable_qr = ($enable_qr_code == 'true' || $enable_qr_code === true || $enable_qr_code == 1);
 
-            if ($qr_code_position === 'bottom-left') {
-                $qr_x = 18;
-            } else {
-                $qr_x = $w - $qr_size - 18;
-            }
-
-            $pdf->write2DBarcode($validation_url, 'QRCODE,L', $qr_x, $qr_y, $qr_size, $qr_size, [], 'N');
-        }
-
-        // PACE Section at Bottom - full height background with rounded corners
         if ($show_pace == 'true' || $show_pace === true || $show_pace == 1) {
-            // Light background for PACE section - extends close to bottom border without overlap
-            $pace_y = 173;
-            $pace_height = 25; // Reduced from 27mm to 25mm to avoid border overlap
-
             $pdf->SetFillColor(240, 245, 250);
+            $pdf->RoundedRect($bar_start_x, $bar_y, $bar_width, $bar_height, 3.5, '1111', 'F');
 
-            // Adjust PACE section width if QR code is on the left
-            if (($enable_qr_code == 'true' || $enable_qr_code === true || $enable_qr_code == 1) && $qr_code_position === 'bottom-left') {
-                // Start PACE section after QR code
-                $pace_start_x = 45;
-                $pace_width = $w - 60;
-                $pdf->RoundedRect($pace_start_x, $pace_y, $pace_width, $pace_height, 3.5, '1111', 'F');
-                $pace_x = $pace_start_x + 5;
-            } else {
-                // Standard full width, QR code will be on the right
-                $pace_start_x = 15;
-                $pace_width = (($enable_qr_code == 'true' || $enable_qr_code === true || $enable_qr_code == 1)) ? $w - 55 : $w - 30;
-                $pdf->RoundedRect($pace_start_x, $pace_y, $pace_width, $pace_height, 3.5, '1111', 'F');
-                $pace_x = $pace_start_x + 10;
-            }
+            $pace_x = $bar_start_x + 10;
 
-            // PACE Logo (if available) - vertically centered in the section
+            // PACE Logo - vertically centered
             if (!empty($pace_logo)) {
-                // Convert URL to file path
                 $upload_dir = \wp_upload_dir();
                 $pace_logo_path = str_replace($upload_dir['baseurl'], $upload_dir['basedir'], $pace_logo);
 
@@ -1312,24 +1320,31 @@ class Certificates {
                     if ($img_width && $img_height) {
                         $pace_logo_height = 12;
                         $pace_logo_width = ($img_width / $img_height) * $pace_logo_height;
-                        // Center vertically in pace section
-                        $logo_y = $pace_y + ($pace_height - $pace_logo_height) / 2;
+                        $logo_y = $bar_y + ($bar_height - $pace_logo_height) / 2;
                         $pdf->Image($pace_logo_path, $pace_x, $logo_y, $pace_logo_width, $pace_logo_height, '', '', '', true, 300);
                         $pace_x += $pace_logo_width + 6;
                     }
                 }
             }
 
-            // PACE Text - vertically centered
+            // PACE Text - vertically centered, leave room for QR
             if (!empty($pace_text)) {
                 $pdf->SetFont('helvetica', '', $pace_text_size);
                 $pdf->SetTextColor(40, 40, 40);
-                // Center text vertically
-                $pdf->SetXY($pace_x, $pace_y + 3);
-                // Limit width to prevent overflow with QR code
-                $available_width = $pace_start_x + $pace_width - $pace_x - 5;
+                $pdf->SetXY($pace_x, $bar_y + 3);
+                $qr_reserved = $enable_qr ? 28 : 5;
+                $available_width = $bar_start_x + $bar_width - $pace_x - $qr_reserved;
                 $pdf->MultiCell($available_width, 2, $pace_text, 0, 'L');
             }
+        }
+
+        // QR Code inside bar, aligned right and vertically centered
+        if ($enable_qr && !empty($data['certificate_code'])) {
+            $validation_url = home_url('/certificate-validation?code=' . $data['certificate_code']);
+            $qr_size = 20;
+            $qr_x = $bar_start_x + $bar_width - $qr_size - 3;
+            $qr_y = $bar_y + ($bar_height - $qr_size) / 2;
+            $pdf->write2DBarcode($validation_url, 'QRCODE,L', $qr_x, $qr_y, $qr_size, $qr_size, [], 'N');
         }
     }
 }

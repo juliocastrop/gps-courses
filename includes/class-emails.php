@@ -62,30 +62,33 @@ class Emails {
         }
         error_log('GPS Courses: Found event: ' . $event->post_title);
 
-        // Handle both guest checkout (user_id = 0) and registered users
+        // Resolve effective attendee (designated or buyer)
+        $effective = Tickets_Admin::get_effective_attendee($ticket);
         $user = null;
         $recipient_email = '';
         $recipient_name = '';
 
-        if ($ticket->user_id > 0) {
-            // Registered user
-            $user = get_userdata($ticket->user_id);
+        if ($effective->user_id > 0) {
+            $user = get_userdata($effective->user_id);
             if (!$user) {
-                error_log('GPS Courses: User not found: #' . $ticket->user_id);
-                return false;
+                error_log('GPS Courses: User not found: #' . $effective->user_id);
+                // Fall back to ticket fields directly
+                $recipient_email = $effective->email;
+                $recipient_name = $effective->name ?: __('Guest', 'gps-courses');
+            } else {
+                error_log('GPS Courses: Found user: ' . $user->user_email);
+                $recipient_email = $effective->email ?: $user->user_email;
+                $recipient_name = $effective->name ?: $user->display_name;
             }
-            error_log('GPS Courses: Found user: ' . $user->user_email);
-            $recipient_email = $ticket->attendee_email ?: $user->user_email;
-            $recipient_name = $ticket->attendee_name ?: $user->display_name;
         } else {
-            // Guest checkout - use attendee info from ticket
+            // Guest checkout
             error_log('GPS Courses: Guest checkout detected, using attendee info from ticket');
-            if (empty($ticket->attendee_email)) {
+            if (empty($effective->email)) {
                 error_log('GPS Courses: No attendee email found for guest checkout ticket');
                 return false;
             }
-            $recipient_email = $ticket->attendee_email;
-            $recipient_name = $ticket->attendee_name ?: __('Guest', 'gps-courses');
+            $recipient_email = $effective->email;
+            $recipient_name = $effective->name ?: __('Guest', 'gps-courses');
         }
 
         // Get order
@@ -259,6 +262,7 @@ class Emails {
      */
     private static function render_ticket_email_inline($data) {
         $ticket = $data['ticket'];
+        $effective = Tickets_Admin::get_effective_attendee($ticket);
         $event = $data['event'];
         $order = $data['order'];
         ?>
@@ -350,7 +354,7 @@ class Emails {
                                     </p>
                                     <p style="margin: 0; font-size: 14px; color: #1e293b;">
                                         <strong><?php _e('Attendee:', 'gps-courses'); ?></strong>
-                                        <?php echo esc_html($ticket->attendee_name); ?>
+                                        <?php echo esc_html($effective->name); ?>
                                     </p>
 
                                     <div style="margin-top: 20px; text-align: center;">
