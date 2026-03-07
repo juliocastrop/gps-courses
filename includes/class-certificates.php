@@ -455,7 +455,7 @@ class Certificates {
 
         // Render certificate content
         self::render_certificate_content($pdf, [
-            'attendee_name' => $effective->name,
+            'attendee_name' => ucwords(strtolower($effective->name)),
             'event_title' => $event->post_title,
             'event_date' => self::format_event_date_range($start_date, $end_date),
             'venue' => $venue,
@@ -836,13 +836,22 @@ class Certificates {
         // Resolve effective attendee (designated or buyer)
         $effective = Tickets_Admin::get_effective_attendee($ticket);
 
+        // Get event details for email
+        $start_date = get_post_meta($ticket->event_id, '_gps_start_date', true);
+        $end_date = get_post_meta($ticket->event_id, '_gps_end_date', true);
+        $ce_credits = get_post_meta($ticket->event_id, '_gps_ce_credits', true);
+        $venue = get_post_meta($ticket->event_id, '_gps_venue', true);
+
         // Prepare email
         $to = $effective->email;
         $subject = sprintf(__('Your Certificate of Completion - %s', 'gps-courses'), $event->post_title);
 
         $message = self::get_certificate_email_template([
-            'attendee_name' => $effective->name,
+            'attendee_name' => ucwords(strtolower($effective->name)),
             'event_title' => $event->post_title,
+            'event_date' => self::format_event_date_range($start_date, $end_date),
+            'ce_credits' => $ce_credits ? floatval($ce_credits) : 0,
+            'venue' => $venue ?: '',
             'certificate_url' => $existing->certificate_url,
         ]);
 
@@ -851,8 +860,14 @@ class Certificates {
             'From: GPS Dental Training <' . get_option('admin_email') . '>',
         ];
 
+        // Attach PDF if file exists
+        $attachments = [];
+        if (!empty($existing->certificate_path) && file_exists($existing->certificate_path)) {
+            $attachments[] = $existing->certificate_path;
+        }
+
         // Send email
-        $sent = wp_mail($to, $subject, $message, $headers);
+        $sent = wp_mail($to, $subject, $message, $headers, $attachments);
 
         if ($sent) {
             // Update sent timestamp
@@ -880,6 +895,7 @@ class Certificates {
      * Get certificate email template
      */
     private static function get_certificate_email_template($data) {
+        $logo_url = Certificate_Settings::get('logo');
         ob_start();
         ?>
         <!DOCTYPE html>
@@ -888,19 +904,25 @@ class Certificates {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
         </head>
-        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+        <body style="margin: 0; padding: 0; font-family: Arial, 'Helvetica Neue', sans-serif; background-color: #f0f2f5;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f0f2f5; padding: 40px 20px;">
                 <tr>
                     <td align="center">
-                        <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 16px rgba(12, 32, 68, 0.12); overflow: hidden;">
 
-                            <!-- Header -->
+                            <!-- Header with GPS Branding -->
                             <tr>
-                                <td style="background: linear-gradient(135deg, #19346380 0%, #764ba2 100%); color: white; padding: 40px; text-align: center; border-radius: 8px 8px 0 0;">
-                                    <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: white;">
-                                        🎓 Certificate of Completion
+                                <td bgcolor="#0B52AC" style="background-color: #0B52AC; padding: 35px 30px; text-align: center;">
+                                    <?php if (!empty($logo_url)): ?>
+                                        <img src="<?php echo esc_url($logo_url); ?>" alt="GPS Dental Training" style="max-height: 50px; margin-bottom: 15px;" />
+                                    <?php else: ?>
+                                        <h2 style="margin: 0 0 5px; font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: 2px;">GPS DENTAL</h2>
+                                        <p style="margin: 0 0 15px; font-size: 12px; color: #DDC89D; letter-spacing: 4px; font-weight: 500;">T R A I N I N G</p>
+                                    <?php endif; ?>
+                                    <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #ffffff;">
+                                        Certificate of Completion
                                     </h1>
-                                    <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">
+                                    <p style="margin: 8px 0 0; font-size: 14px; color: #DDC89D; font-weight: 500;">
                                         Congratulations on completing your course!
                                     </p>
                                 </td>
@@ -908,40 +930,66 @@ class Certificates {
 
                             <!-- Content -->
                             <tr>
-                                <td style="padding: 40px;">
-                                    <p style="margin: 0 0 20px; font-size: 16px; color: #333;">
+                                <td style="padding: 35px 40px;">
+                                    <p style="margin: 0 0 20px; font-size: 16px; color: #0C2044;">
                                         Dear <strong><?php echo esc_html($data['attendee_name']); ?></strong>,
                                     </p>
 
-                                    <p style="margin: 0 0 20px; font-size: 15px; color: #555; line-height: 1.6;">
-                                        Congratulations! Your Certificate of Completion for <strong><?php echo esc_html($data['event_title']); ?></strong> is ready.
+                                    <p style="margin: 0 0 20px; font-size: 15px; color: #4a5568; line-height: 1.6;">
+                                        Your Certificate of Completion for <strong style="color: #0C2044;"><?php echo esc_html($data['event_title']); ?></strong> is ready.
                                     </p>
 
-                                    <p style="margin: 0 0 30px; font-size: 15px; color: #555; line-height: 1.6;">
-                                        Thank you for attending and completing this course. Your certificate is attached to this email and can also be downloaded using the button below.
+                                    <!-- Course Details Box -->
+                                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 25px 0; background: #f8f9fb; border-radius: 8px; border-left: 4px solid #DDC89D;">
+                                        <tr>
+                                            <td style="padding: 20px 24px;">
+                                                <p style="margin: 0 0 8px; font-size: 13px; color: #718096; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Course Details</p>
+                                                <p style="margin: 0 0 6px; font-size: 15px; color: #0C2044; font-weight: 600;"><?php echo esc_html($data['event_title']); ?></p>
+                                                <?php if (!empty($data['event_date'])): ?>
+                                                    <p style="margin: 0 0 4px; font-size: 14px; color: #4a5568;">Date: <?php echo esc_html($data['event_date']); ?></p>
+                                                <?php endif; ?>
+                                                <?php if (!empty($data['venue'])): ?>
+                                                    <p style="margin: 0 0 4px; font-size: 14px; color: #4a5568;">Location: <?php echo esc_html($data['venue']); ?></p>
+                                                <?php endif; ?>
+                                                <?php if (!empty($data['ce_credits']) && $data['ce_credits'] > 0):
+                                                    $credits_val = $data['ce_credits'];
+                                                    $credits_text = number_format($credits_val, ($credits_val == intval($credits_val)) ? 0 : 1);
+                                                ?>
+                                                    <p style="margin: 4px 0 0; font-size: 14px; color: #0B52AC; font-weight: 600;">CE Credits Awarded: <?php echo $credits_text; ?></p>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    </table>
+
+                                    <p style="margin: 0 0 25px; font-size: 15px; color: #4a5568; line-height: 1.6;">
+                                        Your certificate is attached to this email as a PDF. You can also download it using the button below.
                                     </p>
 
+                                    <!-- Download Button -->
                                     <div style="text-align: center; margin: 30px 0;">
                                         <a href="<?php echo esc_url($data['certificate_url']); ?>"
-                                           style="display: inline-block; padding: 14px 32px; background: #2271b1; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
+                                           style="display: inline-block; padding: 14px 40px; background-color: #0B52AC; color: #DDC89D; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
                                             Download Certificate
                                         </a>
                                     </div>
 
-                                    <p style="margin: 30px 0 0; font-size: 14px; color: #666;">
-                                        <strong>Note:</strong> Please keep this certificate for your records. You may need it for continuing education credits or professional development documentation.
+                                    <p style="margin: 25px 0 0; padding: 16px; background-color: #f8f9fb; border-radius: 6px; font-size: 13px; color: #718096; line-height: 1.5;">
+                                        <strong style="color: #0C2044;">Note:</strong> Please keep this certificate for your records. You may need it for continuing education credits or professional development documentation.
                                     </p>
                                 </td>
                             </tr>
 
                             <!-- Footer -->
                             <tr>
-                                <td style="background: #f8f9fa; padding: 25px; text-align: center; border-radius: 0 0 8px 8px;">
-                                    <p style="margin: 0; font-size: 14px; color: #666;">
+                                <td bgcolor="#0C2044" style="background-color: #0C2044; padding: 25px 30px; text-align: center;">
+                                    <p style="margin: 0; font-size: 14px; color: #DDC89D; font-weight: 500;">
                                         Thank you for choosing GPS Dental Training
                                     </p>
-                                    <p style="margin: 10px 0 0; font-size: 12px; color: #999;">
-                                        © <?php echo date('Y'); ?> GPS Dental Training. All rights reserved.
+                                    <p style="margin: 8px 0 0; font-size: 12px; color: #8a9cc0;">
+                                        &copy; <?php echo date('Y'); ?> GPS Dental Training LLC. All rights reserved.
+                                    </p>
+                                    <p style="margin: 8px 0 0; font-size: 12px;">
+                                        <a href="mailto:info@gpsdentaltraining.com" style="color: #DDC89D; text-decoration: none;">info@gpsdentaltraining.com</a>
                                     </p>
                                 </td>
                             </tr>
