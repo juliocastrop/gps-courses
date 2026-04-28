@@ -224,6 +224,55 @@ class Activator {
             KEY status (status)
         ) $charset;";
 
+        // Promotional QR Codes (per event/seminar)
+        $qr_codes = "CREATE TABLE {$wpdb->prefix}gps_qr_codes (
+            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            post_id BIGINT(20) UNSIGNED NOT NULL,
+            post_type VARCHAR(20) NOT NULL,
+            short_code VARCHAR(16) NOT NULL,
+            target_url VARCHAR(500) DEFAULT NULL,
+            utm_source VARCHAR(100) DEFAULT 'qr',
+            utm_medium VARCHAR(100) DEFAULT 'print',
+            utm_campaign VARCHAR(200) DEFAULT NULL,
+            utm_content VARCHAR(200) DEFAULT NULL,
+            utm_term VARCHAR(200) DEFAULT NULL,
+            has_logo TINYINT(1) DEFAULT 0,
+            scan_count INT(11) UNSIGNED DEFAULT 0,
+            last_scanned_at DATETIME DEFAULT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            deleted_at DATETIME DEFAULT NULL,
+            PRIMARY KEY  (id),
+            UNIQUE KEY short_code (short_code),
+            KEY post_id (post_id),
+            KEY post_type (post_type),
+            KEY deleted_at (deleted_at)
+        ) $charset;";
+
+        // Promotional QR scan log
+        $qr_scans = "CREATE TABLE {$wpdb->prefix}gps_qr_scans (
+            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            qr_id BIGINT(20) UNSIGNED NOT NULL,
+            post_id BIGINT(20) UNSIGNED NOT NULL,
+            scanned_at DATETIME NOT NULL,
+            ip_hash VARCHAR(64) DEFAULT NULL,
+            user_agent VARCHAR(500) DEFAULT NULL,
+            device_type VARCHAR(20) DEFAULT NULL,
+            is_bot TINYINT(1) DEFAULT 0,
+            country VARCHAR(100) DEFAULT NULL,
+            country_code VARCHAR(8) DEFAULT NULL,
+            region VARCHAR(100) DEFAULT NULL,
+            city VARCHAR(100) DEFAULT NULL,
+            referrer VARCHAR(500) DEFAULT NULL,
+            PRIMARY KEY  (id),
+            KEY qr_id (qr_id),
+            KEY post_id (post_id),
+            KEY scanned_at (scanned_at),
+            KEY ip_hash (ip_hash),
+            KEY device_type (device_type),
+            KEY country_code (country_code),
+            KEY is_bot (is_bot)
+        ) $charset;";
+
         require_once ABSPATH.'wp-admin/includes/upgrade.php';
 
         // Create all tables silently
@@ -238,6 +287,8 @@ class Activator {
         dbDelta($seminar_attendance);
         dbDelta($seminar_waitlist);
         dbDelta($session_tickets);
+        dbDelta($qr_codes);
+        dbDelta($qr_scans);
 
         // 🔹 Registrar CPTs y rewrite rules para que los permalinks se actualicen correctamente
         Posttypes::register();
@@ -286,7 +337,31 @@ class Activator {
 
             // Add individual session sales columns if needed
             self::migrate_session_individual_sales();
+
+            // Ensure promotional QR tables exist
+            self::migrate_qr_tables();
         }
+    }
+
+    /**
+     * Ensure the promotional QR tables exist on existing installs.
+     */
+    public static function migrate_qr_tables() {
+        global $wpdb;
+
+        $codes = $wpdb->prefix . 'gps_qr_codes';
+        $scans = $wpdb->prefix . 'gps_qr_scans';
+
+        $codes_exists = $wpdb->get_var("SHOW TABLES LIKE '$codes'") === $codes;
+        $scans_exists = $wpdb->get_var("SHOW TABLES LIKE '$scans'") === $scans;
+
+        if ($codes_exists && $scans_exists) {
+            return;
+        }
+
+        error_log('GPS Courses: Creating promotional QR tables...');
+        // Reuse activate() — dbDelta is idempotent for existing tables.
+        self::activate();
     }
 
     /**
@@ -436,6 +511,8 @@ class Activator {
 
         // Drop existing tables in correct order (reverse of foreign key dependencies)
         $tables = [
+            $wpdb->prefix . 'gps_qr_scans',
+            $wpdb->prefix . 'gps_qr_codes',
             $wpdb->prefix . 'gps_session_tickets',
             $wpdb->prefix . 'gps_seminar_waitlist',
             $wpdb->prefix . 'gps_seminar_attendance',
