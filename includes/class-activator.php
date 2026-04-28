@@ -199,6 +199,31 @@ class Activator {
             KEY position (position)
         ) $charset;";
 
+        // Individual Session Tickets Table
+        $session_tickets = "CREATE TABLE {$wpdb->prefix}gps_session_tickets (
+            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            session_id BIGINT(20) UNSIGNED NOT NULL,
+            seminar_id BIGINT(20) UNSIGNED NOT NULL,
+            user_id BIGINT(20) UNSIGNED DEFAULT 0,
+            order_id BIGINT(20) UNSIGNED DEFAULT NULL,
+            ticket_code VARCHAR(50) NOT NULL,
+            attendee_name VARCHAR(255) DEFAULT NULL,
+            attendee_email VARCHAR(255) DEFAULT NULL,
+            qr_code_path VARCHAR(255) DEFAULT NULL,
+            ce_credits DECIMAL(5,2) DEFAULT 2.00,
+            status VARCHAR(20) DEFAULT 'valid',
+            checked_in_at DATETIME DEFAULT NULL,
+            checked_in_by BIGINT(20) UNSIGNED DEFAULT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            UNIQUE KEY ticket_code (ticket_code),
+            KEY session_id (session_id),
+            KEY seminar_id (seminar_id),
+            KEY user_id (user_id),
+            KEY order_id (order_id),
+            KEY status (status)
+        ) $charset;";
+
         require_once ABSPATH.'wp-admin/includes/upgrade.php';
 
         // Create all tables silently
@@ -212,6 +237,7 @@ class Activator {
         dbDelta($seminar_sessions);
         dbDelta($seminar_attendance);
         dbDelta($seminar_waitlist);
+        dbDelta($session_tickets);
 
         // 🔹 Registrar CPTs y rewrite rules para que los permalinks se actualicen correctamente
         Posttypes::register();
@@ -257,6 +283,9 @@ class Activator {
 
             // Add designated attendee columns if needed
             self::migrate_tickets_designated_attendee();
+
+            // Add individual session sales columns if needed
+            self::migrate_session_individual_sales();
         }
     }
 
@@ -321,6 +350,44 @@ class Activator {
     }
 
     /**
+     * Add individual sales columns to seminar sessions table
+     */
+    public static function migrate_session_individual_sales() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'gps_seminar_sessions';
+
+        // Check if migration is needed
+        $columns = $wpdb->get_results("SHOW COLUMNS FROM $table LIKE 'individual_price'");
+
+        if (empty($columns)) {
+            error_log('GPS Courses: Adding individual session sales columns...');
+
+            $wpdb->query("ALTER TABLE $table
+                ADD COLUMN individual_price DECIMAL(10,2) DEFAULT NULL AFTER topic,
+                ADD COLUMN individual_ce_credits DECIMAL(5,2) DEFAULT 2.00 AFTER individual_price,
+                ADD COLUMN individual_product_id BIGINT(20) UNSIGNED DEFAULT NULL AFTER individual_ce_credits,
+                ADD COLUMN individual_sales_enabled TINYINT(1) DEFAULT 0 AFTER individual_product_id,
+                ADD COLUMN individual_capacity INT(11) DEFAULT 0 AFTER individual_sales_enabled,
+                ADD COLUMN individual_sold_count INT(11) DEFAULT 0 AFTER individual_capacity
+            ");
+
+            // Add index for product lookup
+            $wpdb->query("ALTER TABLE $table ADD KEY individual_product_id (individual_product_id)");
+
+            error_log('GPS Courses: Individual session sales columns added successfully');
+        }
+
+        // Also ensure the session_tickets table exists
+        $tickets_table = $wpdb->prefix . 'gps_session_tickets';
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$tickets_table'") === $tickets_table;
+
+        if (!$table_exists) {
+            error_log('GPS Courses: Creating session_tickets table...');
+            self::activate();
+        }
+    }
+
+    /**
      * Reorder all waitlist positions after migration
      */
     public static function reorder_all_waitlists() {
@@ -369,6 +436,7 @@ class Activator {
 
         // Drop existing tables in correct order (reverse of foreign key dependencies)
         $tables = [
+            $wpdb->prefix . 'gps_session_tickets',
             $wpdb->prefix . 'gps_seminar_waitlist',
             $wpdb->prefix . 'gps_seminar_attendance',
             $wpdb->prefix . 'gps_seminar_sessions',

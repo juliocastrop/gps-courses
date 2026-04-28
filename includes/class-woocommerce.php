@@ -9,11 +9,15 @@ if (!defined('ABSPATH')) exit;
  */
 class Woo {
 
-    // Admin emails for GPS order notifications
-    const ADMIN_NOTIFICATION_EMAILS = [
-        'info@gpsdentaltraining.com',
-        'juliocastro@thewebminds.agency'
-    ];
+    /**
+     * Get admin notification email addresses from Settings.
+     * Replaces the old hardcoded ADMIN_NOTIFICATION_EMAILS constant.
+     *
+     * @return array
+     */
+    public static function get_admin_notification_emails() {
+        return Settings::get_notification_emails();
+    }
 
     public static function hooks() {
         // Order completion - create tickets ONLY when order is completed
@@ -847,6 +851,12 @@ class Woo {
                 continue;
             }
 
+            // Check if this is an individual session product
+            if (Session_Tickets::is_session_product($product_id)) {
+                $has_gps_products = true;
+                continue;
+            }
+
             // Check if product is virtual/downloadable (not physical)
             if ($product && !$product->is_virtual() && !$product->is_downloadable()) {
                 $has_physical_products = true;
@@ -908,7 +918,7 @@ class Woo {
             <table style='width: 100%;'>
                 <tr><td><strong>Triggered by:</strong></td><td>{$current_user->display_name} ({$current_user->user_email})</td></tr>
                 <tr><td><strong>Timestamp:</strong></td><td>" . current_time('mysql') . "</td></tr>
-                <tr><td><strong>Recipients:</strong></td><td>" . implode(', ', self::ADMIN_NOTIFICATION_EMAILS) . "</td></tr>
+                <tr><td><strong>Recipients:</strong></td><td>" . implode(', ', self::get_admin_notification_emails()) . "</td></tr>
             </table>
         </div>
 
@@ -937,7 +947,7 @@ class Woo {
         ];
 
         // Send to all admin emails
-        $emails = implode(', ', self::ADMIN_NOTIFICATION_EMAILS);
+        $emails = implode(', ', self::get_admin_notification_emails());
         $sent = wp_mail($emails, $subject, $message, $headers);
 
         // Redirect with result
@@ -978,6 +988,13 @@ class Woo {
             if ($seminar_id) {
                 $has_gps_products = true;
                 $gps_products[] = $quantity . 'x ' . $product_name . ' (Monthly Seminar)';
+                continue;
+            }
+
+            // Check if this is an individual session product
+            if (Session_Tickets::is_session_product($product_id)) {
+                $has_gps_products = true;
+                $gps_products[] = $quantity . 'x ' . $product_name . ' (Individual Session)';
                 continue;
             }
         }
@@ -1101,7 +1118,7 @@ class Woo {
         ];
 
         // Send to all admin emails
-        $emails = implode(', ', self::ADMIN_NOTIFICATION_EMAILS);
+        $emails = implode(', ', self::get_admin_notification_emails());
         $sent = wp_mail($emails, $subject, $message, $headers);
 
         if ($sent) {
@@ -1283,7 +1300,7 @@ class Woo {
      */
     public static function test_email_admin_notices() {
         if (isset($_GET['gps_test_email_sent'])) {
-            $emails = implode(', ', self::ADMIN_NOTIFICATION_EMAILS);
+            $emails = implode(', ', self::get_admin_notification_emails());
             echo '<div class="notice notice-success is-dismissible">';
             echo '<p><strong>✅ Test email sent successfully!</strong> Check the following inboxes: ' . esc_html($emails) . '</p>';
             echo '</div>';
@@ -2182,6 +2199,64 @@ class Woo {
                 <?php endforeach; ?>
             <?php endif; ?>
         </div>
+
+        <?php
+        /* ========================================================
+         * Individual Session Tickets Section
+         * ======================================================== */
+        $individual_tickets = Session_Tickets::get_user_session_tickets($user_id);
+        if (!empty($individual_tickets)):
+        ?>
+        <div class="gps-my-individual-sessions" style="margin-top: 40px;">
+            <h2><?php _e('My Individual Sessions', 'gps-courses'); ?></h2>
+
+            <table class="woocommerce-orders-table woocommerce-MyAccount-orders shop_table shop_table_responsive">
+                <thead>
+                    <tr>
+                        <th><?php _e('Session', 'gps-courses'); ?></th>
+                        <th><?php _e('Date', 'gps-courses'); ?></th>
+                        <th><?php _e('Time', 'gps-courses'); ?></th>
+                        <th><?php _e('CE Credits', 'gps-courses'); ?></th>
+                        <th><?php _e('Ticket Code', 'gps-courses'); ?></th>
+                        <th><?php _e('Status', 'gps-courses'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($individual_tickets as $ticket): ?>
+                    <tr>
+                        <td data-title="<?php esc_attr_e('Session', 'gps-courses'); ?>">
+                            <strong><?php echo esc_html($ticket->seminar_title); ?></strong><br>
+                            <small>#<?php echo (int) $ticket->session_number; ?> — <?php echo esc_html($ticket->topic); ?></small>
+                        </td>
+                        <td data-title="<?php esc_attr_e('Date', 'gps-courses'); ?>">
+                            <?php echo date_i18n('F j, Y', strtotime($ticket->session_date)); ?>
+                        </td>
+                        <td data-title="<?php esc_attr_e('Time', 'gps-courses'); ?>">
+                            <?php echo date('g:i A', strtotime($ticket->session_time_start)); ?> - <?php echo date('g:i A', strtotime($ticket->session_time_end)); ?>
+                        </td>
+                        <td data-title="<?php esc_attr_e('CE Credits', 'gps-courses'); ?>">
+                            <strong><?php echo number_format($ticket->ce_credits, 1); ?></strong>
+                        </td>
+                        <td data-title="<?php esc_attr_e('Ticket Code', 'gps-courses'); ?>">
+                            <code><?php echo esc_html($ticket->ticket_code); ?></code>
+                        </td>
+                        <td data-title="<?php esc_attr_e('Status', 'gps-courses'); ?>">
+                            <?php if ($ticket->checked_in_at): ?>
+                                <span class="gps-status-badge checked-in" style="background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600;">
+                                    ✓ <?php _e('Attended', 'gps-courses'); ?>
+                                </span>
+                            <?php else: ?>
+                                <span class="gps-status-badge <?php echo esc_attr($ticket->status); ?>" style="background: #eff6ff; color: #1e40af; padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600;">
+                                    <?php echo esc_html(ucwords($ticket->status)); ?>
+                                </span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
 
         <!-- Makeup Request Modal -->
         <div id="gps-makeup-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 9999; align-items: center; justify-content: center;">

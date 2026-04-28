@@ -396,9 +396,26 @@ class Seminar_Attendance {
         $qr_data = json_decode(stripslashes($_POST['qr_data']), true);
         $session_id = (int) $_POST['session_id'];
 
+        // Handle individual session ticket QR codes
+        if (isset($qr_data['type']) && $qr_data['type'] === 'session_ticket') {
+            $result = Session_Tickets::check_in_by_code(
+                $qr_data['ticket_code'],
+                $session_id
+            );
+            if ($result['success']) {
+                $result['ticket_type'] = 'individual';
+                wp_send_json_success($result);
+            } else {
+                wp_send_json_error($result);
+            }
+            return;
+        }
+
+        // Standard monthly seminar QR code
         $result = self::check_in($qr_data, $session_id);
 
         if ($result['success']) {
+            $result['ticket_type'] = 'package';
             wp_send_json_success($result);
         } else {
             wp_send_json_error($result);
@@ -444,10 +461,26 @@ class Seminar_Attendance {
         $attendance = self::get_session_attendance($session_id);
         $unchecked = self::get_unchecked_registrants($session_id);
 
+        // Include individual session ticket holders
+        $individual_tickets = Session_Tickets::get_session_tickets($session_id);
+
+        // Merge individual ticket stats
+        $individual_checked_in = 0;
+        $individual_total = count($individual_tickets);
+        foreach ($individual_tickets as $t) {
+            if ($t->checked_in_at) $individual_checked_in++;
+        }
+
+        if ($stats) {
+            $stats['individual_total'] = $individual_total;
+            $stats['individual_checked_in'] = $individual_checked_in;
+        }
+
         wp_send_json_success([
             'stats' => $stats,
             'attendance' => $attendance,
             'unchecked' => $unchecked,
+            'individual_tickets' => $individual_tickets,
         ]);
     }
 }

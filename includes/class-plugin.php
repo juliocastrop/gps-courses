@@ -39,6 +39,7 @@ class Plugin {
         require_once GPSC_PATH . 'includes/class-seminar-notifications.php';
         require_once GPSC_PATH . 'includes/class-seminar-certificates.php';
         require_once GPSC_PATH . 'includes/class-seminar-waitlist.php';
+        require_once GPSC_PATH . 'includes/class-session-tickets.php';
 
         require_once GPSC_PATH . 'includes/helpers.php';
 
@@ -81,6 +82,7 @@ class Plugin {
         Seminar_Notifications::init();
         Seminar_Certificates::init();
         Seminar_Waitlist::init();
+        Session_Tickets::init();
 
         Woo::hooks();
     }

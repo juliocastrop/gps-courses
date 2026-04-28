@@ -797,19 +797,33 @@ class Posttypes {
             </ul>
         </div>
 
+        <?php
+        // Get WooCommerce products for individual session dropdown
+        $wc_products = wc_get_products(['limit' => -1, 'status' => 'publish', 'orderby' => 'title', 'order' => 'ASC']);
+        ?>
         <table class="gps-sessions-table">
             <thead>
                 <tr>
-                    <th style="width: 80px;"><?php _e('Session #','gps-courses'); ?></th>
-                    <th style="width: 150px;"><?php _e('Date','gps-courses'); ?></th>
-                    <th style="width: 100px;"><?php _e('Start Time','gps-courses'); ?></th>
-                    <th style="width: 100px;"><?php _e('End Time','gps-courses'); ?></th>
+                    <th style="width: 60px;"><?php _e('Session #','gps-courses'); ?></th>
+                    <th style="width: 130px;"><?php _e('Date','gps-courses'); ?></th>
+                    <th style="width: 90px;"><?php _e('Start','gps-courses'); ?></th>
+                    <th style="width: 90px;"><?php _e('End','gps-courses'); ?></th>
                     <th><?php _e('Topic','gps-courses'); ?></th>
+                    <th style="width: 60px; text-align: center;"><?php _e('Sell Individually','gps-courses'); ?></th>
+                    <th style="width: 90px;"><?php _e('Ind. Price','gps-courses'); ?></th>
+                    <th style="width: 70px;"><?php _e('Ind. CE','gps-courses'); ?></th>
+                    <th style="width: 160px;"><?php _e('Ind. Product','gps-courses'); ?></th>
+                    <th style="width: 50px; text-align: center;"><?php _e('Sold','gps-courses'); ?></th>
                 </tr>
             </thead>
             <tbody>
                 <?php for ($i = 1; $i <= 10; $i++):
                     $session = $sessions_data[$i] ?? null;
+                    $ind_enabled = $session ? (int)($session->individual_sales_enabled ?? 0) : 0;
+                    $ind_price = $session ? ($session->individual_price ?? '') : '';
+                    $ind_ce = $session ? ($session->individual_ce_credits ?? 2) : 2;
+                    $ind_product = $session ? ($session->individual_product_id ?? '') : '';
+                    $ind_sold = $session ? (int)($session->individual_sold_count ?? 0) : 0;
                 ?>
                 <tr>
                     <td><strong><?php echo $i; ?></strong></td>
@@ -837,6 +851,37 @@ class Posttypes {
                         <input type="hidden"
                                name="gps_sessions[<?php echo $i; ?>][id]"
                                value="<?php echo $session ? esc_attr($session->id) : ''; ?>">
+                    </td>
+                    <td style="text-align: center;">
+                        <input type="checkbox"
+                               name="gps_sessions[<?php echo $i; ?>][individual_enabled]"
+                               value="1"
+                               <?php checked($ind_enabled, 1); ?>>
+                    </td>
+                    <td>
+                        <input type="number" step="0.01" min="0"
+                               name="gps_sessions[<?php echo $i; ?>][individual_price]"
+                               value="<?php echo esc_attr($ind_price); ?>"
+                               placeholder="$" style="width: 100%;">
+                    </td>
+                    <td>
+                        <input type="number" step="0.5" min="0"
+                               name="gps_sessions[<?php echo $i; ?>][individual_ce_credits]"
+                               value="<?php echo esc_attr($ind_ce); ?>"
+                               style="width: 100%;">
+                    </td>
+                    <td>
+                        <select name="gps_sessions[<?php echo $i; ?>][individual_product_id]" style="width: 100%;">
+                            <option value=""><?php _e('— None —','gps-courses'); ?></option>
+                            <?php foreach ($wc_products as $product): ?>
+                                <option value="<?php echo esc_attr($product->get_id()); ?>" <?php selected($ind_product, $product->get_id()); ?>>
+                                    <?php echo esc_html($product->get_name()); ?> (#<?php echo $product->get_id(); ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </td>
+                    <td style="text-align: center; font-weight: bold; color: <?php echo $ind_sold > 0 ? '#10b981' : '#94a3b8'; ?>;">
+                        <?php echo $ind_sold; ?>
                     </td>
                 </tr>
                 <?php endfor; ?>
@@ -893,7 +938,18 @@ class Posttypes {
                     'session_time_end' => $time_end,
                     'topic' => $topic,
                     'capacity' => $capacity,
+                    'individual_sales_enabled' => isset($session_data['individual_enabled']) ? 1 : 0,
+                    'individual_price' => !empty($session_data['individual_price']) ? floatval($session_data['individual_price']) : null,
+                    'individual_ce_credits' => !empty($session_data['individual_ce_credits']) ? floatval($session_data['individual_ce_credits']) : 2,
+                    'individual_product_id' => !empty($session_data['individual_product_id']) ? (int)$session_data['individual_product_id'] : null,
                 ];
+
+                // Update product meta to link back to session for individual sales
+                $ind_product_id = $data['individual_product_id'];
+                if ($ind_product_id && $data['individual_sales_enabled']) {
+                    update_post_meta($ind_product_id, '_gps_session_individual_id', $session_id ?: 0);
+                    update_post_meta($ind_product_id, '_gps_seminar_session_id', $session_id ?: 0);
+                }
 
                 if ($session_id > 0) {
                     // Update existing session
@@ -901,7 +957,7 @@ class Posttypes {
                         $wpdb->prefix . 'gps_seminar_sessions',
                         $data,
                         ['id' => $session_id],
-                        ['%d', '%d', '%s', '%s', '%s', '%s', '%d'],
+                        ['%d', '%d', '%s', '%s', '%s', '%s', '%d', '%d', '%f', '%f', '%d'],
                         ['%d']
                     );
                 } else {
@@ -909,7 +965,7 @@ class Posttypes {
                     $wpdb->insert(
                         $wpdb->prefix . 'gps_seminar_sessions',
                         $data,
-                        ['%d', '%d', '%s', '%s', '%s', '%s', '%d']
+                        ['%d', '%d', '%s', '%s', '%s', '%s', '%d', '%d', '%f', '%f', '%d']
                     );
                 }
             }

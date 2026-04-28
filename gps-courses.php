@@ -9,7 +9,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('GPSC_VERSION', '1.0.3');
+define('GPSC_VERSION', '1.0.4');
 define('GPSC_PATH', plugin_dir_path(__FILE__));
 define('GPSC_URL', plugin_dir_url(__FILE__));
 

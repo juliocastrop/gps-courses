@@ -45,6 +45,9 @@ class Settings {
         register_setting('gps_general_settings', 'gps_company_email');
         register_setting('gps_general_settings', 'gps_company_phone');
         register_setting('gps_general_settings', 'gps_company_address');
+        register_setting('gps_general_settings', 'gps_notification_emails', [
+            'sanitize_callback' => [__CLASS__, 'sanitize_notification_emails'],
+        ]);
 
         // Email Settings
         register_setting('gps_email_settings', 'gps_email_from_name');
@@ -229,6 +232,17 @@ class Settings {
                     </th>
                     <td>
                         <textarea id="gps_company_address" name="gps_company_address" rows="3" class="large-text"><?php echo esc_textarea(get_option('gps_company_address')); ?></textarea>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="gps_notification_emails"><?php _e('Purchase Notification Emails', 'gps-courses'); ?></label>
+                    </th>
+                    <td>
+                        <textarea id="gps_notification_emails" name="gps_notification_emails" rows="4" class="large-text" placeholder="info@gpsdentaltraining.com&#10;admin@example.com"><?php echo esc_textarea(get_option('gps_notification_emails', '')); ?></textarea>
+                        <p class="description">
+                            <?php _e('Email addresses that receive notifications when courses, seminars, or session tickets are purchased. Enter one email per line.', 'gps-courses'); ?>
+                        </p>
                     </td>
                 </tr>
             </table>
@@ -518,5 +532,45 @@ class Settings {
             <?php submit_button(); ?>
         </form>
         <?php
+    }
+
+    /**
+     * Sanitize notification emails textarea input
+     * Validates each line as an email, removes invalid ones
+     */
+    public static function sanitize_notification_emails($input) {
+        if (empty($input)) {
+            return '';
+        }
+
+        $lines = array_map('trim', explode("\n", $input));
+        $valid = [];
+
+        foreach ($lines as $line) {
+            $email = sanitize_email($line);
+            if (is_email($email)) {
+                $valid[] = $email;
+            }
+        }
+
+        return implode("\n", $valid);
+    }
+
+    /**
+     * Get the list of notification email addresses
+     * Used by WooCommerce, Session_Tickets, and any other class that sends purchase notifications.
+     *
+     * @return array List of email addresses
+     */
+    public static function get_notification_emails() {
+        $raw = get_option('gps_notification_emails', '');
+
+        if (empty($raw)) {
+            // Fallback to admin email if nothing configured
+            return [get_option('admin_email')];
+        }
+
+        $emails = array_filter(array_map('trim', explode("\n", $raw)));
+        return !empty($emails) ? $emails : [get_option('admin_email')];
     }
 }
