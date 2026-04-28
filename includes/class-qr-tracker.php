@@ -97,8 +97,16 @@ class QR_Tracker {
             return null;
         }
 
-        $permalink = get_permalink($qr->post_id);
-        if (!$permalink) {
+        // Custom override takes precedence over the post permalink.
+        // Lets seminars (or any post) point to a WooCommerce product
+        // page or any other landing URL while still tracking scans.
+        if (!empty($qr->custom_target_url)) {
+            $base = esc_url_raw($qr->custom_target_url);
+        } else {
+            $base = get_permalink($qr->post_id);
+        }
+
+        if (!$base) {
             return null;
         }
 
@@ -116,7 +124,7 @@ class QR_Tracker {
             $utms['utm_term'] = $qr->utm_term;
         }
 
-        return add_query_arg($utms, $permalink);
+        return add_query_arg($utms, $base);
     }
 
     protected static function serve_not_found() {
@@ -234,14 +242,23 @@ class QR_Tracker {
     public static function update_qr($qr_id, array $fields) {
         global $wpdb;
 
-        $allowed = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'has_logo'];
+        $allowed = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'custom_target_url', 'has_logo'];
         $data = [];
         $formats = [];
 
         foreach ($allowed as $key) {
-            if (array_key_exists($key, $fields)) {
-                $data[$key] = $key === 'has_logo' ? (int) $fields[$key] : sanitize_text_field($fields[$key]);
-                $formats[] = $key === 'has_logo' ? '%d' : '%s';
+            if (!array_key_exists($key, $fields)) continue;
+
+            if ($key === 'has_logo') {
+                $data[$key] = (int) $fields[$key];
+                $formats[] = '%d';
+            } elseif ($key === 'custom_target_url') {
+                $val = trim((string) $fields[$key]);
+                $data[$key] = $val === '' ? null : esc_url_raw($val);
+                $formats[] = '%s';
+            } else {
+                $data[$key] = sanitize_text_field($fields[$key]);
+                $formats[] = '%s';
             }
         }
 

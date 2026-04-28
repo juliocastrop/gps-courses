@@ -236,6 +236,7 @@ class Activator {
             utm_campaign VARCHAR(200) DEFAULT NULL,
             utm_content VARCHAR(200) DEFAULT NULL,
             utm_term VARCHAR(200) DEFAULT NULL,
+            custom_target_url VARCHAR(500) DEFAULT NULL,
             has_logo TINYINT(1) DEFAULT 0,
             scan_count INT(11) UNSIGNED DEFAULT 0,
             last_scanned_at DATETIME DEFAULT NULL,
@@ -355,13 +356,19 @@ class Activator {
         $codes_exists = $wpdb->get_var("SHOW TABLES LIKE '$codes'") === $codes;
         $scans_exists = $wpdb->get_var("SHOW TABLES LIKE '$scans'") === $scans;
 
-        if ($codes_exists && $scans_exists) {
+        if (!$codes_exists || !$scans_exists) {
+            error_log('GPS Courses: Creating promotional QR tables...');
+            // Reuse activate() — dbDelta is idempotent for existing tables.
+            self::activate();
             return;
         }
 
-        error_log('GPS Courses: Creating promotional QR tables...');
-        // Reuse activate() — dbDelta is idempotent for existing tables.
-        self::activate();
+        // Add custom_target_url column for installs already at v1.0.5
+        $col = $wpdb->get_results("SHOW COLUMNS FROM $codes LIKE 'custom_target_url'");
+        if (empty($col)) {
+            error_log('GPS Courses: Adding custom_target_url column to gps_qr_codes...');
+            $wpdb->query("ALTER TABLE $codes ADD COLUMN custom_target_url VARCHAR(500) DEFAULT NULL AFTER utm_term");
+        }
     }
 
     /**

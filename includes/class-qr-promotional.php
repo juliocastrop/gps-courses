@@ -92,9 +92,18 @@ class QR_Promotional {
                 <img src="<?php echo esc_url(self::preview_url($qr->id)); ?>" alt="QR" style="max-width:<?php echo $is_tab ? '260' : '200'; ?>px; height:auto;">
             </div>
 
-            <p style="font-size:11px; color:#64748b; margin:0 0 12px; word-break:break-all;">
+            <p style="font-size:11px; color:#64748b; margin:0 0 8px; word-break:break-all;">
                 <strong><?php esc_html_e('Scan URL:', 'gps-courses'); ?></strong><br>
                 <code style="font-size:11px;"><?php echo esc_html($qr_url); ?></code>
+            </p>
+            <p style="font-size:11px; color:#64748b; margin:0 0 12px; word-break:break-all;">
+                <strong><?php esc_html_e('Redirects to:', 'gps-courses'); ?></strong><br>
+                <code style="font-size:11px;"><?php echo esc_html($qr->custom_target_url ?: get_permalink($post->ID)); ?></code>
+                <?php if ($qr->custom_target_url): ?>
+                    <span style="display:inline-block; background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:99px; font-size:10px; margin-left:4px;">
+                        <?php esc_html_e('Custom', 'gps-courses'); ?>
+                    </span>
+                <?php endif; ?>
             </p>
 
             <p style="font-size:12px; color:#64748b; margin:0 0 12px;">
@@ -135,6 +144,17 @@ class QR_Promotional {
                         ?>
                     </span>
                 <?php endif; ?>
+            </p>
+
+            <h3 style="margin:<?php echo $is_tab ? '20px' : '12px'; ?> 0 6px; font-size:<?php echo $is_tab ? '14' : '12'; ?>px;"><?php esc_html_e('Custom Destination URL', 'gps-courses'); ?></h3>
+            <p style="font-size:<?php echo $is_tab ? '12' : '11'; ?>px; color:#64748b; margin:0 0 6px;">
+                <?php esc_html_e('Override the post permalink. Useful for seminars that point to a WooCommerce product page. Leave empty to use the default permalink.', 'gps-courses'); ?>
+            </p>
+            <p style="margin:0;">
+                <input type="url"
+                       class="gps-qr-custom-url widefat"
+                       placeholder="<?php echo esc_attr(get_permalink($post->ID)); ?>"
+                       value="<?php echo esc_attr($qr->custom_target_url); ?>">
             </p>
 
             <?php if ($is_tab): ?>
@@ -206,6 +226,7 @@ class QR_Promotional {
                 data.append('qr_id', qrId);
                 data.append('_wpnonce', nonce);
                 data.append('has_logo', box.querySelector('.gps-qr-has-logo').checked ? '1' : '0');
+                data.append('custom_target_url', box.querySelector('.gps-qr-custom-url').value);
                 box.querySelectorAll('.gps-qr-utm').forEach(el => {
                     data.append(el.dataset.key, el.value);
                 });
@@ -248,11 +269,12 @@ class QR_Promotional {
         }
 
         QR_Tracker::update_qr($qr_id, [
-            'utm_source'   => $_POST['utm_source']   ?? 'qr',
-            'utm_medium'   => $_POST['utm_medium']   ?? 'print',
-            'utm_campaign' => $_POST['utm_campaign'] ?? '',
-            'utm_content'  => $_POST['utm_content']  ?? '',
-            'has_logo'     => !empty($_POST['has_logo']) ? 1 : 0,
+            'utm_source'        => $_POST['utm_source']        ?? 'qr',
+            'utm_medium'        => $_POST['utm_medium']        ?? 'print',
+            'utm_campaign'      => $_POST['utm_campaign']      ?? '',
+            'utm_content'       => $_POST['utm_content']       ?? '',
+            'custom_target_url' => $_POST['custom_target_url'] ?? '',
+            'has_logo'          => !empty($_POST['has_logo']) ? 1 : 0,
         ]);
 
         wp_send_json_success();
