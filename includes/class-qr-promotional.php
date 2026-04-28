@@ -242,10 +242,13 @@ class QR_Promotional {
                         this.textContent = '<?php echo esc_js(__('Saved ✓', 'gps-courses')); ?>';
                         setTimeout(() => { this.textContent = '<?php echo esc_js(__('Save Settings', 'gps-courses')); ?>'; }, 1500);
                     } else {
+                        const msg = (json.data && json.data.message) ? json.data.message : '<?php echo esc_js(__('Unknown error', 'gps-courses')); ?>';
                         this.textContent = '<?php echo esc_js(__('Error', 'gps-courses')); ?>';
+                        alert('<?php echo esc_js(__('Could not save:', 'gps-courses')); ?> ' + msg);
                     }
                 } catch (e) {
                     this.textContent = '<?php echo esc_js(__('Error', 'gps-courses')); ?>';
+                    alert('<?php echo esc_js(__('Network error:', 'gps-courses')); ?> ' + (e && e.message ? e.message : e));
                 }
                 this.disabled = false;
             });
@@ -260,7 +263,7 @@ class QR_Promotional {
 
     public static function ajax_save() {
         if (!current_user_can('edit_posts') || !check_ajax_referer('gps_qr_metabox', '_wpnonce', false)) {
-            wp_send_json_error(['message' => 'unauthorized'], 403);
+            wp_send_json_error(['message' => __('Unauthorized or expired session. Reload the page and try again.', 'gps-courses')], 403);
         }
 
         $qr_id = (int) ($_POST['qr_id'] ?? 0);
@@ -268,7 +271,9 @@ class QR_Promotional {
             wp_send_json_error(['message' => 'missing qr_id']);
         }
 
-        QR_Tracker::update_qr($qr_id, [
+        global $wpdb;
+        $wpdb->show_errors(false);
+        $result = QR_Tracker::update_qr($qr_id, [
             'utm_source'        => $_POST['utm_source']        ?? 'qr',
             'utm_medium'        => $_POST['utm_medium']        ?? 'print',
             'utm_campaign'      => $_POST['utm_campaign']      ?? '',
@@ -276,6 +281,25 @@ class QR_Promotional {
             'custom_target_url' => $_POST['custom_target_url'] ?? '',
             'has_logo'          => !empty($_POST['has_logo']) ? 1 : 0,
         ]);
+
+        if ($result === false) {
+            $err = $wpdb->last_error ?: 'unknown DB error';
+            // Self-heal: if the column is missing, run the migration once and retry.
+            if (stripos($err, 'custom_target_url') !== false || stripos($err, "Unknown column") !== false) {
+                Activator::migrate_qr_tables();
+                $result = QR_Tracker::update_qr($qr_id, [
+                    'utm_source'        => $_POST['utm_source']        ?? 'qr',
+                    'utm_medium'        => $_POST['utm_medium']        ?? 'print',
+                    'utm_campaign'      => $_POST['utm_campaign']      ?? '',
+                    'utm_content'       => $_POST['utm_content']       ?? '',
+                    'custom_target_url' => $_POST['custom_target_url'] ?? '',
+                    'has_logo'          => !empty($_POST['has_logo']) ? 1 : 0,
+                ]);
+            }
+            if ($result === false) {
+                wp_send_json_error(['message' => 'DB error: ' . $wpdb->last_error]);
+            }
+        }
 
         wp_send_json_success();
     }
