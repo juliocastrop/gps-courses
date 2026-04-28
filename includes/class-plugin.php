@@ -41,6 +41,7 @@ class Plugin {
         require_once GPSC_PATH . 'includes/class-seminar-waitlist.php';
         require_once GPSC_PATH . 'includes/class-session-tickets.php';
         require_once GPSC_PATH . 'includes/class-qr-tracker.php';
+        require_once GPSC_PATH . 'includes/class-qr-promotional.php';
 
         require_once GPSC_PATH . 'includes/helpers.php';
 
@@ -85,6 +86,7 @@ class Plugin {
         Seminar_Waitlist::init();
         Session_Tickets::init();
         QR_Tracker::init();
+        QR_Promotional::init();
 
         Woo::hooks();
     }
