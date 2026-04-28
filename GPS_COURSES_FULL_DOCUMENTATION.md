@@ -1,41 +1,44 @@
 # GPS Courses - Complete Plugin Documentation
 
+> **This document is the canonical reference for the GPS Courses plugin.** It is auto-maintained against the actual codebase and reflects what is shipped today, not legacy state. Update it when the architecture changes.
+
 ## Executive Summary
 
-**Plugin Name:** GPS Courses
-**Version:** 1.0.2
-**Author:** WebMinds (Julio Castro)
-**Client:** GPS Dental Training (https://gpsdentaltraining.com)
-**Text Domain:** gps-courses
-**License:** Proprietary
+| Field | Value |
+|-------|-------|
+| Plugin Name | GPS Courses |
+| Version | **1.0.5** |
+| Author | WebMinds (Julio Castro) |
+| Client | GPS Dental Training (https://gpsdentaltraining.com) |
+| Text Domain | `gps-courses` |
+| License | Proprietary |
+| Repo | https://github.com/juliocastrop/gps-courses |
 
-GPS Courses is a comprehensive WordPress plugin for managing dental training events, courses, monthly seminars, CE (Continuing Education) credits, ticketing, attendance tracking, waitlist management, and certificate generation. Fully integrated with WooCommerce for payment processing and Elementor for frontend display.
+GPS Courses manages dental training events, courses, monthly seminars, CE credits, ticketing, attendance, waitlists, and certificate generation. It is fully integrated with WooCommerce (sales) and Elementor (frontend display).
 
 ---
 
 ## Table of Contents
 
 1. [System Requirements](#system-requirements)
-2. [Directory Structure](#directory-structure)
-3. [Database Schema](#database-schema)
-4. [Custom Post Types](#custom-post-types)
-5. [Core Features](#core-features)
-   - [Ticketing System](#1-ticketing-system)
-   - [Manual Sold Out & Waitlist](#2-manual-sold-out--waitlist)
-   - [Event Calendar](#3-event-calendar)
-   - [CE Credits Management](#4-ce-credits-management)
-   - [Attendance & Check-in](#5-attendance--check-in)
-   - [Monthly Seminars Module](#6-monthly-seminars-module)
-   - [Certificate Generation](#7-certificate-generation)
-   - [Email System](#8-email-system)
-   - [WooCommerce Integration](#9-woocommerce-integration)
-   - [My Account Integration](#10-my-account-integration)
-6. [REST API Endpoints](#rest-api-endpoints)
-7. [AJAX Endpoints](#ajax-endpoints)
-8. [WordPress Hooks](#wordpress-hooks)
-9. [Elementor Widgets](#elementor-widgets)
-10. [Configuration Constants](#configuration-constants)
-11. [Business Logic Details](#business-logic-details)
+2. [Architecture Overview](#architecture-overview)
+3. [Directory Structure](#directory-structure)
+4. [Database Schema](#database-schema)
+5. [Custom Post Types](#custom-post-types)
+6. [Core Classes (`includes/`)](#core-classes-includes)
+7. [Core Features](#core-features)
+8. [Individual Session Tickets (v1.0.4)](#individual-session-tickets-v104)
+8b. [Promotional QR Codes (v1.0.5)](#promotional-qr-codes-v105)
+9. [Settings & Options](#settings--options)
+10. [REST API](#rest-api)
+11. [AJAX Endpoints](#ajax-endpoints)
+12. [WordPress Hooks](#wordpress-hooks)
+13. [Cron Jobs](#cron-jobs)
+14. [Admin Menu Structure](#admin-menu-structure)
+15. [Elementor Widgets](#elementor-widgets)
+16. [Business Logic Details](#business-logic-details)
+17. [Known Issues & Solutions](#known-issues--solutions)
+18. [Changelog](#changelog)
 
 ---
 
@@ -46,10 +49,24 @@ GPS Courses is a comprehensive WordPress plugin for managing dental training eve
 | WordPress | 5.8+ |
 | PHP | 7.4+ (8.0+ recommended) |
 | WooCommerce | 5.0+ |
-| Elementor | 3.0+ (for widgets) |
-| MySQL | 5.7+ or MariaDB 10.3+ |
-| Server | Apache/Nginx with mod_rewrite |
-| SSL | Required for payment processing |
+| Elementor | 3.0+ |
+| MySQL | 5.7+ / MariaDB 10.3+ |
+| SSL | Required for payments |
+
+---
+
+## Architecture Overview
+
+The plugin separates concerns across discrete modules:
+
+- **Sales** — WooCommerce integration (`class-woocommerce.php`) handles all monetary transactions. GPS-specific products map to ticket types, monthly seminars, or individual seminar sessions.
+- **Catalog** — Custom Post Types define the catalog: `gps_event` (courses), `gps_seminar` (10-session programs), `gps_speaker`, `gps_ticket` (ticket type), `gps_session` (individual session).
+- **Fulfillment** — On order completion the plugin generates tickets (`class-tickets.php`), enrollments (`class-seminar-registrations.php`), or session tickets (`class-session-tickets.php`).
+- **Attendance** — QR-code based check-in via `class-attendance.php` (events) and `class-seminar-attendance.php` (seminar sessions). Both can also process individual session tickets.
+- **CE Credits** — Immutable ledger in `wp_gps_ce_ledger` (`class-credits.php`). Awarded automatically on attendance.
+- **Certificates** — TCPDF-generated, validated via public URL (`class-certificates.php`, `class-seminar-certificates.php`).
+- **Waitlists** — Position-queued, 48h-window, hourly cron expiration (`class-waitlist.php`, `class-seminar-waitlist.php`).
+- **Frontend** — Elementor widgets (`widgets/`) + shortcodes (`class-shortcodes.php`).
 
 ---
 
@@ -57,844 +74,504 @@ GPS Courses is a comprehensive WordPress plugin for managing dental training eve
 
 ```
 gps-courses/
-├── gps-courses.php              # Main plugin file (entry point)
-├── composer.json                # Composer dependencies
-├── CLAUDE.md                    # Claude AI instructions
-├── AI_ASSISTANT_INTEGRATION.md  # AI Assistant integration docs
-├── GPS_COURSES_FULL_DOCUMENTATION.md  # This file
+├── gps-courses.php                 # Entry point, defines GPSC_VERSION = '1.0.4'
+├── composer.json                   # endroid/qr-code, tcpdf, phpmailer, bacon/qr-code
+├── CLAUDE.md                       # Short Claude instructions
+├── GPS_COURSES_FULL_DOCUMENTATION.md  # This document (canonical reference)
 │
-├── includes/                    # Core PHP classes (34 files)
-│   ├── class-plugin.php         # Main plugin class, autoloader
-│   ├── class-activator.php      # Database tables creation
-│   ├── class-posttypes.php      # Custom post types registration
-│   ├── class-events.php         # Event management
-│   ├── class-schedules.php      # Event schedules (multi-day/session)
-│   ├── class-tickets.php        # Ticket types, pricing, sold out logic
-│   ├── class-tickets-admin.php  # Ticket admin interface
-│   ├── class-qrcode.php         # QR code generation
-│   ├── class-woocommerce.php    # WooCommerce integration
-│   ├── class-credits.php        # CE credits ledger
-│   ├── class-attendance.php     # Check-in and attendance
-│   ├── class-certificates.php   # PDF certificate generation
-│   ├── class-certificate-settings.php
-│   ├── class-certificate-validation.php
-│   ├── class-seminars.php       # Monthly seminars module
-│   ├── class-seminar-registrations.php
-│   ├── class-seminar-attendance.php
-│   ├── class-seminar-notifications.php
-│   ├── class-seminar-certificates.php
-│   ├── class-seminar-waitlist.php
-│   ├── class-waitlist.php       # Enhanced event waitlist
-│   ├── class-emails.php         # Email handler
-│   ├── class-email-settings.php # Email configuration
-│   ├── class-settings.php       # Plugin settings
-│   ├── class-reports.php        # Admin reports/analytics
-│   ├── class-api.php            # REST API endpoints
-│   ├── class-elementor.php      # Elementor integration
-│   ├── class-shortcodes.php     # Shortcode handlers
-│   ├── class-pdf.php            # PDF generation (TCPDF)
-│   ├── class-debug-helper.php   # Debug utilities
-│   ├── helpers.php              # Utility functions
-│   └── emails/                  # Email classes
+├── includes/                       # 35 PHP classes (see "Core Classes" section)
+│   └── emails/                     # WC_Email subclasses
 │       ├── class-ticket-email.php
 │       └── class-credits-email.php
 │
-├── widgets/                     # Elementor widgets (20 total)
-│   ├── base-widget.php          # Base widget class
-│   ├── event-calendar.php       # Interactive calendar
-│   ├── event-grid.php           # Event grid display
-│   ├── event-list.php           # Event list with filters
-│   ├── event-slider.php         # Event carousel
-│   ├── event-dates-display.php  # Event dates display
-│   ├── single-event.php         # Single event details
-│   ├── course-description.php   # Course description
-│   ├── course-objectives.php    # Learning objectives
-│   ├── schedule-display.php     # Full schedule display
-│   ├── seminar-registration.php # Seminar enrollment
-│   ├── seminar-schedule.php     # Seminar sessions
-│   ├── seminar-progress.php     # Student progress
-│   ├── ce-credits-display.php   # User CE credits
-│   ├── speaker-grid.php         # Speaker profiles
-│   ├── google-maps.php          # Google Maps
-│   ├── ticket-selector.php      # AJAX ticket selector
-│   ├── countdown-timer.php      # Countdown to event
-│   ├── add-to-calendar.php      # Calendar integration
-│   └── share-course.php         # Social sharing
-│
-├── assets/
-│   ├── css/                     # Stylesheets (14 files)
-│   │   ├── admin.css
-│   │   ├── admin-seminars.css
-│   │   ├── admin-attendance.css
-│   │   ├── admin-certificates.css
-│   │   ├── admin-settings.css
-│   │   ├── admin-reports.css
-│   │   ├── admin-waitlist.css
-│   │   ├── schedule-admin.css
-│   │   ├── frontend.css
-│   │   ├── calendar.css
-│   │   ├── elementor-widgets.css
-│   │   ├── add-to-calendar.css
-│   │   └── share-course.css
-│   │
-│   └── js/                      # JavaScript files (17 files)
-│       ├── admin-seminars.js
-│       ├── admin-attendance.js
-│       ├── admin-certificates.js
-│       ├── admin-seminar-certificates.js
-│       ├── admin-settings.js
-│       ├── admin-reports.js
-│       ├── admin-email-settings.js
-│       ├── admin-waitlist.js
-│       ├── event-admin.js
-│       ├── schedule-admin.js
-│       ├── elementor-widgets.js
-│       ├── elementor-editor.js
-│       ├── calendar.js
-│       ├── countdown.js
-│       ├── ticket-selector.js
-│       ├── share-course.js
-│       └── add-to-calendar.js
-│
-├── templates/
-│   └── emails/
-│       └── ticket.php           # Ticket email template
-│
-└── vendor/                      # Composer dependencies
-    ├── endroid/qr-code          # QR code generation
-    ├── tecnickcom/tcpdf         # PDF generation
-    ├── phpmailer/phpmailer      # Email handling
-    ├── bacon/bacon-qr-code      # QR code library
-    └── dasprid/enum             # PHP enum support
+├── widgets/                        # 19 Elementor widgets
+├── assets/css/                     # 14 stylesheets
+├── assets/js/                      # 17 scripts
+├── templates/emails/ticket.php     # Ticket email template
+└── vendor/                         # Composer deps
 ```
 
 ---
 
 ## Database Schema
 
-### Tables (10 total)
+**13 tables total.** All prefixed with `wp_gps_`.
 
-#### 1. wp_gps_tickets
-Stores individual ticket instances generated when orders are completed.
+### 1. `wp_gps_tickets`
+Generated when a course/event order completes. One row = one attendee admission.
 
-```sql
-CREATE TABLE wp_gps_tickets (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    ticket_code VARCHAR(50) UNIQUE NOT NULL,      -- Unique ticket identifier
-    ticket_type_id BIGINT UNSIGNED NOT NULL,      -- References gps_ticket CPT
-    event_id BIGINT UNSIGNED NOT NULL,            -- References gps_event CPT
-    user_id BIGINT UNSIGNED DEFAULT 0,            -- WP user ID (0 for guests)
-    order_id BIGINT UNSIGNED NOT NULL,            -- WooCommerce order ID
-    order_item_id BIGINT UNSIGNED NOT NULL,       -- WooCommerce order item ID
-    attendee_name VARCHAR(255) NOT NULL,
-    attendee_email VARCHAR(255) NOT NULL,
-    qr_code_path VARCHAR(500),                    -- Path to QR code image
-    status ENUM('valid', 'used', 'cancelled') DEFAULT 'valid',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_event (event_id),
-    INDEX idx_user (user_id),
-    INDEX idx_order (order_id)
-);
-```
+| Column | Type | Notes |
+|--------|------|-------|
+| `ticket_code` | VARCHAR(50) UNIQUE | Embedded in QR |
+| `ticket_type_id` | BIGINT | → `gps_ticket` CPT |
+| `event_id` | BIGINT | → `gps_event` CPT |
+| `user_id` | BIGINT (0 = guest) | Linked on register/login |
+| `order_id` / `order_item_id` | BIGINT | WC linkage |
+| `attendee_name` / `attendee_email` | VARCHAR | Designated attendee supported |
+| `qr_code_path` | VARCHAR(500) | Filesystem path |
+| `status` | ENUM('valid','used','cancelled') | |
 
-#### 2. wp_gps_enrollments
-Tracks user enrollments in events/sessions.
+### 2. `wp_gps_enrollments`
+Course session enrollments (legacy/multi-session events).
 
-```sql
-CREATE TABLE wp_gps_enrollments (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT UNSIGNED NOT NULL,
-    session_id BIGINT UNSIGNED NOT NULL,
-    order_id BIGINT UNSIGNED NOT NULL,
-    status ENUM('enrolled', 'completed', 'cancelled') DEFAULT 'enrolled',
-    attended TINYINT(1) DEFAULT 0,
-    checked_in_at DATETIME,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_user (user_id),
-    INDEX idx_session (session_id)
-);
-```
+### 3. `wp_gps_attendance`
+Check-in events for course tickets. Methods: `qr_scan`, `manual`, `search`.
 
-#### 3. wp_gps_attendance
-Records check-in events for course attendance.
+### 4. `wp_gps_ce_ledger`
+**Immutable** ledger of CE credit transactions. Sources: `course_attendance`, `seminar_session`, `manual`. Types: `earned`, `adjustment`, `revoked`.
 
-```sql
-CREATE TABLE wp_gps_attendance (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    ticket_id BIGINT UNSIGNED NOT NULL,
-    event_id BIGINT UNSIGNED NOT NULL,
-    user_id BIGINT UNSIGNED NOT NULL,
-    checked_in_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    checked_in_by BIGINT UNSIGNED,                -- Admin who checked them in
-    check_in_method ENUM('qr_scan', 'manual', 'search') DEFAULT 'manual',
-    notes TEXT,
-    INDEX idx_ticket (ticket_id),
-    INDEX idx_event (event_id),
-    INDEX idx_user (user_id)
-);
-```
+### 5. `wp_gps_certificates`
+Generated PDFs with `certificate_path`, `certificate_url`, `certificate_sent_at`. Unique per ticket.
 
-#### 4. wp_gps_ce_ledger
-Immutable ledger for CE credit transactions.
+### 6. `wp_gps_waitlist`
+Event ticket waitlist. Position-ordered, 48h notification window, statuses: `waiting`, `notified`, `converted`, `expired`, `removed`.
 
-```sql
-CREATE TABLE wp_gps_ce_ledger (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT UNSIGNED NOT NULL,
-    event_id BIGINT UNSIGNED,                     -- Can be NULL for manual adjustments
-    credits DECIMAL(5,2) NOT NULL,
-    source VARCHAR(100),                          -- 'course_attendance', 'seminar_session', 'manual'
-    transaction_type ENUM('earned', 'adjustment', 'revoked') DEFAULT 'earned',
-    notes TEXT,
-    awarded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_user (user_id),
-    INDEX idx_event (event_id)
-);
-```
+### 7. `wp_gps_seminar_registrations`
+Monthly seminar enrollment (10 sessions, $750). Tracks `sessions_completed`, `sessions_remaining`, `makeup_used` (1/year), `qr_code`, `qr_scan_count`.
 
-#### 5. wp_gps_certificates
-Tracks generated certificates.
+### 8. `wp_gps_seminar_sessions`
+Individual sessions of a seminar. **v1.0.4 added 6 columns** for individual sales:
 
-```sql
-CREATE TABLE wp_gps_certificates (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    ticket_id BIGINT UNSIGNED UNIQUE,             -- One certificate per ticket
-    user_id BIGINT UNSIGNED NOT NULL,
-    event_id BIGINT UNSIGNED NOT NULL,
-    certificate_path VARCHAR(500),
-    certificate_url VARCHAR(500),
-    generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    certificate_sent_at DATETIME,                 -- When emailed to user
-    INDEX idx_user (user_id),
-    INDEX idx_event (event_id)
-);
-```
+| New Column | Type | Purpose |
+|------------|------|---------|
+| `individual_price` | DECIMAL(10,2) | Per-session price |
+| `individual_ce_credits` | DECIMAL(5,2) | CE for single-session attendee (default 2) |
+| `individual_product_id` | BIGINT | WC product for this single session |
+| `individual_sales_enabled` | TINYINT(1) | Toggle |
+| `individual_capacity` | INT | 0 = unlimited |
+| `individual_sold_count` | INT | Auto-incremented on order completion |
 
-#### 6. wp_gps_waitlist
-Enhanced waitlist for sold-out ticket types.
+### 9. `wp_gps_seminar_attendance`
+Per-session check-in. Tracks `is_makeup`, `credits_awarded` (default 2.00).
 
-```sql
-CREATE TABLE wp_gps_waitlist (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT UNSIGNED DEFAULT NULL,         -- WP user ID if logged in
-    email VARCHAR(255) NOT NULL,
-    first_name VARCHAR(100),
-    last_name VARCHAR(100),
-    phone VARCHAR(50),
-    ticket_type_id BIGINT UNSIGNED NOT NULL,      -- References gps_ticket CPT
-    event_id BIGINT UNSIGNED NOT NULL,
-    position INT DEFAULT 1,                        -- Position in queue
-    status ENUM('waiting', 'notified', 'converted', 'expired', 'removed') DEFAULT 'waiting',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    notified_at DATETIME,                         -- When spot available email sent
-    expires_at DATETIME,                          -- 48h after notification
-    notes TEXT,
-    INDEX idx_email (email),
-    INDEX idx_ticket_type (ticket_type_id),
-    INDEX idx_event (event_id),
-    INDEX idx_status (status),
-    INDEX idx_position (position)
-);
-```
+### 10. `wp_gps_seminar_waitlist`
+Seminar program waitlist (whole program, not per-session).
 
-#### 7. wp_gps_seminar_registrations
-Tracks 10-session seminar enrollments.
+### 12. `wp_gps_qr_codes` ⭐ **NEW v1.0.5**
+One row per promotional QR (one per event/seminar). The `short_code` (8 chars, unambiguous alphabet) is the path segment in `/qr/{code}`. `target_url` is a cached permalink for display only — actual redirect resolves the permalink fresh from `post_id`. Soft-deleted via `deleted_at`.
 
-```sql
-CREATE TABLE wp_gps_seminar_registrations (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT UNSIGNED NOT NULL,
-    seminar_id BIGINT UNSIGNED NOT NULL,          -- References gps_seminar CPT
-    order_id BIGINT UNSIGNED,
-    registration_date DATE,
-    start_session_date DATE,                      -- When user started their 10 sessions
-    sessions_completed INT DEFAULT 0,
-    sessions_remaining INT DEFAULT 10,
-    makeup_used TINYINT(1) DEFAULT 0,             -- Only 1 makeup allowed per year
-    status ENUM('active', 'completed', 'cancelled', 'on_hold') DEFAULT 'active',
-    qr_code VARCHAR(100),
-    qr_code_path VARCHAR(500),
-    qr_scan_count INT DEFAULT 0,
-    notes TEXT,
-    registered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_user (user_id),
-    INDEX idx_seminar (seminar_id),
-    INDEX idx_order (order_id),
-    INDEX idx_status (status)
-);
-```
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | BIGINT PK | |
+| `post_id` / `post_type` | BIGINT / VARCHAR | Linked event or seminar |
+| `short_code` | VARCHAR(16) UNIQUE | URL path token |
+| `target_url` | VARCHAR(500) | Cached, informational |
+| `utm_source` / `utm_medium` / `utm_campaign` / `utm_content` / `utm_term` | VARCHAR | Defaults: `qr`/`print`/post-slug |
+| `has_logo` | TINYINT(1) | Render logo at center |
+| `scan_count` | INT | Cached running total (excludes bots) |
+| `last_scanned_at` | DATETIME | |
+| `created_at` / `deleted_at` | DATETIME | Soft-delete |
 
-#### 8. wp_gps_seminar_sessions
-Individual seminar sessions (10 per year).
+### 13. `wp_gps_qr_scans` ⭐ **NEW v1.0.5**
+Per-scan log. Bots (`is_bot=1`) excluded from all dashboard aggregations.
 
-```sql
-CREATE TABLE wp_gps_seminar_sessions (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    seminar_id BIGINT UNSIGNED NOT NULL,
-    session_number INT NOT NULL,                  -- 1-10
-    session_date DATE NOT NULL,
-    session_time_start TIME,
-    session_time_end TIME,
-    topic VARCHAR(500),
-    description TEXT,
-    capacity INT DEFAULT 0,
-    registered_count INT DEFAULT 0,
-    INDEX idx_seminar (seminar_id),
-    INDEX idx_date (session_date),
-    INDEX idx_number (session_number)
-);
-```
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | BIGINT PK | |
+| `qr_id` / `post_id` | BIGINT | Denormalized |
+| `scanned_at` | DATETIME | |
+| `ip_hash` | VARCHAR(64) | SHA-256 of `IP + wp_salt('auth')` |
+| `user_agent` | VARCHAR(500) | Truncated |
+| `device_type` | VARCHAR(20) | `mobile` / `tablet` / `desktop` / `unknown` |
+| `is_bot` | TINYINT(1) | Detected by UA regex |
+| `country` / `country_code` / `region` / `city` | VARCHAR | Async-filled via ip-api.com |
+| `referrer` | VARCHAR(500) | |
 
-#### 9. wp_gps_seminar_attendance
-Tracks attendance for each seminar session.
+### 11. `wp_gps_session_tickets` ⭐ **NEW v1.0.4**
+Individual session ticket sales (independent of full seminar registration).
 
-```sql
-CREATE TABLE wp_gps_seminar_attendance (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    registration_id BIGINT UNSIGNED NOT NULL,
-    session_id BIGINT UNSIGNED NOT NULL,
-    user_id BIGINT UNSIGNED NOT NULL,
-    seminar_id BIGINT UNSIGNED NOT NULL,
-    attended TINYINT(1) DEFAULT 1,
-    checked_in_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    checked_in_by BIGINT UNSIGNED,
-    is_makeup TINYINT(1) DEFAULT 0,               -- Marked if this is a makeup session
-    credits_awarded DECIMAL(5,2) DEFAULT 2.00,    -- 2 CE per session
-    notes TEXT,
-    INDEX idx_registration (registration_id),
-    INDEX idx_session (session_id),
-    INDEX idx_user (user_id),
-    INDEX idx_seminar (seminar_id)
-);
-```
-
-#### 10. wp_gps_seminar_waitlist
-Waitlist for seminar programs.
-
-```sql
-CREATE TABLE wp_gps_seminar_waitlist (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    seminar_id BIGINT UNSIGNED NOT NULL,
-    user_id BIGINT UNSIGNED,
-    email VARCHAR(255) NOT NULL,
-    first_name VARCHAR(100),
-    last_name VARCHAR(100),
-    phone VARCHAR(50),
-    position INT NOT NULL,
-    status ENUM('waiting', 'notified', 'converted', 'expired', 'cancelled') DEFAULT 'waiting',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    notified_at DATETIME,
-    expires_at DATETIME,
-    notes TEXT,
-    INDEX idx_seminar (seminar_id),
-    INDEX idx_user (user_id),
-    INDEX idx_email (email),
-    INDEX idx_status (status),
-    INDEX idx_position (position)
-);
-```
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | BIGINT PK | |
+| `session_id` | BIGINT | → `wp_gps_seminar_sessions.id` |
+| `seminar_id` | BIGINT | Denormalized for fast lookup |
+| `user_id` / `order_id` | BIGINT | WC linkage |
+| `ticket_code` | VARCHAR(50) UNIQUE | QR payload |
+| `attendee_name` / `attendee_email` | VARCHAR | |
+| `qr_code_path` | VARCHAR(255) | |
+| `ce_credits` | DECIMAL(5,2) DEFAULT 2.00 | Awarded on check-in |
+| `status` | VARCHAR(20) DEFAULT 'valid' | |
+| `checked_in_at` / `checked_in_by` | DATETIME / BIGINT | |
+| `created_at` | DATETIME | |
 
 ---
 
 ## Custom Post Types
 
-### gps_event
-Events and courses.
+Registered in [includes/class-posttypes.php](includes/class-posttypes.php).
 
-| Setting | Value |
-|---------|-------|
-| Public | Yes |
-| Show UI | Yes |
-| Supports | title, editor, excerpt, thumbnail |
-| Show in REST | Yes |
+### `gps_event` — Courses
+**Meta:** `_gps_ce_credits`, `_gps_start_date`, `_gps_end_date`, `_gps_start_time`, `_gps_end_time`, `_gps_venue`, `_gps_address`, `_gps_objectives`, `_gps_speaker_ids`, `_gps_capacity`, `_gps_registration_deadline`, `_gps_schedule_topics` (JSON).
 
-**Meta Fields:**
-| Meta Key | Type | Description |
-|----------|------|-------------|
-| `_gps_start_date` | datetime | Event start date/time |
-| `_gps_end_date` | datetime | Event end date/time |
-| `_gps_venue` | string | Venue name |
-| `_gps_address` | string | Full address |
-| `_gps_location` | string | Legacy location field |
-| `_gps_ce_credits` | integer | CE credits awarded |
-| `_gps_capacity` | integer | Maximum capacity |
-| `_gps_registration_deadline` | datetime | Registration cutoff |
-| `_gps_schedule_topics` | JSON | Schedule topics array |
+### `gps_seminar` — Monthly seminar program (10 sessions)
+**Meta:** `_gps_seminar_year`, `_gps_seminar_capacity`, `_gps_seminar_product_id` (full-program WC product), `_gps_seminar_status`, `_gps_seminar_tuition` ($750 default).
 
-### gps_seminar
-Monthly seminar programs (10-session cycles).
+### `gps_session` — Individual session in a multi-day event
+**Meta:** `_gps_event_id`, `_gps_start`, `_gps_end`, `_gps_wc_product_id`, `_gps_speaker_ids`.
 
-| Setting | Value |
-|---------|-------|
-| Public | Yes |
-| Show UI | Yes |
-| Supports | title, editor, thumbnail |
+### `gps_ticket` — Ticket type (Early Bird, VIP, etc.)
+Not public. **Meta:** `_gps_event_id`, `_gps_wc_product_id`, `_gps_ticket_type` (early_bird/general/vip/group), `_gps_ticket_price`, `_gps_ticket_quantity`, `_gps_ticket_start_date`, `_gps_ticket_end_date`, `_gps_ticket_status`, `_gps_ticket_features`, `_gps_ticket_internal_label`, `_gps_manual_sold_out`.
 
-**Meta Fields:**
-| Meta Key | Type | Description |
-|----------|------|-------------|
-| `_gps_seminar_year` | integer | Program year (e.g., 2025) |
-| `_gps_seminar_price` | decimal | Enrollment price ($750) |
-| `_gps_wc_product_id` | integer | Linked WooCommerce product |
+### `gps_speaker`
+**Meta:** `_gps_designation`, `_gps_company`, `_gps_email`, `_gps_phone`, `_gps_social_twitter`, `_gps_social_linkedin`, `_gps_social_facebook`.
 
-### gps_speaker
-Speaker/instructor profiles.
+### `gps_organizer`, `gps_sponsor`
+Linked entities via post meta.
 
-| Setting | Value |
-|---------|-------|
-| Public | Yes |
-| Show UI | Yes |
-| Supports | title, editor, thumbnail |
+**Taxonomies:** `gps_event_category`, `gps_event_tag`.
 
-**Meta Fields:**
-| Meta Key | Type | Description |
-|----------|------|-------------|
-| `_gps_speaker_title` | string | Professional title (DDS, DMD, etc.) |
-| `_gps_speaker_bio` | text | Biography |
-| `_gps_speaker_social` | JSON | Social media links |
+---
 
-### gps_ticket
-Ticket types for events (not public, admin-only).
+## Core Classes (`includes/`)
 
-| Setting | Value |
-|---------|-------|
-| Public | No |
-| Show UI | Yes |
-| Supports | title |
-
-**Meta Fields:**
-| Meta Key | Type | Description |
-|----------|------|-------------|
-| `_gps_event_id` | integer | Parent event ID |
-| `_gps_wc_product_id` | integer | Linked WooCommerce product |
-| `_gps_ticket_type` | string | early_bird, general, vip, group |
-| `_gps_ticket_price` | decimal | Ticket price |
-| `_gps_ticket_quantity` | integer | Total available (empty = unlimited) |
-| `_gps_ticket_start_date` | datetime | Sale start date |
-| `_gps_ticket_end_date` | datetime | Sale end date |
-| `_gps_ticket_status` | string | active, inactive |
-| `_gps_ticket_features` | text | Features list (one per line) |
-| `_gps_ticket_internal_label` | string | Admin-only label |
-| `_gps_manual_sold_out` | boolean | Manual sold out override |
+| Class File | Purpose |
+|-----------|---------|
+| `class-plugin.php` | Bootstrap, requires all classes, initializes hooks |
+| `class-activator.php` | DB table creation, schema migrations (e.g. `migrate_session_individual_sales`, `migrate_tickets_designated_attendee`) |
+| `class-posttypes.php` | Registers 6 CPTs + taxonomies, metaboxes, sessions admin table |
+| `class-tickets.php` | Ticket CRUD, stock tracking, QR linking |
+| `class-tickets-admin.php` | Admin UI for ticket types |
+| `class-events.php` | Event helpers |
+| `class-schedules.php` | Multi-day schedule management (uses `JSON_UNESCAPED_UNICODE`) |
+| `class-qrcode.php` | QR generation via Endroid |
+| `class-pdf.php` | TCPDF wrapper |
+| `class-woocommerce.php` | All WC integration: order processing, account endpoints, auto-complete, guest linking, admin notifications |
+| `class-credits.php` | CE credit ledger ops |
+| `class-attendance.php` | Course check-in (QR/manual/search) |
+| `class-certificates.php` | Course PDF certificate generation |
+| `class-certificate-settings.php` | Certificate template config |
+| `class-certificate-validation.php` | Public certificate validation endpoint |
+| `class-seminars.php` | Monthly seminars admin (registrants, attendance, reports) |
+| `class-seminar-registrations.php` | 10-session enrollment lifecycle |
+| `class-seminar-attendance.php` | Session check-in (now also handles individual session ticket QRs) |
+| `class-seminar-certificates.php` | Bi-annual seminar certificates |
+| `class-seminar-notifications.php` | Daily 8am cron for reminder emails |
+| `class-seminar-waitlist.php` | Seminar waitlist + hourly cron |
+| `class-seminar-makeup-requests.php` | Makeup session requests |
+| **`class-session-tickets.php`** ⭐ | **v1.0.4 NEW** — Individual session sales (see dedicated section) |
+| **`class-qr-tracker.php`** ⭐ | **v1.0.5 NEW** — `/qr/{code}` rewrite, scan logging, async geo, redirect to live permalink with UTMs |
+| **`class-qr-promotional.php`** ⭐ | **v1.0.5 NEW** — Sidebar metabox in event/seminar edit screens; SVG/PNG download endpoints; logo overlay |
+| **`class-qr-dashboard.php`** ⭐ | **v1.0.5 NEW** — `gps-dashboard > QR Analytics` admin page with KPIs, charts (Chart.js CDN), top-N tables |
+| `class-waitlist.php` | Event ticket waitlist + hourly cron |
+| `class-emails.php` | Core email dispatch + password reset template |
+| `class-email-settings.php` | Email branding/config |
+| `class-email-template-manager.php` | Visual editor + live preview for email templates |
+| `class-settings.php` | Settings registration (general, email, ticket, CE, WC) |
+| `class-reports.php` | CSV exports + email blasts |
+| `class-api.php` | REST routes (namespace `gps-courses/v1`) |
+| `class-elementor.php` | Widget category + 19 widget registrations |
+| `class-shortcodes.php` | Frontend shortcodes |
+| `class-debug-helper.php` | Diagnostic admin tools |
+| `helpers.php` | Date/format/sanitize utilities |
+| `emails/class-ticket-email.php` | `WC_Email` subclass for ticket confirmation |
+| `emails/class-credits-email.php` | `WC_Email` subclass for CE credit notifications |
 
 ---
 
 ## Core Features
 
-### 1. Ticketing System
+### 1. Ticketing (Events)
+Multiple ticket types per event with time-based pricing. Stock counted from **completed orders only** (HPOS-compatible). QR-coded with email delivery.
 
-**Functionality:**
-- Multiple ticket types per event (Early Bird, VIP, General, Group)
-- Time-based pricing (automatic activation based on sale dates)
-- QR code generation for each ticket
-- Email delivery with embedded QR codes
-- Stock management synced with WooCommerce
-- Internal labels for admin organization
-
-**Stock Calculation:**
-```php
-// From class-tickets.php
-public static function get_ticket_stock($ticket_id) {
-    // Count sold tickets from COMPLETED orders only (HPOS compatible)
-    // Returns: ['total' => int, 'sold' => int, 'available' => int, 'unlimited' => bool]
-}
-```
-
-### 2. Manual Sold Out & Waitlist
-
-**Manual Sold Out Feature:**
-- Admin can mark any ticket as "Sold Out" regardless of actual stock
-- Uses `_gps_manual_sold_out` meta field
-- When enabled, shows waitlist form instead of add to cart
-- Visual indicator in admin ticket list
-
-**Waitlist System:**
-- Position-based queue management
-- Automatic email confirmation on signup
-- 48-hour window when spot becomes available
-- Automatic expiration and notification of next person
-- Cron job: `gps_process_expired_ticket_waitlist` (hourly)
-
-**Waitlist Statuses:**
-| Status | Description |
-|--------|-------------|
-| `waiting` | In queue, waiting for spot |
-| `notified` | Spot available, has 48h to purchase |
-| `converted` | Successfully purchased |
-| `expired` | Didn't purchase within 48h |
-| `removed` | Manually removed by admin |
-
-**Email Templates (using plugin branding):**
-- Waitlist Confirmation: Confirms addition to waitlist
-- Spot Available: 48h urgency notification with purchase CTA
+### 2. Manual Sold-Out & Waitlist
+- Admin can flag any ticket as sold-out via `_gps_manual_sold_out`.
+- When sold out, the frontend shows a waitlist form instead of "Add to Cart".
+- Waitlist queue tracked by `position`. On order cancel/refund → next person notified with 48h window.
+- Hourly cron `gps_process_expired_ticket_waitlist` expires lapsed notifications and rotates the queue.
 
 ### 3. Event Calendar
+Month/week/list views, AJAX-powered, 5-min cache. Colors: Courses `#0B52AC`, Seminars `#DDC89D`. Now includes individual seminar sessions.
 
-**Features:**
-- Interactive month/week/list views
-- Filter by event type (courses, seminars)
-- Sidebar with event details on click
-- Visual distinction by colors:
-  - Courses: #0B52AC (blue)
-  - Seminars: #DDC89D (gold)
-- AJAX-powered navigation
-- 5-minute caching for performance
-
-### 4. CE Credits Management
-
-**Features:**
-- Automatic credit award on attendance check-in
-- Immutable ledger for audit trail
-- Transaction types: earned, adjustment, revoked
-- Per-user credit history
-- Bulk credit operations for admins
-- CSV export for reports
-
-**Credit Sources:**
-| Source | Description |
-|--------|-------------|
-| `course_attendance` | Check-in at course event |
-| `seminar_session` | Check-in at seminar session (2 CE each) |
-| `manual` | Admin manual adjustment |
+### 4. CE Credits
+Immutable ledger. Sources: `course_attendance`, `seminar_session`, `manual`. Types: `earned`, `adjustment`, `revoked`. Awarded automatically on check-in.
 
 ### 5. Attendance & Check-in
+Three methods: `qr_scan`, `manual`, `search`. The seminar check-in handler in [class-seminar-attendance.php](includes/class-seminar-attendance.php) now branches on `qr_data.type === 'session_ticket'` to delegate to `Session_Tickets::check_in_by_code` for individual session attendees.
 
-**Check-in Methods:**
-| Method | Description |
-|--------|-------------|
-| `qr_scan` | Camera-based QR code scanning |
-| `manual` | Admin enters ticket code manually |
-| `search` | Search by name/email |
-
-**Process:**
-1. Admin opens attendance page for event
-2. Scans QR or searches for attendee
-3. System validates ticket (status = 'valid')
-4. Creates attendance record
-5. Updates ticket status to 'used'
-6. Auto-awards CE credits to user's ledger
-
-### 6. Monthly Seminars Module
-
-**Program Structure:**
-- 10 sessions per calendar year
-- $750 one-time enrollment fee
-- 2 CE credits per session (20 total)
-- Only 1 makeup session allowed per year
-- Bi-annual certificates (June 30, December 31)
-
-**Registration Flow:**
-1. User purchases seminar via WooCommerce
-2. System creates `seminar_registration` record
-3. QR code generated for all sessions
-4. User attends sessions, gets checked in
-5. After each session: `sessions_completed++`, `sessions_remaining--`
-6. After 10 sessions or at bi-annual dates: certificate generated
-
-**Makeup Rules:**
-- `makeup_used` flag tracks if makeup was used
-- Only 1 makeup per calendar year
-- `is_makeup` flag on attendance record
+### 6. Monthly Seminars
+- 10 sessions/year, $750 enrollment, 2 CE per session (20 total).
+- 1 makeup per year, tracked via `makeup_used` flag.
+- Bi-annual certificates: June 30, December 31.
 
 ### 7. Certificate Generation
-
-**Features:**
-- PDF generation using TCPDF library
-- Customizable design and branding
-- Public validation URL for verification
-- Bulk generation capability
-- Email delivery with PDF attachment
-- Tracking: `generated_at`, `certificate_sent_at`
-
-**Certificate Data:**
-- Attendee name
-- Event/course title
-- Date of completion
-- CE credits earned
-- Unique certificate code for validation
+TCPDF, public validation URL, bulk gen, email delivery with PDF attachment. Tracks `generated_at` and `certificate_sent_at`. Recent fix (commit `8ac0b97`): GPS branding, name capitalization, PDF attachment.
 
 ### 8. Email System
-
-**Configuration Options:**
-| Setting | Description |
-|---------|-------------|
-| `gps_email_logo` | Header logo URL |
-| `gps_email_from_name` | Sender name |
-| `gps_email_from_email` | Sender email |
-| `gps_email_header_bg_color` | Header background (#0B52AC) |
-| `gps_email_header_text_color` | Header text (#ffffff) |
-| `gps_email_body_bg_color` | Body background (#f5f5f5) |
-| `gps_email_body_text_color` | Body text (#333333) |
-| `gps_email_button_bg_color` | CTA button background |
-| `gps_email_button_text_color` | CTA button text |
-| `gps_email_footer_text` | Footer message |
-
-**Email Types:**
-- Ticket confirmation (with QR code)
-- Waitlist confirmation
-- Spot available notification (48h urgency)
-- Certificate delivery
-- Order status notifications
-- Session reminders
+Visual template editor (`class-email-template-manager.php`) with live preview. Per-template configurable. Branding via Settings (logo, colors, footer). Recent additions: password reset, designated attendee.
 
 ### 9. WooCommerce Integration
+- Auto-completes GPS-product orders on payment_complete.
+- Tracks status changes and emails admins.
+- Links guest orders on user register/login.
+- New custom My Account tab: **My Individual Sessions** (v1.0.4).
 
-**Features:**
-- Product-based ticket sales
-- Auto-complete for GPS products on payment
-- Order status tracking with notifications
-- Guest order linking to user accounts
-- Order diagnostic tools
-
-**Hooks Used:**
-```php
-// Order processing
-add_action('woocommerce_order_status_completed', 'on_order_completed');
-add_action('woocommerce_payment_complete', 'auto_complete_gps_orders');
-add_action('woocommerce_order_status_changed', 'track_order_status_change');
-
-// Waitlist triggers
-add_action('woocommerce_order_status_cancelled', 'on_order_cancelled');
-add_action('woocommerce_order_status_refunded', 'on_order_refunded');
-
-// Guest order linking
-add_action('user_register', 'link_guest_orders_on_register');
-add_action('wp_login', 'link_guest_orders_on_login');
-```
-
-### 10. My Account Integration
-
-**Custom Tabs Added:**
-| Tab | Endpoint | Description |
-|-----|----------|-------------|
-| My Courses | `/my-courses/` | Enrolled events list |
-| Monthly Seminars | `/seminars/` | Seminar progress |
-| CE Credits | `/ce-credits/` | Credit history |
-| My Tickets | `/my-tickets/` | Purchased tickets |
-| Attendance History | `/attendance/` | Check-in records |
+### 10. My Account Tabs
+- My Courses (`/my-courses/`)
+- Monthly Seminars (`/seminars/`)
+- CE Credits (`/ce-credits/`)
+- My Tickets (`/my-tickets/`)
+- Attendance History (`/attendance/`)
+- **My Individual Sessions** (new, rendered inside seminars endpoint)
 
 ---
 
-## REST API Endpoints
+## Individual Session Tickets (v1.0.4)
 
-Base URL: `/wp-json/gps-courses/v1/`
+The flagship v1.0.4 feature. Allows monthly seminar sessions to be sold standalone in addition to the full $750 program.
 
-### Public Endpoints (No Auth Required)
+### Admin Configuration
+In [class-posttypes.php](includes/class-posttypes.php) the seminar sessions metabox now has 6 extra columns per session row:
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/events` | List all published events |
-| GET | `/events/{id}` | Get single event details |
-| GET | `/events/calendar` | Get events for calendar display |
-| GET | `/availability/event/{event_id}` | Check event availability (AI Assistant) |
-| GET | `/availability/ticket/{ticket_id}` | Check specific ticket availability |
-| POST | `/waitlist/add` | Add user to waitlist |
-| GET | `/waitlist/check?email=&event_id=` | Check waitlist status |
+| Column | Field |
+|--------|-------|
+| Sell Individually | `individual_enabled` checkbox |
+| Ind. Price | `individual_price` |
+| Ind. CE | `individual_ce_credits` (default 2) |
+| Ind. Product | dropdown of WC products |
+| Sold | live count from `individual_sold_count` |
 
-### Protected Endpoints (Requires Authentication)
+When saving, the linked WC product gets meta `_gps_session_individual_id` and `_gps_seminar_session_id` so reverse lookup works.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/tickets` | Get user's tickets |
-| GET | `/tickets/{id}` | Get single ticket |
-| POST | `/tickets/verify` | Verify QR code |
-| GET | `/credits/user/{user_id}` | Get user CE credits |
-| GET | `/credits/ledger` | Get CE ledger entries |
-| GET | `/attendance/event/{event_id}` | Get event attendance (admin) |
+### `Session_Tickets` Class — Public Methods
 
-### API Response Examples
+[includes/class-session-tickets.php](includes/class-session-tickets.php)
 
-**Event Availability (for AI Assistant):**
+| Method | Purpose |
+|--------|---------|
+| `init()` | Register WC + AJAX hooks |
+| `process_session_order($order_id)` | On order completion, create one `wp_gps_session_tickets` row per item |
+| `create_session_ticket($data)` | Generate code, QR, insert row |
+| `get_ticket($id)` / `get_ticket_by_code($code)` | Lookup |
+| `get_session_tickets($session_id)` | List valid tickets for a session |
+| `get_user_session_tickets($user_id)` | User's purchased individual sessions (joined with seminar/session metadata) |
+| `check_in($ticket_id, $checked_in_by)` | Mark attended, award CE |
+| `check_in_by_code($code, $session_id)` | QR scan path; validates session match |
+| `generate_certificate($ticket_id)` | Post-attendance PDF |
+| `get_session_by_product($product_id)` | WC product → session lookup |
+| `is_session_product($product_id)` | Boolean used by `class-woocommerce.php` to recognize GPS items |
+| `get_available_count($session_id)` | Capacity remaining (0 = unlimited) |
+| `generate_qr_code(...)` | QR image generation |
+| `ajax_checkin_session_ticket()` | AJAX check-in |
+| `ajax_get_session_individual_tickets()` | Admin: list tickets for a session |
+
+### QR Payload Format
 ```json
-{
-  "success": true,
-  "event": {
-    "id": 123,
-    "title": "Implant Fundamentals Course",
-    "url": "https://gpsdentaltraining.com/event/implant-fundamentals/",
-    "start_date": "2025-03-15",
-    "start_date_formatted": "March 15, 2025"
-  },
-  "availability": {
-    "is_available": false,
-    "is_sold_out": true,
-    "has_active_tickets": true,
-    "reason": "sold_out"
-  },
-  "tickets": [
-    {
-      "id": 456,
-      "name": "General Admission",
-      "price": 1800,
-      "is_sold_out": true,
-      "is_manual_sold_out": true,
-      "stock": {
-        "total": 12,
-        "sold": 7,
-        "available": 5,
-        "unlimited": false
-      }
-    }
-  ],
-  "waitlist_enabled": true
-}
+{ "type": "session_ticket", "ticket_code": "GPS-S-XXXXXX" }
 ```
+The seminar attendance handler dispatches based on `type`. Standard seminar registration QRs lack the `type` field and fall through to `Seminar_Attendance::check_in`.
+
+---
+
+## Promotional QR Codes (v1.0.5)
+
+Generates downloadable promotional QR codes for events and seminars, with full server-side scan tracking and an analytics dashboard.
+
+### Architectural choice: redirect-based QR
+The QR encodes `https://gpsdentaltraining.com/qr/{short_code}` (not the permalink directly). On scan:
+1. WordPress dispatches via rewrite rule to `QR_Tracker::handle_scan`.
+2. Plugin looks up `short_code`, logs the scan, resolves `get_permalink($post_id)` **fresh**, appends UTMs, 302-redirects.
+3. Final URL also carries `qr_id={short_code}` for downstream attribution.
+
+This means: changing an event's slug never breaks printed QRs; the `post_id` is the stable anchor.
+
+### Three modules
+
+**[class-qr-tracker.php](includes/class-qr-tracker.php) — data + redirect (Phase 1)**
+- Registers rewrite rule `^qr/([a-z0-9]{6,16})/?$` and `gps_qr` query var.
+- `handle_scan()` is the entry point on `template_redirect`.
+- `log_scan()` inserts into `wp_gps_qr_scans` and increments `scan_count` on the QR row (only when `is_bot=0`).
+- `get_or_create_for_post($post_id)` is the public API used by the metabox to lazily create the QR row.
+- `update_qr($qr_id, $fields)` whitelist-updates UTM/has_logo.
+- `async_geo_lookup($ip)` runs as a one-shot cron (`gps_qr_geo_lookup`), hits `ip-api.com` (free tier, no key, 5s timeout), caches results in transients (~30 days), then back-fills geo on existing scan rows for that IP hash. Geo never blocks the redirect.
+- IP hashing: SHA-256 with `wp_salt('auth')` — privacy-preserving but stable for the unique-scan count.
+- Bot detection: UA regex covers `bot`, `crawler`, `spider`, `facebookexternalhit`, `slurp`, `lighthouse`, `headlesschrome`, `preview`.
+- Short code alphabet: `abcdefghijkmnpqrstuvwxyz23456789` (no `0`/`O`/`l`/`1`).
+
+**[class-qr-promotional.php](includes/class-qr-promotional.php) — metabox + downloads (Phase 2)**
+- Registers a sidebar metabox `Promotional QR Code` on `gps_event` and `gps_seminar` edit screens.
+- Inline live preview (PNG, 400px) via `gps_qr_preview` AJAX action.
+- Download endpoints `gps_qr_download` for SVG (vector) and PNG (1024px). Logo toggle overlays a centered logo (20% width, with `logoPunchoutBackground=true` so background is cleared under the logo for crisp scanning).
+- Logo source order: `gps_qr_logo_url` (option, dedicated) → `gps_email_header_image` (existing email logo). Toggle is disabled if no logo is uploadable.
+- `gps_qr_save` AJAX persists UTM defaults and `has_logo` per QR.
+- Generation uses `endroid/qr-code` 4.x with `ErrorCorrectionLevelHigh` (allows ~30% obscuring without breaking scannability — important for the logo overlay).
+
+**[class-qr-dashboard.php](includes/class-qr-dashboard.php) — analytics (Phase 3)**
+Admin page at `gps-dashboard > QR Analytics`. Bots excluded everywhere. Range selector: 7d/30d/90d/365d/all.
+
+KPIs:
+- Total scans (excluding bots)
+- Unique scans (distinct `ip_hash`)
+- Active QRs (count with ≥1 scan in range)
+- Average scans per QR (across all non-deleted QRs)
+
+Charts (Chart.js 4.4.1 from CDN, loaded only on this page):
+- **Scans Over Time** — daily line chart, gap-filled with zeros so the line is continuous.
+- **Device Breakdown** — donut by `device_type`.
+- **Top QR Codes** — horizontal bar by scans, joined to post titles.
+- **Top Countries** — horizontal bar by `country` (excludes empty/unknown).
+
+Detail table at the bottom: every QR with title, type, short code, total scans, unique scans, last-scanned (relative time), created date.
+
+### Future (not in v1.0.5)
+- Conversion attribution (scan → purchase): would require capturing checkout IP and joining on hash + 24h window. Skipped for MVP.
+- Custom logo per QR (currently all QRs share the global logo setting).
+- Scheduled CSV exports of scan log.
+
+---
+
+## Settings & Options
+
+Registered in [class-settings.php](includes/class-settings.php).
+
+### General Settings (`gps_general_settings`)
+- `gps_google_maps_api_key`
+- `gps_ticket_prefix`
+- `gps_company_name`, `gps_company_email`, `gps_company_phone`, `gps_company_address`
+- **`gps_notification_emails`** ⭐ **NEW v1.0.4** — Newline-separated list, replaces hardcoded `Woo::ADMIN_NOTIFICATION_EMAILS`. Sanitized via `Settings::sanitize_notification_emails()`. Read via `Settings::get_notification_emails()` (falls back to admin email).
+
+### Email Settings (`gps_email_settings`)
+`gps_email_from_name`, `gps_email_from_address`, `gps_email_header_image`, `gps_email_footer_text`, `gps_email_primary_color`, plus header/body bg/text colors and CTA button colors.
+
+### Ticket Settings
+`gps_ticket_logo`, `gps_ticket_header_text`, `gps_ticket_footer_text`, `gps_qr_code_size`, `gps_ticket_include_qr`.
+
+### CE Credits Settings
+`gps_credits_enabled`, `gps_credits_require_attendance`, `gps_credits_certificate_template`.
+
+### WooCommerce Settings
+`gps_woo_enable_sync`, `gps_woo_product_category`, `gps_stripe_publishable_key`, `gps_stripe_secret_key`.
+
+---
+
+## REST API
+
+Namespace: **`gps-courses/v1`** (registered in [class-api.php](includes/class-api.php)).
+
+### Public
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/events` | Paginated list |
+| GET | `/events/{id}` | Single event |
+| GET | `/events/calendar` | Date-range query for calendar |
+| GET | `/availability/event/{event_id}` | AI Assistant capacity check |
+| GET | `/availability/ticket/{ticket_id}` | Ticket-level availability |
+| POST | `/waitlist/add` | Frontend signup |
+| GET | `/waitlist/check?email=&event_id=` | Status check |
+
+### Authenticated
+| Method | Path |
+|--------|------|
+| GET | `/tickets`, `/tickets/{id}` |
+| POST | `/tickets/verify` |
+| GET | `/credits/user/{user_id}`, `/credits/ledger` |
+| GET | `/attendance/event/{event_id}` |
 
 ---
 
 ## AJAX Endpoints
 
-### Frontend
+Frontend (`wp_ajax_nopriv_` + `wp_ajax_`):
+`gps_add_tickets_to_cart`, `gps_get_calendar_events`, `gps_validate_certificate`.
 
-| Action | Description |
-|--------|-------------|
-| `gps_get_calendar_events` | Fetch events for calendar |
-| `gps_add_tickets_to_cart` | Add ticket to cart (AJAX) |
-| `gps_join_waitlist` | Join waitlist from frontend |
-
-### Admin
-
-| Action | Description |
-|--------|-------------|
-| `gps_check_in_attendee` | Process check-in |
-| `gps_search_attendees` | Search for attendees |
-| `gps_generate_certificate` | Generate PDF certificate |
-| `gps_send_certificate` | Email certificate |
-| `gps_save_seminar_session` | Save session data |
-| `gps_delete_seminar_session` | Delete session |
-| `gps_admin_remove_waitlist` | Remove from waitlist |
-| `gps_admin_notify_waitlist` | Send notification |
-| `gps_admin_mark_converted` | Mark as converted |
-| `gps_waitlist_bulk_action` | Bulk waitlist operations |
-| `gps_waitlist_test_email` | Send test email |
+Admin (`wp_ajax_` only): see [Explore agent snapshot] — 50+ actions including `gps_scan_ticket`, `gps_manual_checkin`, `gps_search_attendees`, `gps_bulk_checkin`, `gps_generate_certificate`, `gps_send_certificate`, `gps_export_attendees`, `gps_send_email_blast`, `gps_save_email_template`, **`gps_checkin_session_ticket`** (v1.0.4), **`gps_get_session_individual_tickets`** (v1.0.4), and seminar variants.
 
 ---
 
 ## WordPress Hooks
 
-### Actions Fired by Plugin
-
+### Plugin-fired Actions (extensibility)
 ```php
-// Custom events for extensibility
-do_action('gps_ticket_created', $ticket_id, $order_id);
+do_action('gps_ticket_created',     $ticket_id,     $order_id);
 do_action('gps_enrollment_created', $enrollment_id, $user_id);
-do_action('gps_attendance_recorded', $attendance_id, $user_id);
-do_action('gps_credits_awarded', $credit_id, $user_id);
+do_action('gps_attendance_recorded',$attendance_id, $user_id);
+do_action('gps_credits_awarded',    $credit_id,     $user_id);
 ```
 
-### Filters Used
+### Listened (key WC hooks in `class-woocommerce.php`)
+- `woocommerce_order_status_completed` → ticket/enrollment/session-ticket creation
+- `woocommerce_payment_complete` → auto-complete GPS-product orders
+- `woocommerce_order_status_changed` → admin notifications
+- `woocommerce_order_status_cancelled` / `_refunded` → waitlist trigger
+- `user_register`, `wp_login` → guest order linking
+- `woocommerce_account_menu_items` (filter) → custom My Account tabs
 
-```php
-add_filter('woocommerce_account_menu_items', 'add_account_menu_items');
-```
+---
+
+## Cron Jobs
+
+| Hook | Frequency | Source | Purpose |
+|------|-----------|--------|---------|
+| `gps_process_expired_ticket_waitlist` | Hourly | `class-waitlist.php` | Expire 48h notifications, advance queue |
+| `gps_process_expired_waitlist` | Hourly | `class-seminar-waitlist.php` | Same for seminar program waitlist |
+| `gps_seminar_daily_cron` | Daily 8 AM | `class-seminar-notifications.php` | Reminder emails |
+| `gps_qr_geo_lookup` | One-shot per IP | `class-qr-tracker.php` | Async ip-api.com lookup, transient-cached |
+
+---
+
+## Admin Menu Structure
+
+Parent slug: **`gps-dashboard`** (capability: `manage_options`).
+
+**Submenu pages:**
+- Categories / Tags (taxonomies)
+- Attendance Scanner / Attendance Report
+- Certificates / Certificate Settings
+- Email Settings / Email Template Manager
+- Reports & Analytics
+- Settings
+- Monthly Seminars / Seminar Registrants / Session Attendance / Seminar Waitlist / Seminar Reports
+- Email Notifications
+- Purchased Tickets
+- **QR Analytics** (v1.0.5)
+- Debug Tools
 
 ---
 
 ## Elementor Widgets
 
-| Widget | Description |
-|--------|-------------|
-| Event Calendar | Interactive calendar with month/week/list views |
-| Event Grid | Grid layout of events with filtering |
-| Event List | List view of events |
-| Event Slider | Carousel of events |
-| Event Dates Display | Display event dates/times |
-| Single Event | Complete single event display |
-| Course Description | Event description with formatting |
-| Course Objectives | Learning objectives list |
-| Schedule Display | Multi-day schedule with tabs/accordion |
-| Seminar Registration | Seminar enrollment form |
-| Seminar Schedule | Session schedule display |
-| Seminar Progress | User's seminar progress |
-| CE Credits Display | User's CE credits total/history |
-| Speaker Grid | Grid of speaker profiles |
-| Google Maps | Location map |
-| Ticket Selector | AJAX ticket selection and cart |
-| Countdown Timer | Countdown to event start |
-| Add to Calendar | iCal/Google/Outlook buttons |
-| Share Course | Social sharing buttons |
+19 widgets registered in [class-elementor.php](includes/class-elementor.php):
 
----
-
-## Configuration Constants
-
-```php
-// Admin notification emails
-const ADMIN_NOTIFICATION_EMAILS = [
-    'info@gpsdentaltraining.com',
-    'juliocastro@thewebminds.agency'
-];
-
-// Seminar settings
-const SEMINAR_SESSIONS_COUNT = 10;
-const SEMINAR_CREDITS_PER_SESSION = 2;
-const SEMINAR_PRICE = 750.00;
-
-// Calendar colors
-const COURSE_COLOR = '#0B52AC';
-const SEMINAR_COLOR = '#DDC89D';
-```
+`event-grid`, `event-list`, `event-slider`, `event-calendar`, `single-event`, `speaker-grid`, `ticket-selector`, `schedule-display`, `google-maps`, `countdown-timer`, `ce-credits-display`, `course-objectives`, `course-description`, `event-dates-display`, `share-course`, `add-to-calendar`, `seminar-registration`, `seminar-progress`, `seminar-schedule`.
 
 ---
 
 ## Business Logic Details
 
-### Ticket Sold Out Logic
-
+### Ticket Sold-Out
 ```php
-// A ticket is sold out if:
-// 1. Manual override is enabled (_gps_manual_sold_out = '1')
-// 2. OR actual stock is depleted (available = 0 and not unlimited)
-
-public static function is_sold_out($ticket_id) {
-    // Check manual override first
-    $manual_sold_out = get_post_meta($ticket_id, '_gps_manual_sold_out', true);
-    if ($manual_sold_out) {
-        return true;
-    }
-
-    // Check actual stock
-    $stock = self::get_ticket_stock($ticket_id);
-    return !$stock['unlimited'] && $stock['available'] == 0;
-}
+// 1. Manual override wins
+if (get_post_meta($ticket_id, '_gps_manual_sold_out', true)) return true;
+// 2. Otherwise stock-based (skipped if unlimited)
+$s = self::get_ticket_stock($ticket_id);
+return !$s['unlimited'] && $s['available'] === 0;
 ```
 
 ### Waitlist Notification Flow
-
-```
-1. Order cancelled/refunded
-2. Check if ticket is no longer sold out
-3. If available → notify_next_on_waitlist()
-4. Update entry: status='notified', notified_at=now(), expires_at=+48h
-5. Send "Spot Available" email with 48h urgency
-6. Cron job (hourly) checks expired notifications
-7. If expired → mark as 'expired', notify next person
-```
+1. Order cancelled/refunded fires WC hook.
+2. If ticket no longer sold out → `notify_next_on_waitlist()`.
+3. Update entry: `status='notified'`, `notified_at=NOW()`, `expires_at=+48h`.
+4. Email "Spot Available" with urgency CTA.
+5. Hourly cron expires lapsed entries and rotates.
 
 ### Seminar Certificate Generation
-
-```
-Bi-annual trigger dates: June 30, December 31
-
-1. Query users with sessions_completed >= required threshold
-2. For each eligible user:
-   a. Generate PDF certificate
-   b. Store in wp_gps_certificates
-   c. Send email with PDF attachment
-   d. Update certificate_sent_at
-```
+Bi-annual triggers (June 30, December 31):
+1. Query users with `sessions_completed >= threshold`.
+2. Generate PDF, store in `wp_gps_certificates`, email with attachment, set `certificate_sent_at`.
 
 ### Guest Order Linking
+On `user_register` or `wp_login`:
+1. Match `attendee_email` in `wp_gps_tickets`/`wp_gps_enrollments` where `user_id = 0`.
+2. Bulk-update `user_id` to the new user.
+3. Surface in their My Account tabs.
 
-```
-Trigger: user_register OR wp_login
-
-1. Get user email
-2. Query wp_gps_tickets WHERE attendee_email = $email AND user_id = 0
-3. Update user_id to new user ID
-4. Query wp_gps_enrollments similarly
-5. Link all matching records
-```
+### Individual Session Purchase Flow (v1.0.4)
+1. Admin enables `Sell Individually` on a session, sets price, links a WC product.
+2. Customer buys the WC product → order completes.
+3. `Woo::on_order_completed` detects via `Session_Tickets::is_session_product($product_id)`.
+4. `Session_Tickets::process_session_order` creates a `wp_gps_session_tickets` row, generates QR.
+5. `individual_sold_count` is incremented on the session.
+6. Email with QR sent to attendee.
+7. At the session, QR scanner detects `type === 'session_ticket'` and check-in path goes via `Session_Tickets::check_in_by_code`. CE credits awarded.
 
 ---
 
@@ -902,85 +579,61 @@ Trigger: user_register OR wp_login
 
 | Issue | Solution |
 |-------|----------|
-| Guest orders not visible in user accounts | Use Orders Diagnostic tool to link |
-| Special characters in schedule topics | Fixed with JSON_UNESCAPED_UNICODE flag |
-| Orders stuck on processing | Auto-complete hook on payment_complete |
-| Calendar not showing seminars | Query wp_gps_seminar_sessions table |
-
----
-
-## Testing Checklist
-
-### Order Flow
-- [ ] Purchase ticket as logged-in user
-- [ ] Purchase ticket as guest
-- [ ] Verify ticket email received
-- [ ] Verify QR code generated
-- [ ] Check My Account > My Courses
-- [ ] Check My Account > My Tickets
-
-### Check-in Flow
-- [ ] Scan QR code
-- [ ] Manual check-in
-- [ ] Search check-in
-- [ ] Verify attendance recorded
-- [ ] Verify CE credits awarded
-
-### Seminar Flow
-- [ ] Register for seminar
-- [ ] Check-in to session
-- [ ] Verify session count updated
-- [ ] Test makeup session
-- [ ] Generate bi-annual certificate
-
-### Waitlist Flow
-- [ ] Mark ticket as manually sold out
-- [ ] Join waitlist from frontend
-- [ ] Receive confirmation email
-- [ ] Test spot available notification
-- [ ] Test 48h expiration
-
-### Admin Tools
-- [ ] Orders Diagnostic page
-- [ ] Test email sending
-- [ ] Link guest orders
-- [ ] Generate certificates
-- [ ] View reports
+| Guest orders not visible in My Account | Orders Diagnostic tool links by email |
+| Special chars in schedule topics encoded as `“` | `JSON_UNESCAPED_UNICODE` in `wp_json_encode` |
+| Orders stuck on `processing` after Stripe payment | `woocommerce_payment_complete` auto-completes GPS-product orders |
+| Calendar missing seminars | API queries `wp_gps_seminar_sessions` |
+| Email Templates menu under wrong parent | Changed parent slug to `gps-dashboard` (commit `8ca63e3`) |
 
 ---
 
 ## Changelog
 
-### Version 1.0.2 (Current)
-- Added manual sold out toggle for tickets
-- Enhanced waitlist with positions, expiration, admin management
-- Added waitlist test email functionality
-- Added guest order linking functionality
-- Added Orders Diagnostic tool
-- Fixed special character encoding in schedules
-- Added monthly seminars to calendar
-- Added email notifications for order status changes
-- Fixed auto-complete for GPS product orders
-- Added AI Assistant integration (REST API)
+### 1.0.5 (current)
+- **Promotional QR codes** — generate downloadable SVG/PNG QR codes per event/seminar, served from a redirect URL (`/qr/{code}`) so printed QRs survive slug changes.
+- New tables `wp_gps_qr_codes` (one per post) and `wp_gps_qr_scans` (per-scan log with hashed IP, device, geo, referrer).
+- New modules: `QR_Tracker` (Phase 1: data + redirect), `QR_Promotional` (Phase 2: metabox UI + downloads), `QR_Dashboard` (Phase 3: KPIs + Chart.js analytics).
+- Async geo enrichment via ip-api.com (cron-driven, transient-cached, never blocks redirect).
+- Bot detection excludes crawlers from all aggregations.
+- New admin page `gps-dashboard > QR Analytics` with range selector, 4 KPIs, 4 charts, and detail table.
 
-### Version 1.0.1
-- Initial WooCommerce integration
-- Basic ticketing system
-- QR code generation
+### 1.0.4 — committed `966cea4`
+- **Individual session ticket sales** — sell single seminar sessions standalone with QR + CE credits.
+- New table `wp_gps_session_tickets`; new `individual_*` columns on `wp_gps_seminar_sessions`.
+- New `Session_Tickets` module + admin UI in seminar sessions metabox.
+- Seminar QR check-in dispatches between full-program and individual-session tickets.
+- New "My Individual Sessions" My Account section.
+- **Configurable notification emails** — `gps_notification_emails` setting replaces hardcoded `ADMIN_NOTIFICATION_EMAILS` constant.
+- `Settings::get_notification_emails()` is the new accessor; `Woo::get_admin_notification_emails()` delegates to it.
 
-### Version 1.0.0
-- Initial release
-- Event management
-- CE credits tracking
-- Basic attendance
+### 1.0.3
+- Email Template Manager (visual editor + live preview).
+- Designated attendee system, certificate improvements, Letter format.
+- Email Templates menu re-parented to `gps-dashboard`.
+
+### 1.0.2
+- Manual sold-out toggle, enhanced waitlist (positions, expiration, admin management).
+- Guest order linking + Orders Diagnostic.
+- Special-character fix in schedules.
+- Monthly seminars added to calendar.
+- AI Assistant REST integration.
+
+### 1.0.1
+- WooCommerce integration, basic ticketing, QR codes.
+
+### 1.0.0
+- Initial release.
 
 ---
 
-## License
+## Maintenance Notes for Future Contributors
 
-This plugin is proprietary software developed for GPS Dental Training. All rights reserved.
+- **Bumping version**: edit `GPSC_VERSION` in `gps-courses.php` AND add migration in `class-activator.php` if schema changes. The activator runs `migrate_*` methods only on activation, so changes to existing installs require either re-activation or a separate migration trigger.
+- **Notification emails**: never reintroduce the hardcoded constant. Use `Settings::get_notification_emails()`.
+- **GPS-product detection**: when adding a new product type (e.g., a new fulfillment kind), add a corresponding `is_*_product()` static + branch in `Woo::on_order_completed` and `Woo::auto_complete_gps_orders`.
+- **QR payload schema**: standard tickets have no `type` key; v1.0.4 introduced `type === 'session_ticket'`. Future ticket kinds should follow the typed-payload pattern.
 
-**Developer:** WebMinds Agency
-**Email:** juliocastro@thewebminds.agency
-**Client:** GPS Dental Training
-**Website:** https://gpsdentaltraining.com
+---
+
+**Developer:** WebMinds Agency · juliocastro@thewebminds.agency
+**Client:** GPS Dental Training · https://gpsdentaltraining.com

@@ -42,6 +42,7 @@ class Plugin {
         require_once GPSC_PATH . 'includes/class-session-tickets.php';
         require_once GPSC_PATH . 'includes/class-qr-tracker.php';
         require_once GPSC_PATH . 'includes/class-qr-promotional.php';
+        require_once GPSC_PATH . 'includes/class-qr-dashboard.php';
 
         require_once GPSC_PATH . 'includes/helpers.php';
 
@@ -87,6 +88,7 @@ class Plugin {
         Session_Tickets::init();
         QR_Tracker::init();
         QR_Promotional::init();
+        QR_Dashboard::init();
 
         Woo::hooks();
     }
