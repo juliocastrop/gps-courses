@@ -2,14 +2,14 @@
 /**
  * Plugin Name: GPS Courses
  * Description: Stable event/course management with CE Credits + WooCommerce.
- * Version: 1.0.7
+ * Version: 1.0.8
  * Author: WebMinds (Julio Castro)
  * Text Domain: gps-courses
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('GPSC_VERSION', '1.0.7');
+define('GPSC_VERSION', '1.0.8');
 define('GPSC_PATH', plugin_dir_path(__FILE__));
 define('GPSC_URL', plugin_dir_url(__FILE__));
 

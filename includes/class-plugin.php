@@ -44,6 +44,8 @@ class Plugin {
         require_once GPSC_PATH . 'includes/class-qr-promotional.php';
         require_once GPSC_PATH . 'includes/class-qr-dashboard.php';
         require_once GPSC_PATH . 'includes/class-coupon-labels.php';
+        require_once GPSC_PATH . 'includes/class-discount-notes.php';
+        require_once GPSC_PATH . 'includes/class-receipts.php';
 
         require_once GPSC_PATH . 'includes/helpers.php';
 
@@ -91,6 +93,8 @@ class Plugin {
         QR_Promotional::init();
         QR_Dashboard::init();
         Coupon_Labels::init();
+        Discount_Notes::init();
+        Receipts::init();
 
         Woo::hooks();
     }
