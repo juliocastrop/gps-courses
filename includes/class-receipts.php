@@ -214,18 +214,23 @@ class Receipts {
         return $pdf->Output('receipt.pdf', 'S');
     }
 
+    /**
+     * GPS brand colors (hard-coded per CLAUDE.md to guarantee consistent
+     * branding regardless of Email Settings configuration).
+     */
+    const BRAND_BLUE     = '#0B52AC';   // COURSE_COLOR — primary
+    const BRAND_GOLD     = '#DDC89D';   // SEMINAR_COLOR — accent
+    const TEXT_DARK      = '#1f2937';
+    const TEXT_MUTED     = '#6b7280';
+    const TEXT_NOTE      = '#475569';
+    const SURFACE_LIGHT  = '#f8fafc';
+    const BORDER_LIGHT   = '#e5e7eb';
+    const DISCOUNT_GREEN = '#059669';
+
     protected static function pdf_html($order) {
-        // Pull brand colors from the Email Settings module so the receipt
-        // visually matches the ticket-confirmation email.
-        $logo_url    = Email_Settings::get('logo');
-        $header_bg   = Email_Settings::get('header_bg_color');
-        $header_fg   = Email_Settings::get('header_text_color');
-        $body_bg     = Email_Settings::get('body_bg_color');
-        $body_fg     = Email_Settings::get('body_text_color');
-        $accent      = Email_Settings::get('event_heading_color');
-        $section_bg  = Email_Settings::get('ticket_bg_color');     // light surface
-        $footer_bg   = Email_Settings::get('footer_bg_color');
-        $footer_fg   = Email_Settings::get('footer_text_color');
+        // Logo still comes from Email Settings (so it matches the email
+        // exactly without re-uploading). Everything else is brand-locked.
+        $logo_url = Email_Settings::get('logo');
 
         $company = get_option('gps_company_name')    ?: 'GPS Dental Training';
         $email   = get_option('gps_company_email')   ?: 'info@gpsdentaltraining.com';
@@ -235,33 +240,40 @@ class Receipts {
         $date_str = wc_format_datetime($order->get_date_created(), get_option('date_format'));
         $currency = ['currency' => $order->get_currency()];
 
-        // ------- Logo strip (white background, like the email) -------
+        $blue   = self::BRAND_BLUE;
+        $gold   = self::BRAND_GOLD;
+        $dark   = self::TEXT_DARK;
+        $muted  = self::TEXT_MUTED;
+        $note_c = self::TEXT_NOTE;
+        $light  = self::SURFACE_LIGHT;
+
+        // ------- Logo strip (small, controlled size, white background) -------
         $html = '';
         if ($logo_url) {
+            // TCPDF honors width attribute reliably; height auto-scales.
             $html .= '<table cellpadding="0" cellspacing="0" style="width:100%;"><tr>';
-            $html .= '<td style="text-align:center; padding:4px 0 14px;">';
-            $html .= '<img src="' . esc_url($logo_url) . '" style="max-height:80px;">';
+            $html .= '<td style="text-align:center; padding:0 0 10px;">';
+            $html .= '<img src="' . esc_url($logo_url) . '" width="180">';
             $html .= '</td></tr></table>';
         }
 
         // ------- Brand header bar -------
-        $html .= '<table cellpadding="14" cellspacing="0" style="width:100%; background-color:' . esc_attr($header_bg) . '; color:' . esc_attr($header_fg) . ';"><tr>';
+        $html .= '<table cellpadding="12" cellspacing="0" style="width:100%; background-color:' . $blue . '; color:#ffffff;"><tr>';
         $html .= '<td style="width:60%; vertical-align:middle;">';
-        $html .= '<h1 style="margin:0; font-size:22pt; color:' . esc_attr($header_fg) . ';">RECEIPT</h1>';
-        $html .= '<div style="font-size:10pt; color:' . esc_attr($header_fg) . '; opacity:0.9;">' . esc_html($company) . '</div>';
+        $html .= '<span style="font-size:22pt; font-weight:bold; color:#ffffff; letter-spacing:1px;">RECEIPT</span><br>';
+        $html .= '<span style="font-size:9pt; color:#ffffff;">' . esc_html($company) . '</span>';
         $html .= '</td>';
-        $html .= '<td style="width:40%; vertical-align:middle; text-align:right; font-size:10pt; color:' . esc_attr($header_fg) . ';">';
-        $html .= '<div><strong>Order #</strong> ' . esc_html($order->get_order_number()) . '</div>';
-        $html .= '<div><strong>Date</strong> ' . esc_html($date_str) . '</div>';
-        $html .= '<div><strong>Status</strong> ' . esc_html(wc_get_order_status_name($order->get_status())) . '</div>';
+        $html .= '<td style="width:40%; vertical-align:middle; text-align:right; font-size:9pt; color:#ffffff;">';
+        $html .= '<strong>Order #</strong> ' . esc_html($order->get_order_number()) . '<br>';
+        $html .= '<strong>Date</strong> ' . esc_html($date_str) . '<br>';
+        $html .= '<strong>Status</strong> ' . esc_html(wc_get_order_status_name($order->get_status()));
         $html .= '</td></tr></table>';
 
-        // ------- Bill to -------
-        // get_formatted_billing_address() already contains name + company,
-        // so we don't print them separately (that's what caused the
-        // duplicate name in the previous version).
-        $html .= '<br><table cellpadding="10" cellspacing="0" style="width:100%; background-color:' . esc_attr($section_bg) . ';"><tr><td style="color:' . esc_attr($body_fg) . ';">';
-        $html .= '<strong style="color:' . esc_attr($accent) . ';">BILL TO</strong><br>';
+        // ------- Bill To -------
+        // Use formatted billing address only — it already includes name +
+        // company. Adding them separately caused the duplicate-name bug.
+        $html .= '<table cellpadding="10" cellspacing="0" style="width:100%; background-color:' . $light . '; border-left:3px solid ' . $gold . ';"><tr><td style="color:' . $dark . '; font-size:10pt;">';
+        $html .= '<span style="color:' . $blue . '; font-weight:bold; font-size:9pt; letter-spacing:1px;">BILL TO</span><br>';
         $billing_addr = $order->get_formatted_billing_address();
         if ($billing_addr) {
             $html .= str_replace("\n", '<br>', wp_kses_post($billing_addr)) . '<br>';
@@ -272,12 +284,12 @@ class Receipts {
         }
         $html .= '</td></tr></table>';
 
-        // ------- Items table -------
-        $html .= '<br><table cellpadding="8" cellspacing="0" style="width:100%; font-size:10pt; color:' . esc_attr($body_fg) . ';">';
-        $html .= '<thead><tr style="background-color:' . esc_attr($header_bg) . '; color:' . esc_attr($header_fg) . ';">';
-        $html .= '<th style="text-align:left;">Item</th>';
-        $html .= '<th style="text-align:center; width:60px;">Qty</th>';
-        $html .= '<th style="text-align:right; width:110px;">Total</th>';
+        // ------- Items -------
+        $html .= '<br><table cellpadding="8" cellspacing="0" style="width:100%; font-size:10pt; color:' . $dark . ';">';
+        $html .= '<thead><tr style="background-color:' . $blue . '; color:#ffffff;">';
+        $html .= '<th style="text-align:left;">ITEM</th>';
+        $html .= '<th style="text-align:center; width:60px;">QTY</th>';
+        $html .= '<th style="text-align:right; width:110px;">TOTAL</th>';
         $html .= '</tr></thead><tbody>';
 
         foreach ($order->get_items() as $item) {
@@ -285,13 +297,13 @@ class Receipts {
             $attendee   = $item->get_meta('Attendee') ?: $item->get_meta('attendee_name');
             $event_date = $item->get_meta('Event Date') ?: $item->get_meta('event_date');
 
-            $html .= '<tr style="border-bottom:1px solid #e2e8f0;">';
-            $html .= '<td><strong>' . esc_html($product_name) . '</strong>';
-            if ($attendee)   $html .= '<br><span style="font-size:9pt; color:#64748b;">Attendee: ' . esc_html($attendee) . '</span>';
-            if ($event_date) $html .= '<br><span style="font-size:9pt; color:#64748b;">Date: ' . esc_html($event_date) . '</span>';
+            $html .= '<tr>';
+            $html .= '<td style="border-bottom:1px solid ' . self::BORDER_LIGHT . ';"><strong>' . esc_html($product_name) . '</strong>';
+            if ($attendee)   $html .= '<br><span style="font-size:9pt; color:' . $muted . ';">Attendee: ' . esc_html($attendee) . '</span>';
+            if ($event_date) $html .= '<br><span style="font-size:9pt; color:' . $muted . ';">Date: ' . esc_html($event_date) . '</span>';
             $html .= '</td>';
-            $html .= '<td style="text-align:center;">' . (int) $item->get_quantity() . '</td>';
-            $html .= '<td style="text-align:right;">' . wp_kses_post(wc_price($item->get_total(), $currency)) . '</td>';
+            $html .= '<td style="text-align:center; border-bottom:1px solid ' . self::BORDER_LIGHT . ';">' . (int) $item->get_quantity() . '</td>';
+            $html .= '<td style="text-align:right; border-bottom:1px solid ' . self::BORDER_LIGHT . ';">' . wp_kses_post(wc_price($item->get_total(), $currency)) . '</td>';
             $html .= '</tr>';
         }
         $html .= '</tbody></table>';
@@ -299,9 +311,10 @@ class Receipts {
         // ------- Totals -------
         $html .= '<br><table cellpadding="4" cellspacing="0" style="width:100%; font-size:10pt;"><tr>';
         $html .= '<td style="width:55%;">&nbsp;</td>';
-        $html .= '<td style="width:45%;"><table cellpadding="6" cellspacing="0" style="width:100%; color:' . esc_attr($body_fg) . ';">';
+        $html .= '<td style="width:45%;"><table cellpadding="6" cellspacing="0" style="width:100%; color:' . $dark . ';">';
 
-        $html .= '<tr><td style="color:#64748b;">Subtotal</td><td style="text-align:right;">' . wp_kses_post(wc_price($order->get_subtotal(), $currency)) . '</td></tr>';
+        $html .= '<tr><td style="color:' . $muted . ';">Subtotal</td>';
+        $html .= '<td style="text-align:right;">' . wp_kses_post(wc_price($order->get_subtotal(), $currency)) . '</td></tr>';
 
         foreach ($order->get_items('coupon') as $coupon_item) {
             $code = method_exists($coupon_item, 'get_code') ? $coupon_item->get_code() : $coupon_item->get_name();
@@ -309,42 +322,45 @@ class Receipts {
             $display = $label ?: strtoupper($code);
             $note    = class_exists('\\GPSC\\Discount_Notes') ? Discount_Notes::get_note($order, $code) : '';
 
-            $html .= '<tr><td style="color:#64748b;">Discount: ' . esc_html($display);
+            $html .= '<tr><td style="color:' . $muted . ';">Discount: ' . esc_html($display);
             if ($note) {
-                $html .= '<br><span style="font-size:8pt; color:#94a3b8;">' . esc_html($note) . '</span>';
+                // Readable note color (not the washed-out gray from the bad version)
+                $html .= '<br><span style="font-size:8pt; color:' . $note_c . '; font-style:italic;">' . esc_html($note) . '</span>';
             }
-            $html .= '</td><td style="text-align:right; color:#10b981;">-' . wp_kses_post(wc_price($coupon_item->get_discount(), $currency)) . '</td></tr>';
+            $html .= '</td><td style="text-align:right; color:' . self::DISCOUNT_GREEN . ';">-' . wp_kses_post(wc_price($coupon_item->get_discount(), $currency)) . '</td></tr>';
         }
 
         if ($order->get_shipping_total() > 0) {
-            $html .= '<tr><td style="color:#64748b;">Shipping</td><td style="text-align:right;">' . wp_kses_post(wc_price($order->get_shipping_total(), $currency)) . '</td></tr>';
+            $html .= '<tr><td style="color:' . $muted . ';">Shipping</td>';
+            $html .= '<td style="text-align:right;">' . wp_kses_post(wc_price($order->get_shipping_total(), $currency)) . '</td></tr>';
         }
         if ($order->get_total_tax() > 0) {
-            $html .= '<tr><td style="color:#64748b;">Tax</td><td style="text-align:right;">' . wp_kses_post(wc_price($order->get_total_tax(), $currency)) . '</td></tr>';
+            $html .= '<tr><td style="color:' . $muted . ';">Tax</td>';
+            $html .= '<td style="text-align:right;">' . wp_kses_post(wc_price($order->get_total_tax(), $currency)) . '</td></tr>';
         }
 
-        $html .= '<tr style="background-color:' . esc_attr($header_bg) . '; color:' . esc_attr($header_fg) . ';">';
-        $html .= '<td><strong>TOTAL</strong></td>';
-        $html .= '<td style="text-align:right;"><strong>' . wp_kses_post(wc_price($order->get_total(), $currency)) . '</strong></td></tr>';
+        $html .= '<tr style="background-color:' . $blue . '; color:#ffffff;">';
+        $html .= '<td style="color:#ffffff;"><strong>TOTAL</strong></td>';
+        $html .= '<td style="text-align:right; color:#ffffff;"><strong>' . wp_kses_post(wc_price($order->get_total(), $currency)) . '</strong></td></tr>';
 
         $html .= '</table></td></tr></table>';
 
         // ------- Payment -------
         $payment_method = $order->get_payment_method_title();
         if ($payment_method) {
-            $html .= '<br><p style="font-size:9pt; color:' . esc_attr($body_fg) . ';"><strong>Payment Method:</strong> ' . esc_html($payment_method) . '</p>';
+            $html .= '<br><p style="font-size:9pt; color:' . $muted . ';"><strong style="color:' . $dark . ';">Payment Method:</strong> ' . esc_html($payment_method) . '</p>';
         }
 
-        // ------- Footer -------
-        $html .= '<br><br><table cellpadding="12" cellspacing="0" style="width:100%; background-color:' . esc_attr($footer_bg) . ';"><tr>';
-        $html .= '<td style="text-align:center; font-size:9pt; color:' . esc_attr($footer_fg) . ';">';
-        $html .= '<strong>' . esc_html($company) . '</strong><br>';
+        // ------- Footer (brand-blue band with gold thanks line) -------
+        $html .= '<br><table cellpadding="12" cellspacing="0" style="width:100%; background-color:' . $blue . ';"><tr>';
+        $html .= '<td style="text-align:center; font-size:9pt; color:#ffffff;">';
+        $html .= '<strong style="letter-spacing:0.5px;">' . esc_html(strtoupper($company)) . '</strong><br>';
         if ($address) $html .= esc_html(str_replace("\n", ' · ', $address)) . '<br>';
         $contact_bits = [];
         if ($phone) $contact_bits[] = esc_html($phone);
         $contact_bits[] = esc_html($email);
         $html .= implode(' &middot; ', $contact_bits);
-        $html .= '<br><br><span style="font-size:8pt;">' . esc_html__('Thank you for choosing GPS Dental Training.', 'gps-courses') . '</span>';
+        $html .= '<br><br><span style="font-size:9pt; color:' . $gold . '; font-style:italic;">' . esc_html__('Thank you for choosing GPS Dental Training', 'gps-courses') . '</span>';
         $html .= '</td></tr></table>';
 
         return $html;
