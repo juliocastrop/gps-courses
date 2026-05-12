@@ -215,15 +215,19 @@ class Receipts {
     }
 
     /**
-     * GPS brand colors (hard-coded per CLAUDE.md to guarantee consistent
-     * branding regardless of Email Settings configuration).
+     * GPS brand colors. Aligned with the certificate template
+     * (class-certificates.php) so the receipt visually belongs to the
+     * same printed family — NOT the brighter email blue.
+     *
+     * Reference values (also used in cert: #193463, #BC9D67, #0C2044).
      */
-    const BRAND_BLUE     = '#0B52AC';   // COURSE_COLOR — primary
-    const BRAND_GOLD     = '#DDC89D';   // SEMINAR_COLOR — accent
+    const BRAND_NAVY     = '#193463';   // primary header/footer
+    const BRAND_NAVY_DEEP = '#0C2044';  // deep navy for emphasis
+    const BRAND_GOLD     = '#BC9D67';   // accent
     const TEXT_DARK      = '#1f2937';
     const TEXT_MUTED     = '#6b7280';
     const TEXT_NOTE      = '#475569';
-    const SURFACE_LIGHT  = '#f8fafc';
+    const SURFACE_LIGHT  = '#f8f9fb';   // same as certificate's light surface
     const BORDER_LIGHT   = '#e5e7eb';
     const DISCOUNT_GREEN = '#059669';
 
@@ -240,7 +244,8 @@ class Receipts {
         $date_str = wc_format_datetime($order->get_date_created(), get_option('date_format'));
         $currency = ['currency' => $order->get_currency()];
 
-        $blue   = self::BRAND_BLUE;
+        $navy   = self::BRAND_NAVY;
+        $navy_d = self::BRAND_NAVY_DEEP;
         $gold   = self::BRAND_GOLD;
         $dark   = self::TEXT_DARK;
         $muted  = self::TEXT_MUTED;
@@ -258,7 +263,7 @@ class Receipts {
         }
 
         // ------- Brand header bar -------
-        $html .= '<table cellpadding="12" cellspacing="0" style="width:100%; background-color:' . $blue . '; color:#ffffff;"><tr>';
+        $html .= '<table cellpadding="12" cellspacing="0" style="width:100%; background-color:' . $navy . '; color:#ffffff;"><tr>';
         $html .= '<td style="width:60%; vertical-align:middle;">';
         $html .= '<span style="font-size:22pt; font-weight:bold; color:#ffffff; letter-spacing:1px;">RECEIPT</span><br>';
         $html .= '<span style="font-size:9pt; color:#ffffff;">' . esc_html($company) . '</span>';
@@ -273,7 +278,7 @@ class Receipts {
         // Use formatted billing address only — it already includes name +
         // company. Adding them separately caused the duplicate-name bug.
         $html .= '<table cellpadding="10" cellspacing="0" style="width:100%; background-color:' . $light . '; border-left:3px solid ' . $gold . ';"><tr><td style="color:' . $dark . '; font-size:10pt;">';
-        $html .= '<span style="color:' . $blue . '; font-weight:bold; font-size:9pt; letter-spacing:1px;">BILL TO</span><br>';
+        $html .= '<span style="color:' . $navy . '; font-weight:bold; font-size:9pt; letter-spacing:1px;">BILL TO</span><br>';
         $billing_addr = $order->get_formatted_billing_address();
         if ($billing_addr) {
             $html .= str_replace("\n", '<br>', wp_kses_post($billing_addr)) . '<br>';
@@ -286,7 +291,7 @@ class Receipts {
 
         // ------- Items -------
         $html .= '<br><table cellpadding="8" cellspacing="0" style="width:100%; font-size:10pt; color:' . $dark . ';">';
-        $html .= '<thead><tr style="background-color:' . $blue . '; color:#ffffff;">';
+        $html .= '<thead><tr style="background-color:' . $navy . '; color:#ffffff;">';
         $html .= '<th style="text-align:left;">ITEM</th>';
         $html .= '<th style="text-align:center; width:60px;">QTY</th>';
         $html .= '<th style="text-align:right; width:110px;">TOTAL</th>';
@@ -339,7 +344,7 @@ class Receipts {
             $html .= '<td style="text-align:right;">' . wp_kses_post(wc_price($order->get_total_tax(), $currency)) . '</td></tr>';
         }
 
-        $html .= '<tr style="background-color:' . $blue . '; color:#ffffff;">';
+        $html .= '<tr style="background-color:' . $navy . '; color:#ffffff;">';
         $html .= '<td style="color:#ffffff;"><strong>TOTAL</strong></td>';
         $html .= '<td style="text-align:right; color:#ffffff;"><strong>' . wp_kses_post(wc_price($order->get_total(), $currency)) . '</strong></td></tr>';
 
@@ -351,8 +356,8 @@ class Receipts {
             $html .= '<br><p style="font-size:9pt; color:' . $muted . ';"><strong style="color:' . $dark . ';">Payment Method:</strong> ' . esc_html($payment_method) . '</p>';
         }
 
-        // ------- Footer (brand-blue band with gold thanks line) -------
-        $html .= '<br><table cellpadding="12" cellspacing="0" style="width:100%; background-color:' . $blue . ';"><tr>';
+        // ------- Footer (deeper navy band with gold thanks line) -------
+        $html .= '<br><table cellpadding="12" cellspacing="0" style="width:100%; background-color:' . $navy_d . ';"><tr>';
         $html .= '<td style="text-align:center; font-size:9pt; color:#ffffff;">';
         $html .= '<strong style="letter-spacing:0.5px;">' . esc_html(strtoupper($company)) . '</strong><br>';
         if ($address) $html .= esc_html(str_replace("\n", ' · ', $address)) . '<br>';
