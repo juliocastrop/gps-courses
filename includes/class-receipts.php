@@ -333,8 +333,13 @@ class Receipts {
 
         $pdf->SetTextColor($dark[0], $dark[1], $dark[2]);
         $pdf->SetFont('helvetica', '', 10);
-        $billing = $order->get_formatted_billing_address('');
-        $lines = $billing ? explode("\n", $billing) : [];
+        // WC returns the formatted address with literal <br/> separators.
+        // Normalize to plain newlines, decode any HTML entities, then split.
+        $billing = $order->get_formatted_billing_address();
+        $billing = preg_replace('#<br\s*/?>#i', "\n", (string) $billing);
+        $billing = html_entity_decode(wp_strip_all_tags($billing), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $lines = $billing !== '' ? array_filter(array_map('trim', explode("\n", $billing))) : [];
+
         $contact = $order->get_billing_email();
         if ($order->get_billing_phone()) {
             $contact .= ' · ' . $order->get_billing_phone();
@@ -368,9 +373,9 @@ class Receipts {
         // Item rows
         $pdf->SetTextColor($dark[0], $dark[1], $dark[2]);
         foreach ($order->get_items() as $item) {
-            $product_name = $item->get_name();
-            $attendee   = $item->get_meta('Attendee') ?: $item->get_meta('attendee_name');
-            $event_date = $item->get_meta('Event Date') ?: $item->get_meta('event_date');
+            $product_name = self::clean_text($item->get_name());
+            $attendee   = self::clean_text($item->get_meta('Attendee') ?: $item->get_meta('attendee_name'));
+            $event_date = self::clean_text($item->get_meta('Event Date') ?: $item->get_meta('event_date'));
 
             $row_h = 8;
             if ($attendee)   $row_h += 4;
@@ -404,7 +409,7 @@ class Receipts {
             $pdf->SetXY(125, $y + 2);
             $pdf->Cell(15, 5, (string) (int) $item->get_quantity(), 0, 0, 'C');
             $pdf->SetXY(160, $y + 2);
-            $pdf->Cell(35, 5, html_entity_decode(wp_strip_all_tags(wc_price($item->get_total(), $currency))), 0, 0, 'R');
+            $pdf->Cell(35, 5, self::clean_text(wc_price($item->get_total(), $currency)), 0, 0, 'R');
 
             $row_bottom = max($sub_y, $y + 8) + 2;
             $pdf->SetDrawColor(229, 231, 235);
@@ -424,12 +429,12 @@ class Receipts {
         foreach ($order->get_items('coupon') as $coupon_item) {
             $code = method_exists($coupon_item, 'get_code') ? $coupon_item->get_code() : $coupon_item->get_name();
             $label = class_exists('\\GPSC\\Coupon_Labels') ? Coupon_Labels::get_label_for_code($code) : '';
-            $display = $label ?: strtoupper($code);
+            $display = self::clean_text($label ?: strtoupper($code));
             $note    = class_exists('\\GPSC\\Discount_Notes') ? Discount_Notes::get_note($order, $code) : '';
             $rows[] = [
                 'Discount: ' . $display,
                 '-' . wc_price($coupon_item->get_discount(), $currency),
-                $note ?: null,
+                self::clean_text($note) ?: null,
                 '#059669',
             ];
         }
@@ -456,7 +461,7 @@ class Receipts {
                 $pdf->SetTextColor($dark[0], $dark[1], $dark[2]);
             }
             $pdf->SetXY($tx + $tw - 35, $y);
-            $pdf->Cell(35, 5, html_entity_decode(wp_strip_all_tags($value)), 0, 0, 'R');
+            $pdf->Cell(35, 5, self::clean_text($value), 0, 0, 'R');
             $y += 5;
 
             if ($note) {
@@ -477,11 +482,11 @@ class Receipts {
         $pdf->SetXY($tx + 3, $y + 2.5);
         $pdf->Cell($tw - 38, 5, 'TOTAL', 0, 0, 'L');
         $pdf->SetXY($tx + $tw - 38, $y + 2.5);
-        $pdf->Cell(35, 5, html_entity_decode(wp_strip_all_tags(wc_price($order->get_total(), $currency))), 0, 0, 'R');
+        $pdf->Cell(35, 5, self::clean_text(wc_price($order->get_total(), $currency)), 0, 0, 'R');
         $y += 14;
 
         /* ---------- Payment line ---------- */
-        $payment = $order->get_payment_method_title();
+        $payment = self::clean_text($order->get_payment_method_title());
         if ($payment) {
             $pdf->SetFont('helvetica', '', 9);
             $pdf->SetTextColor($muted[0], $muted[1], $muted[2]);
@@ -496,10 +501,10 @@ class Receipts {
         $pdf->SetFillColor($deep[0], $deep[1], $deep[2]);
         $pdf->Rect(15, $foot_y, $W - 30, $foot_h, 'F');
 
-        $company = get_option('gps_company_name')    ?: 'GPS Dental Training';
-        $email   = get_option('gps_company_email')   ?: 'info@gpsdentaltraining.com';
-        $phone   = get_option('gps_company_phone')   ?: '';
-        $address = get_option('gps_company_address') ?: '';
+        $company = self::clean_text(get_option('gps_company_name'))    ?: 'GPS Dental Training';
+        $email   = self::clean_text(get_option('gps_company_email'))   ?: 'info@gpsdentaltraining.com';
+        $phone   = self::clean_text(get_option('gps_company_phone'))   ?: '';
+        $address = self::clean_text(get_option('gps_company_address')) ?: '';
 
         $pdf->SetTextColor(255, 255, 255);
         $pdf->SetFont('helvetica', 'B', 10);
@@ -523,6 +528,20 @@ class Receipts {
         $pdf->SetFont('helvetica', 'I', 9);
         $pdf->SetXY(15, $foot_y + 23);
         $pdf->Cell($W - 30, 4, 'Thank you for choosing GPS Dental Training', 0, 1, 'C');
+    }
+
+    /**
+     * Strip tags + decode HTML entities so text rendered via TCPDF
+     * Cell()/MultiCell() does not show literal &#8211; / <br/> etc.
+     * Cell() does not parse HTML — only writeHTML() does — so every
+     * string we feed to Cell must be pre-decoded.
+     */
+    protected static function clean_text($s) {
+        if ($s === null || $s === '') return '';
+        $s = preg_replace('#<br\s*/?>#i', ' ', (string) $s);
+        $s = wp_strip_all_tags($s);
+        $s = html_entity_decode($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        return trim($s);
     }
 
     /**
