@@ -203,15 +203,341 @@ class Receipts {
         $pdf->SetCreator('GPS Dental Training');
         $pdf->SetAuthor('GPS Dental Training');
         $pdf->SetTitle('Receipt — Order #' . $order->get_order_number());
-        $pdf->SetMargins(15, 20, 15);
-        $pdf->SetAutoPageBreak(true, 18);
+        $pdf->SetMargins(0, 0, 0);
+        $pdf->SetAutoPageBreak(false);
         $pdf->setPrintHeader(false);
         $pdf->setPrintFooter(false);
         $pdf->AddPage();
 
-        $pdf->writeHTML(self::pdf_html($order), true, false, true, false, '');
+        self::render_native($pdf, $order);
 
         return $pdf->Output('receipt.pdf', 'S');
+    }
+
+    /* ====================================================================
+     * Native TCPDF rendering — mirrors the certificate's approach
+     * (class-certificates.php::render_certificate_content) so the
+     * receipt sits in the same visual family.
+     * ==================================================================== */
+
+    protected static function render_native($pdf, $order) {
+        $W = 215.9; // Letter portrait width in mm
+        $H = 279.4; // height
+
+        // Colors lifted from Certificate_Settings so the receipt
+        // automatically follows any future brand tweak there.
+        $navy_hex   = Certificate_Settings::get('primary_color')   ?: '#193463';
+        $gold_hex   = Certificate_Settings::get('secondary_color') ?: '#BC9D67';
+        $deep_hex   = '#0C2044'; // matches certificate footer
+        $navy   = self::hex2rgb($navy_hex);
+        $gold   = self::hex2rgb($gold_hex);
+        $deep   = self::hex2rgb($deep_hex);
+        $dark   = [31, 41, 55];
+        $muted  = [107, 114, 128];
+        $note_c = [71, 85, 105];
+        $light  = [248, 249, 251];
+
+        $currency = ['currency' => $order->get_currency()];
+
+        /* ---------- Background + outer rounded border ---------- */
+        $pdf->SetFillColor(255, 255, 255);
+        $pdf->Rect(0, 0, $W, $H, 'F');
+        $pdf->SetLineWidth(0.4);
+        $pdf->SetDrawColor(220, 220, 220);
+        $pdf->RoundedRect(10, 10, $W - 20, $H - 20, 5, '1111', 'D');
+
+        /* ---------- Header navy band with logo or typography ---------- */
+        $pdf->SetFillColor($navy[0], $navy[1], $navy[2]);
+        $pdf->Rect(15, 15, $W - 30, 28, 'F');
+
+        $logo_url  = Certificate_Settings::get('logo'); // light version intended for navy bg
+        $logo_done = false;
+        if ($logo_url) {
+            $uploads   = \wp_upload_dir();
+            $logo_path = str_replace($uploads['baseurl'], $uploads['basedir'], $logo_url);
+            if (file_exists($logo_path)) {
+                $info = @getimagesize($logo_path);
+                if ($info && !empty($info[0]) && !empty($info[1])) {
+                    $lh = 16;
+                    $lw = ($info[0] / $info[1]) * $lh;
+                    if ($lw > $W - 60) $lw = $W - 60;
+                    $lx = ($W - $lw) / 2;
+                    $pdf->Image($logo_path, $lx, 21, $lw, $lh, '', '', '', true, 300);
+                    $logo_done = true;
+                }
+            }
+        }
+        if (!$logo_done) {
+            // Typographic fallback — exact treatment from the certificate
+            $pdf->SetTextColor(255, 255, 255);
+            $pdf->SetFont('helvetica', 'B', 20);
+            $pdf->SetXY(20, 21);
+            $pdf->Cell($W - 40, 8, 'GPS DENTAL', 0, 1, 'C');
+
+            $pdf->SetTextColor($gold[0], $gold[1], $gold[2]);
+            $pdf->SetFont('helvetica', '', 11);
+            $pdf->SetXY(20, 32);
+            $pdf->Cell($W - 40, 6, 'T R A I N I N G', 0, 1, 'C');
+        }
+
+        /* ---------- RECEIPT title ---------- */
+        $y = 56;
+        $pdf->SetTextColor($navy[0], $navy[1], $navy[2]);
+        $pdf->SetFont('helvetica', 'B', 28);
+        $pdf->SetXY(20, $y);
+        $pdf->Cell($W - 40, 11, 'RECEIPT', 0, 1, 'C');
+
+        $pdf->SetFont('helvetica', '', 10);
+        $pdf->SetTextColor($muted[0], $muted[1], $muted[2]);
+        $pdf->SetXY(20, $y + 11);
+        $pdf->Cell($W - 40, 5, 'OF PURCHASE', 0, 1, 'C');
+
+        // Decorative gold rule
+        $pdf->SetDrawColor($gold[0], $gold[1], $gold[2]);
+        $pdf->SetLineWidth(0.8);
+        $pdf->Line($W / 2 - 18, $y + 19, $W / 2 + 18, $y + 19);
+
+        /* ---------- Meta strip: 3 columns ---------- */
+        $y = 86;
+        $box_x = 25;
+        $box_w = $W - 50;
+        $box_h = 16;
+        $pdf->SetFillColor($light[0], $light[1], $light[2]);
+        $pdf->RoundedRect($box_x, $y, $box_w, $box_h, 2, '1111', 'F');
+
+        $cols = [
+            ['ORDER #', '#' . $order->get_order_number()],
+            ['DATE',    wc_format_datetime($order->get_date_created(), get_option('date_format'))],
+            ['STATUS',  wc_get_order_status_name($order->get_status())],
+        ];
+        $col_w = $box_w / 3;
+        foreach ($cols as $i => $c) {
+            $cx = $box_x + ($i * $col_w);
+            $pdf->SetTextColor($muted[0], $muted[1], $muted[2]);
+            $pdf->SetFont('helvetica', 'B', 7);
+            $pdf->SetXY($cx, $y + 2.5);
+            $pdf->Cell($col_w, 4, $c[0], 0, 0, 'C');
+
+            $pdf->SetTextColor($navy[0], $navy[1], $navy[2]);
+            $pdf->SetFont('helvetica', 'B', 11);
+            $pdf->SetXY($cx, $y + 7.5);
+            $pdf->Cell($col_w, 6, $c[1], 0, 0, 'C');
+        }
+
+        /* ---------- Bill To ---------- */
+        $y = 112;
+        $pdf->SetTextColor($gold[0], $gold[1], $gold[2]);
+        $pdf->SetFont('helvetica', 'B', 9);
+        $pdf->SetXY(25, $y);
+        $pdf->Cell(60, 5, 'BILL TO', 0, 1, 'L');
+
+        $pdf->SetTextColor($dark[0], $dark[1], $dark[2]);
+        $pdf->SetFont('helvetica', '', 10);
+        $billing = $order->get_formatted_billing_address('');
+        $lines = $billing ? explode("\n", $billing) : [];
+        $contact = $order->get_billing_email();
+        if ($order->get_billing_phone()) {
+            $contact .= ' · ' . $order->get_billing_phone();
+        }
+        if ($contact) $lines[] = $contact;
+
+        $by = $y + 5;
+        foreach ($lines as $line) {
+            $pdf->SetXY(25, $by);
+            $pdf->Cell($W - 50, 5, $line, 0, 1, 'L');
+            $by += 5;
+        }
+
+        /* ---------- Items table ---------- */
+        $y = max($by + 6, 142);
+
+        // Header row
+        $pdf->SetFillColor($navy[0], $navy[1], $navy[2]);
+        $pdf->Rect(20, $y, $W - 40, 8, 'F');
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('helvetica', 'B', 9);
+        $pdf->SetXY(22, $y + 2);
+        $pdf->Cell(100, 4, 'ITEM', 0, 0, 'L');
+        $pdf->SetXY(125, $y + 2);
+        $pdf->Cell(15, 4, 'QTY', 0, 0, 'C');
+        $pdf->SetXY(160, $y + 2);
+        $pdf->Cell(35, 4, 'TOTAL', 0, 0, 'R');
+
+        $y += 8;
+
+        // Item rows
+        $pdf->SetTextColor($dark[0], $dark[1], $dark[2]);
+        foreach ($order->get_items() as $item) {
+            $product_name = $item->get_name();
+            $attendee   = $item->get_meta('Attendee') ?: $item->get_meta('attendee_name');
+            $event_date = $item->get_meta('Event Date') ?: $item->get_meta('event_date');
+
+            $row_h = 8;
+            if ($attendee)   $row_h += 4;
+            if ($event_date) $row_h += 4;
+            $row_h += 2;
+
+            $pdf->SetFont('helvetica', 'B', 10);
+            $pdf->SetTextColor($dark[0], $dark[1], $dark[2]);
+            $pdf->SetXY(22, $y + 2);
+            $pdf->MultiCell(100, 5, $product_name, 0, 'L');
+
+            $sub_y = $pdf->GetY();
+            if ($attendee) {
+                $pdf->SetFont('helvetica', '', 8);
+                $pdf->SetTextColor($muted[0], $muted[1], $muted[2]);
+                $pdf->SetXY(22, $sub_y);
+                $pdf->Cell(100, 4, 'Attendee: ' . $attendee, 0, 0, 'L');
+                $sub_y += 4;
+            }
+            if ($event_date) {
+                $pdf->SetFont('helvetica', '', 8);
+                $pdf->SetTextColor($muted[0], $muted[1], $muted[2]);
+                $pdf->SetXY(22, $sub_y);
+                $pdf->Cell(100, 4, 'Date: ' . $event_date, 0, 0, 'L');
+                $sub_y += 4;
+            }
+
+            // Right-aligned values vertically centered on first line
+            $pdf->SetFont('helvetica', '', 10);
+            $pdf->SetTextColor($dark[0], $dark[1], $dark[2]);
+            $pdf->SetXY(125, $y + 2);
+            $pdf->Cell(15, 5, (string) (int) $item->get_quantity(), 0, 0, 'C');
+            $pdf->SetXY(160, $y + 2);
+            $pdf->Cell(35, 5, html_entity_decode(wp_strip_all_tags(wc_price($item->get_total(), $currency))), 0, 0, 'R');
+
+            $row_bottom = max($sub_y, $y + 8) + 2;
+            $pdf->SetDrawColor(229, 231, 235);
+            $pdf->SetLineWidth(0.2);
+            $pdf->Line(20, $row_bottom, $W - 20, $row_bottom);
+            $y = $row_bottom + 2;
+        }
+
+        /* ---------- Totals (right-aligned) ---------- */
+        $y += 4;
+        $tx = 110;     // totals left edge
+        $tw = $W - 20 - $tx;
+
+        $rows = [];
+        $rows[] = ['Subtotal', wc_price($order->get_subtotal(), $currency), null];
+
+        foreach ($order->get_items('coupon') as $coupon_item) {
+            $code = method_exists($coupon_item, 'get_code') ? $coupon_item->get_code() : $coupon_item->get_name();
+            $label = class_exists('\\GPSC\\Coupon_Labels') ? Coupon_Labels::get_label_for_code($code) : '';
+            $display = $label ?: strtoupper($code);
+            $note    = class_exists('\\GPSC\\Discount_Notes') ? Discount_Notes::get_note($order, $code) : '';
+            $rows[] = [
+                'Discount: ' . $display,
+                '-' . wc_price($coupon_item->get_discount(), $currency),
+                $note ?: null,
+                '#059669',
+            ];
+        }
+        if ($order->get_shipping_total() > 0) {
+            $rows[] = ['Shipping', wc_price($order->get_shipping_total(), $currency), null];
+        }
+        if ($order->get_total_tax() > 0) {
+            $rows[] = ['Tax', wc_price($order->get_total_tax(), $currency), null];
+        }
+
+        foreach ($rows as $row) {
+            list($label, $value, $note) = array_pad($row, 3, null);
+            $value_color = $row[3] ?? null;
+
+            $pdf->SetFont('helvetica', '', 10);
+            $pdf->SetTextColor($muted[0], $muted[1], $muted[2]);
+            $pdf->SetXY($tx, $y);
+            $pdf->Cell($tw - 35, 5, $label, 0, 0, 'L');
+
+            if ($value_color) {
+                $rgb = self::hex2rgb($value_color);
+                $pdf->SetTextColor($rgb[0], $rgb[1], $rgb[2]);
+            } else {
+                $pdf->SetTextColor($dark[0], $dark[1], $dark[2]);
+            }
+            $pdf->SetXY($tx + $tw - 35, $y);
+            $pdf->Cell(35, 5, html_entity_decode(wp_strip_all_tags($value)), 0, 0, 'R');
+            $y += 5;
+
+            if ($note) {
+                $pdf->SetFont('helvetica', 'I', 7.5);
+                $pdf->SetTextColor($note_c[0], $note_c[1], $note_c[2]);
+                $pdf->SetXY($tx, $y);
+                $pdf->Cell($tw, 4, $note, 0, 0, 'L');
+                $y += 4;
+            }
+        }
+
+        // TOTAL row in navy
+        $y += 2;
+        $pdf->SetFillColor($navy[0], $navy[1], $navy[2]);
+        $pdf->Rect($tx, $y, $tw, 10, 'F');
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('helvetica', 'B', 12);
+        $pdf->SetXY($tx + 3, $y + 2.5);
+        $pdf->Cell($tw - 38, 5, 'TOTAL', 0, 0, 'L');
+        $pdf->SetXY($tx + $tw - 38, $y + 2.5);
+        $pdf->Cell(35, 5, html_entity_decode(wp_strip_all_tags(wc_price($order->get_total(), $currency))), 0, 0, 'R');
+        $y += 14;
+
+        /* ---------- Payment line ---------- */
+        $payment = $order->get_payment_method_title();
+        if ($payment) {
+            $pdf->SetFont('helvetica', '', 9);
+            $pdf->SetTextColor($muted[0], $muted[1], $muted[2]);
+            $pdf->SetXY(25, $y);
+            $pdf->Cell($W - 50, 5, 'Payment Method: ' . $payment, 0, 0, 'L');
+            $y += 8;
+        }
+
+        /* ---------- Footer (deep navy band at the bottom of the page) ---------- */
+        $foot_h  = 32;
+        $foot_y  = $H - 10 - $foot_h - 5; // sit inside the rounded border
+        $pdf->SetFillColor($deep[0], $deep[1], $deep[2]);
+        $pdf->Rect(15, $foot_y, $W - 30, $foot_h, 'F');
+
+        $company = get_option('gps_company_name')    ?: 'GPS Dental Training';
+        $email   = get_option('gps_company_email')   ?: 'info@gpsdentaltraining.com';
+        $phone   = get_option('gps_company_phone')   ?: '';
+        $address = get_option('gps_company_address') ?: '';
+
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('helvetica', 'B', 10);
+        $pdf->SetXY(15, $foot_y + 4);
+        $pdf->Cell($W - 30, 5, strtoupper($company), 0, 1, 'C');
+
+        $pdf->SetFont('helvetica', '', 9);
+        $pdf->SetTextColor(180, 195, 215);
+        if ($address) {
+            $pdf->SetXY(15, $foot_y + 10);
+            $pdf->Cell($W - 30, 4, str_replace("\n", ' · ', $address), 0, 1, 'C');
+        }
+        $contact_bits = [];
+        if ($phone) $contact_bits[] = $phone;
+        $contact_bits[] = $email;
+        $pdf->SetXY(15, $foot_y + 15);
+        $pdf->Cell($W - 30, 4, implode(' · ', $contact_bits), 0, 1, 'C');
+
+        // Gold "thanks" line
+        $pdf->SetTextColor($gold[0], $gold[1], $gold[2]);
+        $pdf->SetFont('helvetica', 'I', 9);
+        $pdf->SetXY(15, $foot_y + 23);
+        $pdf->Cell($W - 30, 4, 'Thank you for choosing GPS Dental Training', 0, 1, 'C');
+    }
+
+    /**
+     * Convert "#RRGGBB" to [r, g, b].
+     */
+    protected static function hex2rgb($hex) {
+        $hex = ltrim($hex, '#');
+        if (strlen($hex) === 3) {
+            $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+        }
+        return [
+            hexdec(substr($hex, 0, 2)),
+            hexdec(substr($hex, 2, 2)),
+            hexdec(substr($hex, 4, 2)),
+        ];
     }
 
     /**
@@ -231,145 +557,6 @@ class Receipts {
     const BORDER_LIGHT   = '#e5e7eb';
     const DISCOUNT_GREEN = '#059669';
 
-    protected static function pdf_html($order) {
-        // Logo still comes from Email Settings (so it matches the email
-        // exactly without re-uploading). Everything else is brand-locked.
-        $logo_url = Email_Settings::get('logo');
-
-        $company = get_option('gps_company_name')    ?: 'GPS Dental Training';
-        $email   = get_option('gps_company_email')   ?: 'info@gpsdentaltraining.com';
-        $phone   = get_option('gps_company_phone')   ?: '';
-        $address = get_option('gps_company_address') ?: '';
-
-        $date_str = wc_format_datetime($order->get_date_created(), get_option('date_format'));
-        $currency = ['currency' => $order->get_currency()];
-
-        $navy   = self::BRAND_NAVY;
-        $navy_d = self::BRAND_NAVY_DEEP;
-        $gold   = self::BRAND_GOLD;
-        $dark   = self::TEXT_DARK;
-        $muted  = self::TEXT_MUTED;
-        $note_c = self::TEXT_NOTE;
-        $light  = self::SURFACE_LIGHT;
-
-        // ------- Logo strip (small, controlled size, white background) -------
-        $html = '';
-        if ($logo_url) {
-            // TCPDF honors width attribute reliably; height auto-scales.
-            $html .= '<table cellpadding="0" cellspacing="0" style="width:100%;"><tr>';
-            $html .= '<td style="text-align:center; padding:0 0 10px;">';
-            $html .= '<img src="' . esc_url($logo_url) . '" width="180">';
-            $html .= '</td></tr></table>';
-        }
-
-        // ------- Brand header bar -------
-        $html .= '<table cellpadding="12" cellspacing="0" style="width:100%; background-color:' . $navy . '; color:#ffffff;"><tr>';
-        $html .= '<td style="width:60%; vertical-align:middle;">';
-        $html .= '<span style="font-size:22pt; font-weight:bold; color:#ffffff; letter-spacing:1px;">RECEIPT</span><br>';
-        $html .= '<span style="font-size:9pt; color:#ffffff;">' . esc_html($company) . '</span>';
-        $html .= '</td>';
-        $html .= '<td style="width:40%; vertical-align:middle; text-align:right; font-size:9pt; color:#ffffff;">';
-        $html .= '<strong>Order #</strong> ' . esc_html($order->get_order_number()) . '<br>';
-        $html .= '<strong>Date</strong> ' . esc_html($date_str) . '<br>';
-        $html .= '<strong>Status</strong> ' . esc_html(wc_get_order_status_name($order->get_status()));
-        $html .= '</td></tr></table>';
-
-        // ------- Bill To -------
-        // Use formatted billing address only — it already includes name +
-        // company. Adding them separately caused the duplicate-name bug.
-        $html .= '<table cellpadding="10" cellspacing="0" style="width:100%; background-color:' . $light . '; border-left:3px solid ' . $gold . ';"><tr><td style="color:' . $dark . '; font-size:10pt;">';
-        $html .= '<span style="color:' . $navy . '; font-weight:bold; font-size:9pt; letter-spacing:1px;">BILL TO</span><br>';
-        $billing_addr = $order->get_formatted_billing_address();
-        if ($billing_addr) {
-            $html .= str_replace("\n", '<br>', wp_kses_post($billing_addr)) . '<br>';
-        }
-        $html .= esc_html($order->get_billing_email());
-        if ($order->get_billing_phone()) {
-            $html .= ' &middot; ' . esc_html($order->get_billing_phone());
-        }
-        $html .= '</td></tr></table>';
-
-        // ------- Items -------
-        $html .= '<br><table cellpadding="8" cellspacing="0" style="width:100%; font-size:10pt; color:' . $dark . ';">';
-        $html .= '<thead><tr style="background-color:' . $navy . '; color:#ffffff;">';
-        $html .= '<th style="text-align:left;">ITEM</th>';
-        $html .= '<th style="text-align:center; width:60px;">QTY</th>';
-        $html .= '<th style="text-align:right; width:110px;">TOTAL</th>';
-        $html .= '</tr></thead><tbody>';
-
-        foreach ($order->get_items() as $item) {
-            $product_name = $item->get_name();
-            $attendee   = $item->get_meta('Attendee') ?: $item->get_meta('attendee_name');
-            $event_date = $item->get_meta('Event Date') ?: $item->get_meta('event_date');
-
-            $html .= '<tr>';
-            $html .= '<td style="border-bottom:1px solid ' . self::BORDER_LIGHT . ';"><strong>' . esc_html($product_name) . '</strong>';
-            if ($attendee)   $html .= '<br><span style="font-size:9pt; color:' . $muted . ';">Attendee: ' . esc_html($attendee) . '</span>';
-            if ($event_date) $html .= '<br><span style="font-size:9pt; color:' . $muted . ';">Date: ' . esc_html($event_date) . '</span>';
-            $html .= '</td>';
-            $html .= '<td style="text-align:center; border-bottom:1px solid ' . self::BORDER_LIGHT . ';">' . (int) $item->get_quantity() . '</td>';
-            $html .= '<td style="text-align:right; border-bottom:1px solid ' . self::BORDER_LIGHT . ';">' . wp_kses_post(wc_price($item->get_total(), $currency)) . '</td>';
-            $html .= '</tr>';
-        }
-        $html .= '</tbody></table>';
-
-        // ------- Totals -------
-        $html .= '<br><table cellpadding="4" cellspacing="0" style="width:100%; font-size:10pt;"><tr>';
-        $html .= '<td style="width:55%;">&nbsp;</td>';
-        $html .= '<td style="width:45%;"><table cellpadding="6" cellspacing="0" style="width:100%; color:' . $dark . ';">';
-
-        $html .= '<tr><td style="color:' . $muted . ';">Subtotal</td>';
-        $html .= '<td style="text-align:right;">' . wp_kses_post(wc_price($order->get_subtotal(), $currency)) . '</td></tr>';
-
-        foreach ($order->get_items('coupon') as $coupon_item) {
-            $code = method_exists($coupon_item, 'get_code') ? $coupon_item->get_code() : $coupon_item->get_name();
-            $label = class_exists('\\GPSC\\Coupon_Labels') ? Coupon_Labels::get_label_for_code($code) : '';
-            $display = $label ?: strtoupper($code);
-            $note    = class_exists('\\GPSC\\Discount_Notes') ? Discount_Notes::get_note($order, $code) : '';
-
-            $html .= '<tr><td style="color:' . $muted . ';">Discount: ' . esc_html($display);
-            if ($note) {
-                // Readable note color (not the washed-out gray from the bad version)
-                $html .= '<br><span style="font-size:8pt; color:' . $note_c . '; font-style:italic;">' . esc_html($note) . '</span>';
-            }
-            $html .= '</td><td style="text-align:right; color:' . self::DISCOUNT_GREEN . ';">-' . wp_kses_post(wc_price($coupon_item->get_discount(), $currency)) . '</td></tr>';
-        }
-
-        if ($order->get_shipping_total() > 0) {
-            $html .= '<tr><td style="color:' . $muted . ';">Shipping</td>';
-            $html .= '<td style="text-align:right;">' . wp_kses_post(wc_price($order->get_shipping_total(), $currency)) . '</td></tr>';
-        }
-        if ($order->get_total_tax() > 0) {
-            $html .= '<tr><td style="color:' . $muted . ';">Tax</td>';
-            $html .= '<td style="text-align:right;">' . wp_kses_post(wc_price($order->get_total_tax(), $currency)) . '</td></tr>';
-        }
-
-        $html .= '<tr style="background-color:' . $navy . '; color:#ffffff;">';
-        $html .= '<td style="color:#ffffff;"><strong>TOTAL</strong></td>';
-        $html .= '<td style="text-align:right; color:#ffffff;"><strong>' . wp_kses_post(wc_price($order->get_total(), $currency)) . '</strong></td></tr>';
-
-        $html .= '</table></td></tr></table>';
-
-        // ------- Payment -------
-        $payment_method = $order->get_payment_method_title();
-        if ($payment_method) {
-            $html .= '<br><p style="font-size:9pt; color:' . $muted . ';"><strong style="color:' . $dark . ';">Payment Method:</strong> ' . esc_html($payment_method) . '</p>';
-        }
-
-        // ------- Footer (deeper navy band with gold thanks line) -------
-        $html .= '<br><table cellpadding="12" cellspacing="0" style="width:100%; background-color:' . $navy_d . ';"><tr>';
-        $html .= '<td style="text-align:center; font-size:9pt; color:#ffffff;">';
-        $html .= '<strong style="letter-spacing:0.5px;">' . esc_html(strtoupper($company)) . '</strong><br>';
-        if ($address) $html .= esc_html(str_replace("\n", ' · ', $address)) . '<br>';
-        $contact_bits = [];
-        if ($phone) $contact_bits[] = esc_html($phone);
-        $contact_bits[] = esc_html($email);
-        $html .= implode(' &middot; ', $contact_bits);
-        $html .= '<br><br><span style="font-size:9pt; color:' . $gold . '; font-style:italic;">' . esc_html__('Thank you for choosing GPS Dental Training', 'gps-courses') . '</span>';
-        $html .= '</td></tr></table>';
-
-        return $html;
-    }
 
     /* ====================================================================
      * Helpers
