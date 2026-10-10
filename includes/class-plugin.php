@@ -46,6 +46,7 @@ class Plugin {
         require_once GPSC_PATH . 'includes/class-coupon-labels.php';
         require_once GPSC_PATH . 'includes/class-discount-notes.php';
         require_once GPSC_PATH . 'includes/class-receipts.php';
+        require_once GPSC_PATH . 'includes/class-registration-guard.php';
 
         require_once GPSC_PATH . 'includes/helpers.php';
 
@@ -95,6 +96,7 @@ class Plugin {
         Coupon_Labels::init();
         Discount_Notes::init();
         Receipts::init();
+        Registration_Guard::init();
 
         Woo::hooks();
     }

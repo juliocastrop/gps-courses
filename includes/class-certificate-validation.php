@@ -117,7 +117,7 @@ class Certificate_Validation {
                 'event_title' => $certificate->event_title,
                 'event_date' => Certificates::format_event_date_range($event_date, $event_end_date),
                 'venue' => $venue,
-                'instructor' => $instructor ?: 'Dr Carlos Castro DDS, FACP',
+                'instructor' => $instructor ?: 'Carlos Castro DDS, FACP',
                 'ce_credits' => $ce_credits ? floatval($ce_credits) : 0,
                 'generated_at' => $certificate->generated_at ? date_i18n('F j, Y g:i A', strtotime($certificate->generated_at)) : '',
                 'certificate_code' => $certificate->ticket_code,

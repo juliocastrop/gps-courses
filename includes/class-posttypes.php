@@ -1236,7 +1236,7 @@ class Posttypes {
                         </label>
                         <input type="text" id="gps_instructor" name="gps_instructor"
                                value="<?php echo esc_attr($instructor); ?>" class="widefat"
-                               placeholder="Dr Carlos Castro DDS, FACP" />
+                               placeholder="Carlos Castro DDS, FACP" />
                         <p class="description"><?php _e('Instructor name for certificates. Leave blank to use default.', 'gps-courses'); ?></p>
                     </div>
 

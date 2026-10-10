@@ -97,9 +97,16 @@ class GPSC_Ticket_Email extends WC_Email {
      * Get email content HTML
      */
     public function get_content_html() {
-        // Get all necessary data for the template
-        $event_start = get_post_meta($this->ticket->event_id, '_gps_start_date', true);
-        $event_end = get_post_meta($this->ticket->event_id, '_gps_end_date', true);
+        // Get all necessary data for the template. Combine date + time meta so
+        // the ticket shows the real event time (mirrors Emails::send_ticket_email).
+        $event_start = trim(
+            get_post_meta($this->ticket->event_id, '_gps_start_date', true) . ' ' .
+            get_post_meta($this->ticket->event_id, '_gps_start_time', true)
+        );
+        $event_end = trim(
+            get_post_meta($this->ticket->event_id, '_gps_end_date', true) . ' ' .
+            get_post_meta($this->ticket->event_id, '_gps_end_time', true)
+        );
         $event_venue = get_post_meta($this->ticket->event_id, '_gps_venue', true);
         $ce_credits = (int) get_post_meta($this->ticket->event_id, '_gps_ce_credits', true);
 

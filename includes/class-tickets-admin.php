@@ -12,6 +12,7 @@ class Tickets_Admin {
     public static function init() {
         add_action('admin_menu', [__CLASS__, 'add_admin_menu']);
         add_action('admin_init', [__CLASS__, 'handle_resend_email']);
+        add_action('admin_init', [__CLASS__, 'handle_export_csv']);
         add_action('admin_init', [__CLASS__, 'reconcile_designated_attendees']);
         add_action('admin_notices', [__CLASS__, 'show_admin_notices']);
         add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_scripts']);
@@ -376,12 +377,11 @@ class Tickets_Admin {
     }
 
     /**
-     * Render tickets page
+     * Query purchased tickets, optionally filtered by event.
+     * Shared by the list view and the CSV export so both stay in sync.
      */
-    public static function render_tickets_page() {
+    public static function get_tickets($event_filter = 0) {
         global $wpdb;
-
-        $event_filter = isset($_GET['event_id']) ? (int) $_GET['event_id'] : 0;
 
         $query = "SELECT t.*,
                          p.post_title as event_title,
@@ -406,7 +406,121 @@ class Tickets_Admin {
 
         $query .= " ORDER BY t.created_at DESC";
 
-        $tickets = $wpdb->get_results($query);
+        return $wpdb->get_results($query);
+    }
+
+    /**
+     * Resolve the phone number of the effective attendee for a ticket.
+     * Tries the attendee's WP account billing_phone, then falls back to the
+     * WooCommerce order billing phone (the buyer). Returns '' if none found.
+     */
+    public static function get_attendee_phone($ticket) {
+        $effective = self::get_effective_attendee($ticket);
+
+        if (!empty($effective->user_id)) {
+            $phone = get_user_meta($effective->user_id, 'billing_phone', true);
+            if (!empty($phone)) {
+                return $phone;
+            }
+        }
+
+        if (!empty($ticket->order_id) && function_exists('wc_get_order')) {
+            $order = wc_get_order($ticket->order_id);
+            if ($order) {
+                $phone = $order->get_billing_phone();
+                if (!empty($phone)) {
+                    return $phone;
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Handle CSV export of purchased tickets (respects the event filter).
+     */
+    public static function handle_export_csv() {
+        if (!isset($_GET['gps_export_tickets'])) {
+            return;
+        }
+
+        if (!current_user_can('manage_options')) {
+            wp_die(__('You do not have permission to do this', 'gps-courses'));
+        }
+
+        if (!isset($_GET['gps_export_nonce']) || !wp_verify_nonce($_GET['gps_export_nonce'], 'gps_export_tickets')) {
+            wp_die(__('Security check failed', 'gps-courses'));
+        }
+
+        $event_filter = isset($_GET['event_id']) ? (int) $_GET['event_id'] : 0;
+        $tickets = self::get_tickets($event_filter);
+
+        $filename = 'purchased-tickets-' . date('Y-m-d') . '.csv';
+
+        nocache_headers();
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        $output = fopen('php://output', 'w');
+
+        // UTF-8 BOM so Excel reads accents correctly
+        fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+        fputcsv($output, [
+            'Ticket Code',
+            'Event',
+            'Ticket Type',
+            'Buyer Name',
+            'Buyer Email',
+            'Attendee Name',
+            'Attendee Email',
+            'Phone',
+            'Order ID',
+            'Purchase Date',
+            'Status',
+        ]);
+
+        foreach ($tickets as $ticket) {
+            $buyer_name    = $ticket->attendee_name ?: $ticket->display_name;
+            $buyer_email   = $ticket->attendee_email ?: $ticket->user_email;
+            $has_designated = !empty($ticket->designated_attendee_name);
+            $attendee_name  = $has_designated ? $ticket->designated_attendee_name : $buyer_name;
+            $attendee_email = $has_designated ? $ticket->designated_attendee_email : $buyer_email;
+            $phone          = self::get_attendee_phone($ticket);
+
+            $order = function_exists('wc_get_order') ? wc_get_order($ticket->order_id) : false;
+            $order_status = $order ? $order->get_status() : 'unknown';
+            $status = ($ticket->status === 'used') ? 'Used' : ucfirst($order_status);
+
+            fputcsv($output, [
+                $ticket->ticket_code,
+                $ticket->event_title,
+                $ticket->ticket_type ?: '',
+                $buyer_name,
+                $buyer_email,
+                $attendee_name,
+                $attendee_email,
+                $phone,
+                $ticket->order_id ? '#' . $ticket->order_id : '',
+                date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($ticket->created_at)),
+                $status,
+            ]);
+        }
+
+        fclose($output);
+        exit;
+    }
+
+    /**
+     * Render tickets page
+     */
+    public static function render_tickets_page() {
+        global $wpdb;
+
+        $event_filter = isset($_GET['event_id']) ? (int) $_GET['event_id'] : 0;
+
+        $tickets = self::get_tickets($event_filter);
 
         $events = get_posts([
             'post_type' => 'gps_event',
@@ -420,18 +534,33 @@ class Tickets_Admin {
         <div class="wrap">
             <h1><?php _e('Purchased Tickets', 'gps-courses'); ?></h1>
 
-            <!-- Filter -->
-            <form method="get" style="margin: 20px 0;">
-                <input type="hidden" name="page" value="gps-purchased-tickets">
-                <select name="event_id" onchange="this.form.submit()">
-                    <option value=""><?php _e('All Events', 'gps-courses'); ?></option>
-                    <?php foreach ($events as $event): ?>
-                        <option value="<?php echo $event->ID; ?>" <?php selected($event_filter, $event->ID); ?>>
-                            <?php echo esc_html($event->post_title); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </form>
+            <!-- Filter + Export -->
+            <div style="display: flex; align-items: center; gap: 12px; margin: 20px 0;">
+                <form method="get" style="margin: 0;">
+                    <input type="hidden" name="page" value="gps-purchased-tickets">
+                    <select name="event_id" onchange="this.form.submit()">
+                        <option value=""><?php _e('All Events', 'gps-courses'); ?></option>
+                        <?php foreach ($events as $event): ?>
+                            <option value="<?php echo $event->ID; ?>" <?php selected($event_filter, $event->ID); ?>>
+                                <?php echo esc_html($event->post_title); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </form>
+
+                <?php
+                $export_url = add_query_arg([
+                    'page'                => 'gps-purchased-tickets',
+                    'event_id'            => $event_filter ?: false,
+                    'gps_export_tickets'  => 1,
+                    'gps_export_nonce'    => wp_create_nonce('gps_export_tickets'),
+                ], admin_url('admin.php'));
+                ?>
+                <a href="<?php echo esc_url($export_url); ?>" class="button">
+                    <span class="dashicons dashicons-download" style="font-size: 16px; margin-top: 4px;"></span>
+                    <?php _e('Export to CSV', 'gps-courses'); ?>
+                </a>
+            </div>
 
             <!-- Tickets Table -->
             <table class="wp-list-table widefat fixed striped">
@@ -442,6 +571,7 @@ class Tickets_Admin {
                         <th><?php _e('Ticket Type', 'gps-courses'); ?></th>
                         <th><?php _e('Buyer', 'gps-courses'); ?></th>
                         <th><?php _e('Attendee', 'gps-courses'); ?></th>
+                        <th><?php _e('Phone', 'gps-courses'); ?></th>
                         <th><?php _e('Order ID', 'gps-courses'); ?></th>
                         <th><?php _e('Purchase Date', 'gps-courses'); ?></th>
                         <th><?php _e('Status', 'gps-courses'); ?></th>
@@ -451,7 +581,7 @@ class Tickets_Admin {
                 <tbody>
                     <?php if (empty($tickets)): ?>
                         <tr>
-                            <td colspan="9" style="text-align: center; padding: 40px;">
+                            <td colspan="10" style="text-align: center; padding: 40px;">
                                 <p style="color: #666;"><?php _e('No tickets found.', 'gps-courses'); ?></p>
                             </td>
                         </tr>
@@ -485,6 +615,16 @@ class Tickets_Admin {
                                         <br><small class="gps-attendee-email" style="color: #666;"><?php echo esc_html($ticket->designated_attendee_email); ?></small>
                                     <?php else: ?>
                                         <span class="gps-same-as-buyer"><?php _e('= Buyer', 'gps-courses'); ?></span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php
+                                    $attendee_phone = self::get_attendee_phone($ticket);
+                                    if ($attendee_phone):
+                                    ?>
+                                        <a href="tel:<?php echo esc_attr(preg_replace('/[^0-9+]/', '', $attendee_phone)); ?>"><?php echo esc_html($attendee_phone); ?></a>
+                                    <?php else: ?>
+                                        <span style="color: #999;">—</span>
                                     <?php endif; ?>
                                 </td>
                                 <td>

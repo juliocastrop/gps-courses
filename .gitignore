@@ -103,6 +103,18 @@ wp-content/upgrade/
 .env.local
 .env.*.local
 
+# Credentials / access tokens (NEVER commit)
+wp-access.txt
+*-access.txt
+*credentials*
+*.secrets
+
+# Security audit exports (contain user PII)
+fake-users-to-delete.csv
+*-users-to-delete.csv
+deleted-users-log.csv
+delete-fake-users.py
+
 # QR codes and generated files (uploaded separately)
 /uploads/
 /qr-codes/

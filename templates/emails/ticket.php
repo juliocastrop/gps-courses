@@ -103,7 +103,13 @@ $settings = [
                                         <strong>Start:</strong>
                                     </td>
                                     <td style="padding: 12px 0; border-bottom: 1px solid #f0f0f0; color: #333;">
-                                        <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($event_start))); ?>
+                                        <?php
+                                        $start_fmt = get_option('date_format');
+                                        if (preg_match('/\d{1,2}:\d{2}/', $event_start)) {
+                                            $start_fmt .= ' ' . get_option('time_format');
+                                        }
+                                        echo esc_html(date_i18n($start_fmt, strtotime($event_start)));
+                                        ?>
                                     </td>
                                 </tr>
                                 <?php endif; ?>
@@ -114,7 +120,13 @@ $settings = [
                                         <strong>End:</strong>
                                     </td>
                                     <td style="padding: 12px 0; border-bottom: 1px solid #f0f0f0; color: #333;">
-                                        <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($event_end))); ?>
+                                        <?php
+                                        $end_fmt = get_option('date_format');
+                                        if (preg_match('/\d{1,2}:\d{2}/', $event_end)) {
+                                            $end_fmt .= ' ' . get_option('time_format');
+                                        }
+                                        echo esc_html(date_i18n($end_fmt, strtotime($event_end)));
+                                        ?>
                                     </td>
                                 </tr>
                                 <?php endif; ?>

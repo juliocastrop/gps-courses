@@ -65,6 +65,9 @@
 
                 // Load event-specific stats
                 this.loadEventStats(eventId);
+
+                // Refresh recent check-ins for this event
+                this.loadRecentCheckins();
             } else {
                 console.log('GPS Attendance: Hiding scanner interface');
 
@@ -78,6 +81,9 @@
                 }
 
                 this.selectedEventId = null;
+
+                // No event selected → show all recent check-ins
+                this.loadRecentCheckins();
             }
         },
 
@@ -645,7 +651,8 @@
                 type: 'POST',
                 data: {
                     action: 'gps_get_recent_checkins',
-                    nonce: gpsAttendance.nonce
+                    nonce: gpsAttendance.nonce,
+                    event_id: this.selectedEventId || 0
                 },
                 success: (response) => {
                     if (response.success && response.data.length > 0) {
@@ -668,6 +675,8 @@
 
                         html += '</tbody></table>';
                         $container.html(html);
+                    } else {
+                        $container.html('<p style="color:#666;">' + (gpsAttendance.i18n.noCheckins || 'No check-ins yet.') + '</p>');
                     }
                 }
             });

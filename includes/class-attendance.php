@@ -112,6 +112,7 @@ class Attendance {
                 'not_checked_in' => __('Not Checked In', 'gps-courses'),
                 'check_in' => __('Check In', 'gps-courses'),
                 'method' => __('Method', 'gps-courses'),
+                'noCheckins' => __('No check-ins yet.', 'gps-courses'),
             ],
         ]);
     }
@@ -612,20 +613,10 @@ class Attendance {
             ['%d', '%d']
         );
 
-        // Award CE credits to the effective attendee
-        $credits = (int) get_post_meta($ticket->event_id, '_gps_ce_credits', true);
-        if ($credits > 0) {
-            Credits::award(
-                $effective_user_id,
-                $ticket->event_id,
-                'attendance',
-                'Awarded upon check-in'
-            );
-
-            // Trigger credits email
-            do_action('gps_credits_awarded', $effective_user_id, $ticket->event_id, $credits);
-            do_action('gps_credits_awarded_notification', $effective_user_id, $ticket->event_id, $credits);
-        }
+        // NOTE: CE credits are intentionally NOT awarded at check-in.
+        // They are granted when the certificate is generated
+        // (see Certificates::generate_certificate). This keeps attendance and
+        // credit issuance as two distinct steps.
 
         // Get attendee info
         $event = get_post($ticket->event_id);
@@ -635,7 +626,7 @@ class Attendance {
             'message' => __('Check-in successful!', 'gps-courses'),
             'ticket' => $ticket,
             'event' => $event,
-            'credits_awarded' => $credits,
+            'credits_awarded' => 0,
             'checked_in_at' => current_time('mysql'),
         ];
     }
@@ -702,17 +693,24 @@ class Attendance {
 
         global $wpdb;
 
-        $recent = $wpdb->get_results(
-            "SELECT a.*,
+        // Filter by the selected event when provided; otherwise show all recent.
+        $event_id = isset($_POST['event_id']) ? (int) $_POST['event_id'] : 0;
+
+        $sql = "SELECT a.*,
                     t.ticket_code,
                     COALESCE(t.designated_attendee_name, t.attendee_name) as attendee_name,
                     p.post_title as event_title
              FROM {$wpdb->prefix}gps_attendance a
              INNER JOIN {$wpdb->prefix}gps_tickets t ON a.ticket_id = t.id
-             INNER JOIN {$wpdb->posts} p ON a.event_id = p.ID
-             ORDER BY a.checked_in_at DESC
-             LIMIT 10"
-        );
+             INNER JOIN {$wpdb->posts} p ON a.event_id = p.ID";
+
+        if ($event_id > 0) {
+            $sql .= $wpdb->prepare(" WHERE a.event_id = %d", $event_id);
+        }
+
+        $sql .= " ORDER BY a.checked_in_at DESC LIMIT 10";
+
+        $recent = $wpdb->get_results($sql);
 
         $formatted = [];
         foreach ($recent as $checkin) {

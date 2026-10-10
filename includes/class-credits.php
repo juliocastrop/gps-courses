@@ -6,7 +6,9 @@ if (!defined('ABSPATH')) exit;
 class Credits {
     public static function award($user_id, $event_id, $source='auto', $notes=null) {
         global $wpdb;
-        $credits = (int) get_post_meta($event_id, '_gps_ce_credits', true);
+        // Keep fractional credits (ledger column is DECIMAL(5,2)); some events
+        // award e.g. 3.5 CE — casting to int would silently drop the decimal.
+        $credits = (float) get_post_meta($event_id, '_gps_ce_credits', true);
         if ($credits <= 0) return false;
 
         return $wpdb->insert("{$wpdb->prefix}gps_ce_ledger", [
@@ -18,6 +20,21 @@ class Credits {
             'notes'     => $notes,
             'awarded_at'=> current_time('mysql'),
         ]);
+    }
+
+    /**
+     * Whether the user has already been awarded CE credits for an event.
+     * Used to prevent double-awarding (e.g. when a certificate is regenerated).
+     */
+    public static function has_award($user_id, $event_id) {
+        global $wpdb;
+        return (bool) $wpdb->get_var($wpdb->prepare(
+            "SELECT 1 FROM {$wpdb->prefix}gps_ce_ledger
+             WHERE user_id = %d AND event_id = %d
+             AND transaction_type = 'attendance' LIMIT 1",
+            $user_id,
+            $event_id
+        ));
     }
 
     public static function user_total($user_id) {

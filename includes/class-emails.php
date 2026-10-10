@@ -99,9 +99,15 @@ class Emails {
         }
         error_log('GPS Courses: Found order: #' . $order->get_order_number());
 
-        // Get event metadata
-        $event_start = get_post_meta($ticket->event_id, '_gps_start_date', true);
-        $event_end = get_post_meta($ticket->event_id, '_gps_end_date', true);
+        // Get event metadata. Date and time are stored in separate meta keys;
+        // combine them so the ticket shows the real event time (not midnight).
+        $event_start_date = get_post_meta($ticket->event_id, '_gps_start_date', true);
+        $event_end_date   = get_post_meta($ticket->event_id, '_gps_end_date', true);
+        $event_start_time = get_post_meta($ticket->event_id, '_gps_start_time', true);
+        $event_end_time   = get_post_meta($ticket->event_id, '_gps_end_time', true);
+
+        $event_start = trim($event_start_date . ' ' . $event_start_time);
+        $event_end   = trim($event_end_date . ' ' . $event_end_time);
         $event_venue = get_post_meta($ticket->event_id, '_gps_venue', true);
         $ce_credits = (int) get_post_meta($ticket->event_id, '_gps_ce_credits', true);
 

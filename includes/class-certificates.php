@@ -455,11 +455,11 @@ class Certificates {
 
         // Render certificate content
         self::render_certificate_content($pdf, [
-            'attendee_name' => ucwords(strtolower($effective->name)),
+            'attendee_name' => ucwords(strtolower($effective->name), " \t\r\n\f\v-"),
             'event_title' => $event->post_title,
             'event_date' => self::format_event_date_range($start_date, $end_date),
             'venue' => $venue,
-            'instructor' => $instructor ?: 'Dr Carlos Castro DDS, FACP',
+            'instructor' => $instructor ?: 'Carlos Castro DDS, FACP',
             'ce_credits' => $ce_credits ? floatval($ce_credits) : 0,
             'certificate_code' => $ticket->ticket_code,
         ]);
@@ -493,6 +493,22 @@ class Certificates {
                 ],
                 ['%d', '%d', '%d', '%s', '%s', '%s']
             );
+        }
+
+        // Award CE credits now that the certificate exists — but only once per
+        // attendee/event. A regenerated certificate must not duplicate credits.
+        $credits_val = (float) $ce_credits;
+        if ($credits_val > 0 && !Credits::has_award($effective->user_id, $ticket->event_id)) {
+            Credits::award(
+                $effective->user_id,
+                $ticket->event_id,
+                'certificate',
+                'Awarded upon certificate generation'
+            );
+
+            // Trigger the CE credits notification email
+            do_action('gps_credits_awarded', $effective->user_id, $ticket->event_id, $credits_val);
+            do_action('gps_credits_awarded_notification', $effective->user_id, $ticket->event_id, $credits_val);
         }
 
         return [
@@ -847,7 +863,7 @@ class Certificates {
         $subject = sprintf(__('Your Certificate of Completion - %s', 'gps-courses'), $event->post_title);
 
         $message = self::get_certificate_email_template([
-            'attendee_name' => ucwords(strtolower($effective->name)),
+            'attendee_name' => ucwords(strtolower($effective->name), " \t\r\n\f\v-"),
             'event_title' => $event->post_title,
             'event_date' => self::format_event_date_range($start_date, $end_date),
             'ce_credits' => $ce_credits ? floatval($ce_credits) : 0,
@@ -1094,7 +1110,7 @@ class Certificates {
                 'event_title' => 'Sample Course Title - Advanced Dental Implants',
                 'event_date' => date('F j', strtotime('+0 days')) . '-' . date('j, Y', strtotime('+1 day')),
                 'venue' => 'GPS Dental Training Center',
-                'instructor' => 'Dr Carlos Castro DDS, FACP',
+                'instructor' => 'Carlos Castro DDS, FACP',
                 'ce_credits' => 7,
                 'certificate_code' => 'PREVIEW-' . strtoupper(substr(md5(time()), 0, 8)),
             ], $preview_settings);

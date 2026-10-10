@@ -1024,7 +1024,7 @@ class Certificate_Settings {
 
                 // Instructor label
                 html += '<div style="text-align: center; margin: 4px 0; font-size: 10px; font-weight: bold; color: ' + primaryColor + ';">';
-                html += (settings.instructor_label || 'Instructor Name:') + ' Dr Carlos Castro DDS, FACP';
+                html += (settings.instructor_label || 'Instructor Name:') + ' Carlos Castro DDS, FACP';
                 html += '</div>';
 
                 // Course method

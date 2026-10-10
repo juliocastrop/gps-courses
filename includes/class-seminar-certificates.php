@@ -1227,7 +1227,7 @@ class Seminar_Certificates {
         $pdf->SetFont('helvetica', 'B', $footer_size);
         $pdf->SetTextColor($primary_r, $primary_g, $primary_b);
         $pdf->SetXY(20, 159);
-        $pdf->Cell($w - 40, 4, $instructor_label . ' Dr Carlos Castro DDS, FACP', 0, 1, 'C');
+        $pdf->Cell($w - 40, 4, $instructor_label . ' Carlos Castro DDS, FACP', 0, 1, 'C');
 
         // Program Name
         $pdf->SetFont('helvetica', 'B', $footer_size);

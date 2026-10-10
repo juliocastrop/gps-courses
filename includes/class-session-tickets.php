@@ -405,11 +405,11 @@ class Session_Tickets {
         // Use the existing Certificate class to render content
         // This ensures consistency with course certificates
         $cert_data = [
-            'attendee_name'    => ucwords(strtolower($attendee_name)),
+            'attendee_name'    => ucwords(strtolower($attendee_name), " \t\r\n\f\v-"),
             'event_title'      => $seminar->post_title . ' - Session #' . $session->session_number,
             'event_date'       => date_i18n('F j, Y', strtotime($session->session_date)),
             'venue'            => 'GPS Dental Training Center',
-            'instructor'       => 'Dr Carlos Castro DDS, FACP',
+            'instructor'       => 'Carlos Castro DDS, FACP',
             'ce_credits'       => floatval($ticket->ce_credits),
             'certificate_code' => $ticket->ticket_code,
         ];
