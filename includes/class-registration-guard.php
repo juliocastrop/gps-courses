@@ -15,10 +15,13 @@ if (!defined('ABSPATH')) exit;
  *   4. Bot-signature block      — reject 100%-bot email shapes (pure hex local part).
  *   5. Per-IP rate limit        — cap registrations per IP per hour.
  *   6. Logging                  — record every block for monitoring / tuning.
+ *   7. Email verification code  — the My Account form requires a 6-digit code
+ *                                 emailed to the address being registered.
  *
  * Hooks both WordPress core (wp-login.php?action=register) and WooCommerce
  * (My Account / checkout) registration flows — the two vectors that create
- * `customer` accounts on this site.
+ * `customer` accounts on this site. The email code applies to the My Account
+ * form only; checkout account creation is already gated by payment.
  *
  * @since 1.0.5
  */
@@ -39,10 +42,37 @@ class Registration_Guard {
     /** Rate-limit window in seconds. */
     const RATE_LIMIT_WINDOW = 3600;
 
+    /** Email verification code: lifetime in seconds. */
+    const OTP_TTL = 600;
+
+    /** Wrong guesses allowed per code before it is invalidated. */
+    const OTP_MAX_ATTEMPTS = 5;
+
+    /** Codes that can be sent per email within OTP_SEND_WINDOW. */
+    const OTP_SEND_MAX = 3;
+
+    /** Codes that can be sent per IP within OTP_SEND_WINDOW (clinics/venues share an IP). */
+    const OTP_IP_SEND_MAX = 15;
+
+    /** Window for OTP_SEND_MAX, in seconds. */
+    const OTP_SEND_WINDOW = 900;
+
+    /** Minimum seconds between two codes for the same email. */
+    const OTP_COOLDOWN = 60;
+
     public static function init() {
         // Render honeypot + timestamp on both registration forms
         add_action('register_form', [__CLASS__, 'render_honeypot']);
         add_action('woocommerce_register_form', [__CLASS__, 'render_honeypot']);
+
+        // Email verification code on the My Account registration form.
+        // `woocommerce_process_registration_errors` fires only in the My Account
+        // registration handler — never in checkout or the Store API — so the code
+        // can't be skipped by renaming the form's nonce field.
+        add_action('woocommerce_register_form', [__CLASS__, 'render_otp_field'], 20);
+        add_filter('woocommerce_process_registration_errors', [__CLASS__, 'validate_registration_code'], 10, 4);
+        add_action('wp_ajax_nopriv_gps_reg_send_code', [__CLASS__, 'ajax_send_code']);
+        add_action('wp_ajax_gps_reg_send_code', [__CLASS__, 'ajax_send_code']);
 
         // Validate WordPress core registration
         add_filter('registration_errors', [__CLASS__, 'validate_core'], 10, 3);
@@ -100,6 +130,11 @@ class Registration_Guard {
             'disposable_email' => __('Disposable email', 'gps-courses'),
             'hex_email'        => __('Bot-signature email', 'gps-courses'),
             'rate_limited'     => __('IP rate limited', 'gps-courses'),
+            'otp_missing'      => __('No email code', 'gps-courses'),
+            'otp_expired'      => __('Expired email code', 'gps-courses'),
+            'otp_invalid'      => __('Wrong email code', 'gps-courses'),
+            'otp_too_many'     => __('Too many wrong codes', 'gps-courses'),
+            'otp_send_limit'   => __('Code request limit', 'gps-courses'),
         ];
         ?>
         <div class="wrap">
@@ -202,14 +237,264 @@ class Registration_Guard {
     }
 
     /**
+     * My Account registration only: require a valid emailed code.
+     *
+     * @param \WP_Error $errors
+     * @param string    $username
+     * @param string    $password
+     * @param string    $email
+     * @return \WP_Error
+     */
+    public static function validate_registration_code($errors, $username, $password, $email) {
+        // Run the bot checks first so the dashboard records the real reason
+        // (this filter fires before woocommerce_register_post).
+        $reason = self::detect_bot($email, $username);
+        if ($reason) {
+            self::log_block($email, $username, $reason, 'my_account');
+            $errors->add('gps_registration_blocked', self::user_message());
+            return $errors;
+        }
+
+        $otp_error = self::verify_otp($email, isset($_POST['gps_reg_code']) ? wp_unslash($_POST['gps_reg_code']) : '');
+        if ($otp_error) {
+            self::log_block($email, $username, $otp_error['reason'], 'my_account');
+            $errors->add('gps_registration_code', $otp_error['message']);
+        }
+        return $errors;
+    }
+
+    /* ====================================================================
+     * Email verification code (My Account registration)
+     * ==================================================================== */
+
+    /**
+     * Render the verification-code field + "Send code" button below the
+     * WooCommerce registration fields. The click handler is delegated and reads
+     * its config from data attributes, so it keeps working when JS optimizers
+     * (FlyingPress delay/defer, Rocket Loader) move or delay inline scripts.
+     */
+    public static function render_otp_field() {
+        static $script_printed = false;
+        ?>
+        <p class="woocommerce-form-row woocommerce-form-row--wide form-row form-row-wide gps-reg-code-row">
+            <label for="gps_reg_code"><?php esc_html_e('Email verification code', 'gps-courses'); ?>&nbsp;<span class="required" aria-hidden="true">*</span></label>
+            <span style="display:flex; gap:8px;">
+                <input type="text" class="woocommerce-Input input-text" name="gps_reg_code" id="gps_reg_code"
+                       inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"
+                       placeholder="123456" style="flex:1; letter-spacing:4px;" />
+                <button type="button" class="button gps-reg-send-code" style="white-space:nowrap;"
+                        data-ajax="<?php echo esc_url(admin_url('admin-ajax.php')); ?>"
+                        data-nonce="<?php echo esc_attr(wp_create_nonce('gps_reg_send_code')); ?>"
+                        data-cooldown="<?php echo (int) self::OTP_COOLDOWN; ?>"
+                        data-msg-email="<?php esc_attr_e('Please enter your email address first.', 'gps-courses'); ?>"
+                        data-msg-sending="<?php esc_attr_e('Sending…', 'gps-courses'); ?>"
+                        data-msg-error="<?php esc_attr_e('Something went wrong. Please try again.', 'gps-courses'); ?>"><?php esc_html_e('Send code', 'gps-courses'); ?></button>
+            </span>
+            <small class="gps-reg-code-msg" style="display:block; margin-top:6px;" aria-live="polite">
+                <?php esc_html_e('Enter your email above, then click "Send code". We will email you a 6-digit code.', 'gps-courses'); ?>
+            </small>
+        </p>
+        <?php
+        if ($script_printed) {
+            return;
+        }
+        $script_printed = true;
+        ?>
+        <script id="gps-reg-send-code-js">
+        document.addEventListener('click', function (e) {
+            var btn = e.target && e.target.closest ? e.target.closest('.gps-reg-send-code') : null;
+            if (!btn) { return; }
+            e.preventDefault();
+            var form = btn.closest('form');
+            var row = btn.closest('.gps-reg-code-row');
+            var msg = row ? row.querySelector('.gps-reg-code-msg') : null;
+            var say = function (t) { if (msg) { msg.textContent = t; } };
+            var email = form ? form.querySelector('input[name="email"]') : null;
+            if (!email || !email.value) { say(btn.getAttribute('data-msg-email')); return; }
+            btn.disabled = true;
+            say(btn.getAttribute('data-msg-sending'));
+            var body = new FormData();
+            body.append('action', 'gps_reg_send_code');
+            body.append('nonce', btn.getAttribute('data-nonce'));
+            body.append('email', email.value);
+            var hp = form.querySelector('[name="<?php echo esc_js(self::HONEYPOT_FIELD); ?>"]');
+            if (hp) { body.append('<?php echo esc_js(self::HONEYPOT_FIELD); ?>', hp.value); }
+            fetch(btn.getAttribute('data-ajax'), { method: 'POST', body: body, credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (res) {
+                    say(res && res.data && res.data.message ? res.data.message : btn.getAttribute('data-msg-error'));
+                    var wait = (res && res.success) ? parseInt(btn.getAttribute('data-cooldown'), 10) * 1000 : 0;
+                    setTimeout(function () { btn.disabled = false; }, wait);
+                })
+                .catch(function () { say(btn.getAttribute('data-msg-error')); btn.disabled = false; });
+        });
+        </script>
+        <?php
+    }
+
+    /**
+     * AJAX: email a 6-digit verification code to the address being registered.
+     * Runs the bot checks so the endpoint can't be used to send mail for bots,
+     * and throttles per email and per IP.
+     */
+    public static function ajax_send_code() {
+        if (!check_ajax_referer('gps_reg_send_code', 'nonce', false)) {
+            wp_send_json_error(['message' => __('Your session expired. Please refresh the page and try again.', 'gps-courses')]);
+        }
+
+        $email = sanitize_email(wp_unslash(isset($_POST['email']) ? $_POST['email'] : ''));
+        if (!is_email($email)) {
+            wp_send_json_error(['message' => __('Please enter a valid email address.', 'gps-courses')]);
+        }
+        $email = strtolower($email);
+
+        // No time trap here: autofill + a quick click is a legitimate human pattern.
+        $reason = self::detect_bot($email, '', false);
+        if ($reason) {
+            self::log_block($email, '', $reason, 'send_code');
+            wp_send_json_error(['message' => self::user_message()]);
+        }
+
+        // Throttle before anything else touches the email (also limits enumeration).
+        $email_key = md5($email);
+        $ip        = self::client_ip();
+        $ip_key    = $ip ? md5($ip) : '';
+        $ip_max    = (int) apply_filters('gps_reg_otp_ip_max', self::OTP_IP_SEND_MAX);
+        if (get_transient('gps_reg_otp_cd_' . $email_key)) {
+            wp_send_json_error(['message' => __('Please wait a minute before requesting another code.', 'gps-courses')]);
+        }
+        $sent_email = (int) get_transient('gps_reg_otp_n_' . $email_key);
+        $sent_ip    = $ip_key ? (int) get_transient('gps_reg_otp_ip_' . $ip_key) : 0;
+        if ($sent_email >= self::OTP_SEND_MAX || ($ip_key && $sent_ip >= $ip_max)) {
+            self::log_block($email, '', 'otp_send_limit', 'send_code');
+            wp_send_json_error(['message' => __('Too many codes requested. Please try again in 15 minutes.', 'gps-courses')]);
+        }
+
+        if (email_exists($email)) {
+            // Count lookups of existing accounts toward the IP cap so this
+            // endpoint can't be used for unlimited email enumeration.
+            if ($ip_key) {
+                set_transient('gps_reg_otp_ip_' . $ip_key, $sent_ip + 1, self::OTP_SEND_WINDOW);
+            }
+            wp_send_json_error(['message' => __('An account with this email already exists. Please log in instead.', 'gps-courses')]);
+        }
+
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        set_transient(self::otp_key($email), [
+            'hash'     => self::hash_code($code),
+            'attempts' => 0,
+            'expires'  => time() + self::OTP_TTL,
+        ], self::OTP_TTL);
+
+        if (!self::send_code_email($email, $code)) {
+            delete_transient(self::otp_key($email));
+            wp_send_json_error(['message' => __('We could not send the email. Please try again or contact us.', 'gps-courses')]);
+        }
+
+        set_transient('gps_reg_otp_cd_' . $email_key, 1, self::OTP_COOLDOWN);
+        set_transient('gps_reg_otp_n_' . $email_key, $sent_email + 1, self::OTP_SEND_WINDOW);
+        if ($ip_key) {
+            set_transient('gps_reg_otp_ip_' . $ip_key, $sent_ip + 1, self::OTP_SEND_WINDOW);
+        }
+
+        wp_send_json_success([
+            'message' => sprintf(
+                /* translators: %s: email address */
+                __('We sent a 6-digit code to %s. It expires in 10 minutes — check your spam folder if you don\'t see it.', 'gps-courses'),
+                $email
+            ),
+        ]);
+    }
+
+    /**
+     * Check the submitted code against the stored one. A correct code stays
+     * valid until the account is actually created (record_registration deletes
+     * it), so a later validation error doesn't force the user to request a new one.
+     *
+     * @return array|null ['reason' => string, 'message' => string] on failure, null on success
+     */
+    protected static function verify_otp($email, $code) {
+        $key    = self::otp_key($email);
+        $stored = get_transient($key);
+        $code   = preg_replace('/\D/', '', (string) $code);
+
+        if (!is_array($stored) || empty($stored['hash']) || time() > (int) $stored['expires']) {
+            delete_transient($key);
+            return [
+                'reason'  => $code === '' ? 'otp_missing' : 'otp_expired',
+                'message' => __('Please request a verification code and enter it to create your account.', 'gps-courses'),
+            ];
+        }
+
+        if (!hash_equals($stored['hash'], self::hash_code($code))) {
+            $stored['attempts'] = (int) $stored['attempts'] + 1;
+            if ($stored['attempts'] >= self::OTP_MAX_ATTEMPTS) {
+                delete_transient($key);
+                return [
+                    'reason'  => 'otp_too_many',
+                    'message' => __('Too many incorrect codes. Please request a new code.', 'gps-courses'),
+                ];
+            }
+            set_transient($key, $stored, max(1, (int) $stored['expires'] - time()));
+            return [
+                'reason'  => 'otp_invalid',
+                'message' => __('The verification code is incorrect. Please check the email and try again.', 'gps-courses'),
+            ];
+        }
+
+        return null;
+    }
+
+    /** Transient key for an email's pending code. */
+    protected static function otp_key($email) {
+        return 'gps_reg_otp_' . md5(strtolower(trim((string) $email)));
+    }
+
+    /** Keyed hash so codes are never stored in plain text. */
+    protected static function hash_code($code) {
+        return hash_hmac('sha256', (string) $code, wp_salt('auth'));
+    }
+
+    /**
+     * Send the branded verification email from the plugin's configured sender.
+     */
+    protected static function send_code_email($email, $code) {
+        $site      = wp_specialchars_decode(get_bloginfo('name'), ENT_QUOTES);
+        $from_name = get_option('gps_email_from_name') ?: $site;
+        // Email Settings stores `gps_email_from_email`; General Settings stores
+        // `gps_email_from_address`. Prefer either before falling back to admin_email.
+        $from_mail = get_option('gps_email_from_email') ?: (get_option('gps_email_from_address') ?: get_option('admin_email'));
+        /* translators: 1: site name, 2: 6-digit code */
+        $subject = sprintf(__('Your %1$s verification code: %2$s', 'gps-courses'), $site, $code);
+        /* translators: %s: site name */
+        $intro   = sprintf(__('Use this code to create your %s account:', 'gps-courses'), $site);
+        $message = '<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">'
+            . '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f5f5f5;"><tr><td align="center" style="padding:40px 20px;">'
+            . '<table width="560" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">'
+            . '<tr><td style="background:#193463;color:#ffffff;padding:28px 30px;text-align:center;border-radius:8px 8px 0 0;">'
+            . '<h1 style="margin:0;font-size:22px;color:#ffffff;">' . esc_html__('Verify your email', 'gps-courses') . '</h1></td></tr>'
+            . '<tr><td style="padding:30px;text-align:center;color:#333333;font-size:15px;line-height:1.5;">'
+            . '<p style="margin:0 0 20px;">' . esc_html($intro) . '</p>'
+            . '<div style="display:inline-block;background:#f8f9fa;border:2px dashed #BC9D67;border-radius:8px;padding:14px 28px;font-size:32px;font-weight:bold;letter-spacing:8px;color:#193463;font-family:\'Courier New\',monospace;">' . esc_html($code) . '</div>'
+            . '<p style="margin:20px 0 0;color:#6c757d;font-size:13px;">' . esc_html__('The code expires in 10 minutes. If you did not try to create an account, you can ignore this email.', 'gps-courses') . '</p>'
+            . '</td></tr></table></td></tr></table></body></html>';
+
+        return wp_mail($email, $subject, $message, [
+            'Content-Type: text/html; charset=UTF-8',
+            sprintf('From: %s <%s>', $from_name, $from_mail),
+        ]);
+    }
+
+    /**
      * Core detection logic. Returns a short reason string if the current
      * registration request looks automated, or null if it looks human.
      *
      * @param string $email
      * @param string $username
+     * @param bool   $check_timing Apply the time trap (off for the "Send code" request).
      * @return string|null
      */
-    public static function detect_bot($email, $username = '') {
+    public static function detect_bot($email, $username = '', $check_timing = true) {
         // Allow developers/admins to bypass all checks
         if (apply_filters('gps_registration_guard_bypass', false, $email, $username)) {
             return null;
@@ -221,7 +506,7 @@ class Registration_Guard {
         }
 
         // 2. Time trap — reject impossibly fast submissions
-        if (isset($_POST[self::TIMESTAMP_FIELD])) {
+        if ($check_timing && isset($_POST[self::TIMESTAMP_FIELD])) {
             $elapsed = time() - (int) $_POST[self::TIMESTAMP_FIELD];
             // Negative = tampered clock; too small = bot. (Large is fine — page cache.)
             if ($elapsed >= 0 && $elapsed < self::MIN_FILL_SECONDS) {
@@ -271,12 +556,18 @@ class Registration_Guard {
     }
 
     /**
-     * Increment the per-IP created-account counter. Hooked to `user_register`,
-     * which fires for both WordPress and WooCommerce account creation.
+     * Hooked to `user_register` (fires for WordPress and WooCommerce account
+     * creation): consume the email code — it is single-use once the account
+     * exists — and increment the per-IP created-account counter.
      *
      * @param int $user_id
      */
     public static function record_registration($user_id) {
+        $user = get_userdata($user_id);
+        if ($user && $user->user_email) {
+            delete_transient(self::otp_key($user->user_email));
+        }
+
         $ip = self::client_ip();
         if (!$ip) {
             return;
@@ -287,20 +578,29 @@ class Registration_Guard {
     }
 
     /**
-     * Best-effort client IP (respects common proxy headers but falls back safely).
+     * Client IP. Uses REMOTE_ADDR (the site is served directly, no proxy/CDN in
+     * front). Forwarded headers are client-controlled and spoofable, so they are
+     * only honored when the direct peer is a proxy listed via the
+     * `gps_registration_guard_trusted_proxies` filter.
      *
      * @return string
      */
     protected static function client_ip() {
-        foreach (['HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR'] as $h) {
-            if (!empty($_SERVER[$h])) {
-                $ip = trim(explode(',', $_SERVER[$h])[0]);
-                if (filter_var($ip, FILTER_VALIDATE_IP)) {
-                    return $ip;
+        $remote = isset($_SERVER['REMOTE_ADDR']) ? trim($_SERVER['REMOTE_ADDR']) : '';
+        $trusted = (array) apply_filters('gps_registration_guard_trusted_proxies', []);
+
+        if ($remote && in_array($remote, $trusted, true)) {
+            foreach (['HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR'] as $h) {
+                if (!empty($_SERVER[$h])) {
+                    $ip = trim(explode(',', $_SERVER[$h])[0]);
+                    if (filter_var($ip, FILTER_VALIDATE_IP)) {
+                        return $ip;
+                    }
                 }
             }
         }
-        return '';
+
+        return filter_var($remote, FILTER_VALIDATE_IP) ? $remote : '';
     }
 
     /**
