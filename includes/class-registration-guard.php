@@ -74,6 +74,20 @@ class Registration_Guard {
         add_action('wp_ajax_nopriv_gps_reg_send_code', [__CLASS__, 'ajax_send_code']);
         add_action('wp_ajax_gps_reg_send_code', [__CLASS__, 'ajax_send_code']);
 
+        // Same email code on Fluent Forms user-registration forms (e.g. /register/).
+        // The field renders right before the submit button (Fluent Forms prints
+        // the button at priority 10); validation uses the filter Fluent Forms
+        // applies only to forms with user registration and only for guests.
+        add_action('fluentform/render_item_submit_button', [__CLASS__, 'render_otp_field_fluentform'], 5, 2);
+        add_action('fluentform/render_item_step_end', [__CLASS__, 'render_otp_field_fluentform'], 5, 2); // multi-step forms
+        // Late priority so Fluent Forms Pro's own checks (email/username taken)
+        // are already in $errors when we decide whether to flag a welcome email.
+        add_filter('fluentform/validation_user_registration_errors', [__CLASS__, 'validate_fluentform_registration'], 999, 4);
+        // Fluent Forms drops submitted keys that aren't form fields; whitelist ours
+        // for registration forms, then keep it out of the stored entry.
+        add_filter('fluentform/white_listed_fields', [__CLASS__, 'fluentform_whitelist_code_field'], 10, 2);
+        add_filter('fluentform/insert_response_data', [__CLASS__, 'fluentform_strip_code_field'], 10, 3);
+
         // Validate WordPress core registration
         add_filter('registration_errors', [__CLASS__, 'validate_core'], 10, 3);
 
@@ -274,7 +288,6 @@ class Registration_Guard {
      * (FlyingPress delay/defer, Rocket Loader) move or delay inline scripts.
      */
     public static function render_otp_field() {
-        static $script_printed = false;
         ?>
         <p class="woocommerce-form-row woocommerce-form-row--wide form-row form-row-wide gps-reg-code-row">
             <label for="gps_reg_code"><?php esc_html_e('Email verification code', 'gps-courses'); ?>&nbsp;<span class="required" aria-hidden="true">*</span></label>
@@ -282,23 +295,25 @@ class Registration_Guard {
                 <input type="text" class="woocommerce-Input input-text" name="gps_reg_code" id="gps_reg_code"
                        inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"
                        placeholder="123456" style="flex:1; letter-spacing:4px;" />
-                <button type="button" class="button gps-reg-send-code" style="white-space:nowrap;"
-                        data-ajax="<?php echo esc_url(admin_url('admin-ajax.php')); ?>"
-                        data-nonce="<?php echo esc_attr(wp_create_nonce('gps_reg_send_code')); ?>"
-                        data-cooldown="<?php echo (int) self::OTP_COOLDOWN; ?>"
-                        data-msg-email="<?php esc_attr_e('Please enter your email address first.', 'gps-courses'); ?>"
-                        data-msg-sending="<?php esc_attr_e('Sending…', 'gps-courses'); ?>"
-                        data-msg-error="<?php esc_attr_e('Something went wrong. Please try again.', 'gps-courses'); ?>"><?php esc_html_e('Send code', 'gps-courses'); ?></button>
+                <button type="button" class="button gps-reg-send-code" style="white-space:nowrap;"<?php echo self::send_code_button_attrs(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in send_code_button_attrs() ?>><?php esc_html_e('Send code', 'gps-courses'); ?></button>
             </span>
             <small class="gps-reg-code-msg" style="display:block; margin-top:6px;" aria-live="polite">
                 <?php esc_html_e('Enter your email above, then click "Send code". We will email you a 6-digit code.', 'gps-courses'); ?>
             </small>
         </p>
         <?php
-        if ($script_printed) {
+        self::print_send_code_script();
+    }
+
+    /**
+     * Print the delegated "Send code" click handler once per page.
+     */
+    protected static function print_send_code_script() {
+        static $printed = false;
+        if ($printed) {
             return;
         }
-        $script_printed = true;
+        $printed = true;
         ?>
         <script id="gps-reg-send-code-js">
         document.addEventListener('click', function (e) {
@@ -309,13 +324,12 @@ class Registration_Guard {
             var row = btn.closest('.gps-reg-code-row');
             var msg = row ? row.querySelector('.gps-reg-code-msg') : null;
             var say = function (t) { if (msg) { msg.textContent = t; } };
-            var email = form ? form.querySelector('input[name="email"]') : null;
+            var email = form ? (form.querySelector('input[name="email"]') || form.querySelector('input[type="email"]')) : null;
             if (!email || !email.value) { say(btn.getAttribute('data-msg-email')); return; }
             btn.disabled = true;
             say(btn.getAttribute('data-msg-sending'));
             var body = new FormData();
             body.append('action', 'gps_reg_send_code');
-            body.append('nonce', btn.getAttribute('data-nonce'));
             body.append('email', email.value);
             var hp = form.querySelector('[name="<?php echo esc_js(self::HONEYPOT_FIELD); ?>"]');
             if (hp) { body.append('<?php echo esc_js(self::HONEYPOT_FIELD); ?>', hp.value); }
@@ -332,16 +346,138 @@ class Registration_Guard {
         <?php
     }
 
+    /** Data attributes the "Send code" button needs (shared by both forms). */
+    protected static function send_code_button_attrs() {
+        $attrs = [
+            'data-ajax'        => admin_url('admin-ajax.php'),
+            'data-cooldown'    => (int) self::OTP_COOLDOWN,
+            'data-msg-email'   => __('Please enter your email address first.', 'gps-courses'),
+            'data-msg-sending' => __('Sending…', 'gps-courses'),
+            'data-msg-error'   => __('Something went wrong. Please try again.', 'gps-courses'),
+        ];
+        $out = '';
+        foreach ($attrs as $k => $v) {
+            $out .= ' ' . $k . '="' . esc_attr($v) . '"';
+        }
+        return $out;
+    }
+
+    /**
+     * Fluent Forms: render the code field before the submit button of forms
+     * that register users (e.g. /register/), for guests only.
+     *
+     * @param array  $button Submit button config (unused)
+     * @param object $form   Fluent Forms form object
+     */
+    public static function render_otp_field_fluentform($button, $form) {
+        if (is_user_logged_in() || !self::fluentform_registers_users($form)) {
+            return;
+        }
+        ?>
+        <div class="ff-el-group gps-reg-code-row">
+            <div class="ff-el-input--label ff-el-is-required asterisk-right">
+                <label for="gps_reg_code_ff_<?php echo (int) $form->id; ?>"><?php esc_html_e('Email verification code', 'gps-courses'); ?></label>
+            </div>
+            <div class="ff-el-input--content">
+                <span style="display:flex; gap:8px;">
+                    <input type="text" class="ff-el-form-control" name="gps_reg_code" id="gps_reg_code_ff_<?php echo (int) $form->id; ?>"
+                           inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"
+                           placeholder="123456" style="flex:1; letter-spacing:4px;" />
+                    <button type="button" class="ff-btn ff-btn-md gps-reg-send-code" style="white-space:nowrap; background:#ffffff; color:#0B52AC; border:1px solid #0B52AC;"<?php echo self::send_code_button_attrs(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in send_code_button_attrs() ?>><?php esc_html_e('Send code', 'gps-courses'); ?></button>
+                </span>
+                <small class="gps-reg-code-msg" style="display:block; margin-top:6px;" aria-live="polite">
+                    <?php esc_html_e('Enter your email above, then click "Send code". We will email you a 6-digit code.', 'gps-courses'); ?>
+                </small>
+            </div>
+        </div>
+        <?php
+        self::print_send_code_script();
+    }
+
+    /**
+     * Fluent Forms: require a valid email code before the user is registered.
+     * Applied by Fluent Forms only to forms with user registration, for guests.
+     *
+     * @param array  $errors   Field name => messages
+     * @param array  $formData Sanitized submitted data
+     * @param object $form
+     * @param array  $fields
+     * @return array
+     */
+    public static function validate_fluentform_registration($errors, $formData, $form, $fields) {
+        $email = self::fluentform_email($formData, $fields);
+
+        $reason = self::detect_bot($email, '', false);
+        if ($reason) {
+            self::log_block($email, '', $reason, 'fluentform');
+            $errors['gps_reg_code'] = [self::user_message()];
+            return $errors;
+        }
+
+        $otp_error = self::verify_otp($email, isset($formData['gps_reg_code']) ? $formData['gps_reg_code'] : '');
+        if ($otp_error) {
+            self::log_block($email, '', $otp_error['reason'], 'fluentform');
+            $errors['gps_reg_code'] = [$otp_error['message']];
+            return $errors;
+        }
+
+        // Verified: send our branded welcome once the account is actually created.
+        if (empty($errors)) {
+            set_transient('gps_reg_welcome_' . md5(strtolower(trim($email))), 1, self::OTP_TTL);
+        }
+        return $errors;
+    }
+
+    /**
+     * Fluent Forms keeps only form fields + whitelisted keys in the submission
+     * (SubmissionHandlerService::prepareHandler). Whitelist the code field on
+     * registration forms so the validator receives it.
+     */
+    public static function fluentform_whitelist_code_field($fields, $form_id) {
+        if (self::fluentform_registers_users((object) ['id' => $form_id])) {
+            $fields[] = 'gps_reg_code';
+        }
+        return $fields;
+    }
+
+    /** Never store the verification code in the form entry. */
+    public static function fluentform_strip_code_field($formData, $form_id = 0, $inputConfigs = []) {
+        if (is_array($formData)) {
+            unset($formData['gps_reg_code']);
+        }
+        return $formData;
+    }
+
+    /** Whether a Fluent Forms form has a user-registration integration. */
+    protected static function fluentform_registers_users($form) {
+        if (!$form || empty($form->id) || !class_exists('\FluentForm\App\Helpers\Helper')) {
+            return false;
+        }
+        return 'yes' === \FluentForm\App\Helpers\Helper::getFormMeta($form->id, '_has_user_registration');
+    }
+
+    /** The submitted email: the `email` field, else the form's first email-type field. */
+    protected static function fluentform_email($formData, $fields) {
+        if (!empty($formData['email']) && is_string($formData['email'])) {
+            return strtolower(trim($formData['email']));
+        }
+        foreach ((array) $fields as $name => $field) {
+            if (isset($field['element']) && 'input_email' === $field['element'] && !empty($formData[$name]) && is_string($formData[$name])) {
+                return strtolower(trim((string) $formData[$name]));
+            }
+        }
+        return '';
+    }
+
     /**
      * AJAX: email a 6-digit verification code to the address being registered.
      * Runs the bot checks so the endpoint can't be used to send mail for bots,
      * and throttles per email and per IP.
      */
     public static function ajax_send_code() {
-        if (!check_ajax_referer('gps_reg_send_code', 'nonce', false)) {
-            wp_send_json_error(['message' => __('Your session expired. Please refresh the page and try again.', 'gps-courses')]);
-        }
-
+        // No nonce: for guests it is the same public value for everyone and it
+        // goes stale on cached pages (e.g. /register/ under FlyingPress). The
+        // endpoint is protected by the bot checks and the per-email/IP throttles.
         $email = sanitize_email(wp_unslash(isset($_POST['email']) ? $_POST['email'] : ''));
         if (!is_email($email)) {
             wp_send_json_error(['message' => __('Please enter a valid email address.', 'gps-courses')]);
@@ -459,30 +595,64 @@ class Registration_Guard {
      * Send the branded verification email from the plugin's configured sender.
      */
     protected static function send_code_email($email, $code) {
-        $site      = wp_specialchars_decode(get_bloginfo('name'), ENT_QUOTES);
-        $from_name = get_option('gps_email_from_name') ?: $site;
-        // Email Settings stores `gps_email_from_email`; General Settings stores
-        // `gps_email_from_address`. Prefer either before falling back to admin_email.
-        $from_mail = get_option('gps_email_from_email') ?: (get_option('gps_email_from_address') ?: get_option('admin_email'));
+        $site = self::site_name();
         /* translators: 1: site name, 2: 6-digit code */
         $subject = sprintf(__('Your %1$s verification code: %2$s', 'gps-courses'), $site, $code);
         /* translators: %s: site name */
-        $intro   = sprintf(__('Use this code to create your %s account:', 'gps-courses'), $site);
-        $message = '<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">'
+        $intro = sprintf(__('Use this code to create your %s account:', 'gps-courses'), $site);
+        $body  = '<p style="margin:0 0 20px;">' . esc_html($intro) . '</p>'
+            . '<div style="display:inline-block;background:#f8f9fa;border:2px dashed #BC9D67;border-radius:8px;padding:14px 28px;font-size:32px;font-weight:bold;letter-spacing:8px;color:#193463;font-family:\'Courier New\',monospace;">' . esc_html($code) . '</div>'
+            . '<p style="margin:20px 0 0;color:#6c757d;font-size:13px;">' . esc_html__('The code expires in 10 minutes. If you did not try to create an account, you can ignore this email.', 'gps-courses') . '</p>';
+
+        return wp_mail($email, $subject, self::email_layout(__('Verify your email', 'gps-courses'), $body), self::mail_headers());
+    }
+
+    /**
+     * Welcome email for accounts created through a verified Fluent Forms
+     * registration (the WordPress default notification is disabled on this site).
+     *
+     * @param \WP_User $user
+     */
+    protected static function send_welcome_email($user) {
+        $site  = self::site_name();
+        $first = trim((string) $user->first_name);
+        /* translators: %s: site name */
+        $subject = sprintf(__('Welcome to %s — your account is ready', 'gps-courses'), $site);
+        /* translators: %s: first name */
+        $hello = $first ? sprintf(__('Hi %s,', 'gps-courses'), $first) : __('Hi,', 'gps-courses');
+        $login = function_exists('wc_get_page_permalink') ? wc_get_page_permalink('myaccount') : wp_login_url();
+        $body  = '<p style="margin:0 0 14px;text-align:left;">' . esc_html($hello) . '</p>'
+            . '<p style="margin:0 0 22px;text-align:left;">' . esc_html__('Your account has been created and your email is verified. Log in with your email and the password you chose to see your courses, tickets and CE credits.', 'gps-courses') . '</p>'
+            . '<a href="' . esc_url($login) . '" style="display:inline-block;background:#0B52AC;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;">' . esc_html__('Log in to my account', 'gps-courses') . '</a>'
+            . '<p style="margin:22px 0 0;color:#6c757d;font-size:13px;">' . esc_html__('Forgot your password? Use "Lost your password?" on the login page.', 'gps-courses') . '</p>';
+
+        return wp_mail($user->user_email, $subject, self::email_layout(__('Welcome!', 'gps-courses'), $body), self::mail_headers());
+    }
+
+    /** Site name, HTML entities decoded. */
+    protected static function site_name() {
+        return wp_specialchars_decode(get_bloginfo('name'), ENT_QUOTES);
+    }
+
+    /**
+     * HTML + From headers. Email Settings stores `gps_email_from_email`; General
+     * Settings stores `gps_email_from_address` — prefer either before admin_email.
+     */
+    protected static function mail_headers() {
+        $from_name = get_option('gps_email_from_name') ?: self::site_name();
+        $from_mail = get_option('gps_email_from_email') ?: (get_option('gps_email_from_address') ?: get_option('admin_email'));
+        return ['Content-Type: text/html; charset=UTF-8', sprintf('From: %s <%s>', $from_name, $from_mail)];
+    }
+
+    /** Shared branded layout: navy header + white card. $body is already-escaped HTML. */
+    protected static function email_layout($heading, $body) {
+        return '<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">'
             . '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f5f5f5;"><tr><td align="center" style="padding:40px 20px;">'
             . '<table width="560" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">'
             . '<tr><td style="background:#193463;color:#ffffff;padding:28px 30px;text-align:center;border-radius:8px 8px 0 0;">'
-            . '<h1 style="margin:0;font-size:22px;color:#ffffff;">' . esc_html__('Verify your email', 'gps-courses') . '</h1></td></tr>'
-            . '<tr><td style="padding:30px;text-align:center;color:#333333;font-size:15px;line-height:1.5;">'
-            . '<p style="margin:0 0 20px;">' . esc_html($intro) . '</p>'
-            . '<div style="display:inline-block;background:#f8f9fa;border:2px dashed #BC9D67;border-radius:8px;padding:14px 28px;font-size:32px;font-weight:bold;letter-spacing:8px;color:#193463;font-family:\'Courier New\',monospace;">' . esc_html($code) . '</div>'
-            . '<p style="margin:20px 0 0;color:#6c757d;font-size:13px;">' . esc_html__('The code expires in 10 minutes. If you did not try to create an account, you can ignore this email.', 'gps-courses') . '</p>'
-            . '</td></tr></table></td></tr></table></body></html>';
-
-        return wp_mail($email, $subject, $message, [
-            'Content-Type: text/html; charset=UTF-8',
-            sprintf('From: %s <%s>', $from_name, $from_mail),
-        ]);
+            . '<h1 style="margin:0;font-size:22px;color:#ffffff;">' . esc_html($heading) . '</h1></td></tr>'
+            . '<tr><td style="padding:30px;text-align:center;color:#333333;font-size:15px;line-height:1.5;">' . $body . '</td></tr>'
+            . '</table></td></tr></table></body></html>';
     }
 
     /**
@@ -566,6 +736,27 @@ class Registration_Guard {
         $user = get_userdata($user_id);
         if ($user && $user->user_email) {
             delete_transient(self::otp_key($user->user_email));
+
+            // Fluent Forms registrations that passed the email code get our
+            // welcome email (WooCommerce sends its own new-account email). Only
+            // when this account is being created by that Fluent Forms submission,
+            // and sent at shutdown so the names Pro saves after insert are set.
+            // NOTE: WordPress's default "new user" email is turned off on this
+            // site (Manage Notification E-mails). If it is turned back on, disable
+            // ours with: add_filter('gps_reg_send_welcome_email', '__return_false');
+            $welcome_key = 'gps_reg_welcome_' . md5(strtolower(trim($user->user_email)));
+            if (get_transient($welcome_key)) {
+                delete_transient($welcome_key);
+                $is_ff_submit = wp_doing_ajax() && isset($_REQUEST['action']) && 'fluentform_submit' === $_REQUEST['action'];
+                if ($is_ff_submit && apply_filters('gps_reg_send_welcome_email', true, $user_id)) {
+                    add_action('shutdown', function () use ($user_id) {
+                        $fresh = get_userdata($user_id);
+                        if ($fresh) {
+                            self::send_welcome_email($fresh);
+                        }
+                    });
+                }
+            }
         }
 
         $ip = self::client_ip();

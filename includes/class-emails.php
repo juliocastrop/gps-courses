@@ -538,7 +538,7 @@ class Emails {
                             <!-- CTA -->
                             <tr>
                                 <td style="padding: 30px 40px; text-align: center;">
-                                    <a href="<?php echo esc_url(wc_get_account_endpoint_url('ce-credits')); ?>"
+                                    <a href="<?php echo esc_url(wc_get_account_endpoint_url('gps-ce-credits')); ?>"
                                        style="display: inline-block; padding: 14px 40px; background-color: #3b82f6; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
                                         <?php _e('View All My Credits', 'gps-courses'); ?>
                                     </a>
@@ -702,19 +702,19 @@ class Emails {
      * @return bool True if email sent successfully
      */
     public static function send_password_reset_email($user) {
-        // Generate reset key manually (bypass WordPress restrictions)
-        $key = wp_generate_password(20, false);
-        $hashed = time() . ':' . wp_hash_password($key);
+        // Use WordPress's own reset key: wp-login.php?action=rp validates the key
+        // against user_activation_key (check_password_reset_key), so a key kept
+        // anywhere else (the old `password_reset_key` user meta) is always rejected.
+        $key = get_password_reset_key($user);
+        if (is_wp_error($key)) {
+            error_log('GPS Courses: could not create password reset key for user #' . $user->ID . ': ' . $key->get_error_message());
+            return false;
+        }
 
-        // Store the key in user meta
-        update_user_meta($user->ID, 'password_reset_key', $hashed);
-
-        // Build reset URL
-        $reset_url = add_query_arg([
-            'action' => 'rp',
-            'key' => $key,
-            'login' => rawurlencode($user->user_login)
-        ], wp_login_url());
+        $reset_url = network_site_url(
+            'wp-login.php?action=rp&key=' . rawurlencode($key) . '&login=' . rawurlencode($user->user_login),
+            'login'
+        );
 
         // Get user's display name
         $user_name = !empty($user->display_name) ? $user->display_name : $user->user_login;
