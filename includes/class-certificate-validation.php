@@ -95,6 +95,10 @@ class Certificate_Validation {
             $code
         ));
 
+        if (!$certificate && 0 === strpos((string) $code, 'ST-')) {
+            return self::validate_session_certificate($code);
+        }
+
         if (!$certificate) {
             return [
                 'valid' => false,
@@ -122,6 +126,63 @@ class Certificate_Validation {
                 'generated_at' => $certificate->generated_at ? date_i18n('F j, Y g:i A', strtotime($certificate->generated_at)) : '',
                 'certificate_code' => $certificate->ticket_code,
                 'certificate_url' => $certificate->certificate_url,
+            ],
+        ];
+    }
+
+    /**
+     * Certificates for individual seminar sessions carry the session ticket
+     * code (ST-…). Their file is saved as session-cert-{ticket id}-….pdf.
+     */
+    private static function validate_session_certificate($code) {
+        global $wpdb;
+
+        $not_found = [
+            'valid'   => false,
+            'message' => __('Certificate not found or invalid', 'gps-courses'),
+        ];
+
+        $ticket = $wpdb->get_row($wpdb->prepare(
+            "SELECT st.*, s.session_number, s.session_date
+             FROM {$wpdb->prefix}gps_session_tickets st
+             LEFT JOIN {$wpdb->prefix}gps_seminar_sessions s ON s.id = st.session_id
+             WHERE st.ticket_code = %s LIMIT 1",
+            $code
+        ));
+        if (!$ticket) {
+            return $not_found;
+        }
+
+        $certificate = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}gps_certificates
+             WHERE user_id = %d AND event_id = %d AND certificate_path LIKE %s
+             ORDER BY id DESC LIMIT 1",
+            (int) $ticket->user_id,
+            (int) $ticket->seminar_id,
+            '%' . $wpdb->esc_like('session-cert-' . (int) $ticket->id . '-') . '%'
+        ));
+        if (!$certificate) {
+            return $not_found;
+        }
+
+        $user    = $ticket->user_id ? get_userdata($ticket->user_id) : null;
+        $seminar = get_post($ticket->seminar_id);
+        $title   = ($seminar ? $seminar->post_title : __('Monthly Seminar', 'gps-courses'))
+            . ($ticket->session_number ? ' - Session #' . (int) $ticket->session_number : '');
+
+        return [
+            'valid' => true,
+            'certificate' => [
+                'attendee_name'    => $user ? $user->display_name : $ticket->attendee_name,
+                'attendee_email'   => $user ? $user->user_email : $ticket->attendee_email,
+                'event_title'      => $title,
+                'event_date'       => $ticket->session_date ? date_i18n('F j, Y', strtotime($ticket->session_date)) : '',
+                'venue'            => 'GPS Dental Training Center',
+                'instructor'       => 'Carlos Castro DDS, FACP',
+                'ce_credits'       => floatval($ticket->ce_credits),
+                'generated_at'     => $certificate->generated_at ? date_i18n('F j, Y g:i A', strtotime($certificate->generated_at)) : '',
+                'certificate_code' => $ticket->ticket_code,
+                'certificate_url'  => $certificate->certificate_url,
             ],
         ];
     }
@@ -473,7 +534,7 @@ class Certificate_Validation {
                                 <div class="ce-credits-badge">
                                     <?php
                                     $credits_val = $cert['ce_credits'];
-                                    echo esc_html(number_format($credits_val, ($credits_val == intval($credits_val)) ? 0 : 1) . ' ' . ($credits_val == 1 ? 'Credit Hour' : 'Credit Hours'));
+                                    echo esc_html(Credits::format($credits_val) . ' ' . ($credits_val == 1 ? 'Credit Hour' : 'Credit Hours'));
                                     ?>
                                 </div>
                             </div>

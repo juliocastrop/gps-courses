@@ -236,7 +236,7 @@ class Shortcodes {
                     <?php if ($ce_credits): ?>
                     <div class="gps-event-credits">
                         <i class="fas fa-award"></i>
-                        <?php printf(__('%d CE Credits', 'gps-courses'), (int) $ce_credits); ?>
+                        <?php printf(esc_html__('%s CE Credits', 'gps-courses'), esc_html(Credits::format($ce_credits))); ?>
                     </div>
                     <?php endif; ?>
 

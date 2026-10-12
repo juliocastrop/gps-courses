@@ -749,7 +749,7 @@ class Seminar_Certificates {
         // Format the data
         foreach ($registrations as &$reg) {
             $reg->sessions_attended = (int) $reg->sessions_attended;
-            $reg->credits_earned = (int) $reg->credits_earned;
+            $reg->credits_earned = (float) $reg->credits_earned;
             $reg->has_certificate = !empty($reg->certificate_path);
             $reg->eligible_for_certificate = $reg->credits_earned > 0;
         }
@@ -1180,7 +1180,7 @@ class Seminar_Certificates {
         $credit_box_width = 70;
         $pdf->RoundedRect(($w - $credit_box_width) / 2, 104, $credit_box_width, 10, 2, '1111', 'F');
         $pdf->SetXY(($w - $credit_box_width) / 2, 106);
-        $pdf->Cell($credit_box_width, 6, $data['credits_earned'] . ' CE Credits Earned', 0, 1, 'C', false);
+        $pdf->Cell($credit_box_width, 6, Credits::format($data['credits_earned']) . ' CE Credits Earned', 0, 1, 'C', false);
 
         // Program Period Label
         $pdf->SetFont('helvetica', '', $footer_size);

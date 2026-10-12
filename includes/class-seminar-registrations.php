@@ -275,7 +275,7 @@ class Seminar_Registrations {
         return [
             'registration' => $registration,
             'attendance' => $attendance,
-            'total_credits' => (int) $total_credits,
+            'total_credits' => (float) $total_credits,
             'next_session' => $next_session,
             'completion_percentage' => ($registration->sessions_completed / 10) * 100,
         ];
@@ -465,7 +465,7 @@ class Seminar_Registrations {
                 $reg->registration_date,
                 $reg->sessions_completed,
                 $reg->sessions_remaining,
-                $progress['total_credits'],
+                Credits::format($progress['total_credits']),
                 $reg->status,
             ]);
         }

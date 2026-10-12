@@ -192,7 +192,7 @@ class Single_Event_Widget extends Base_Widget {
         $start = get_post_meta($event_id, '_gps_date_start', true);
         $end = get_post_meta($event_id, '_gps_date_end', true);
         $venue = get_post_meta($event_id, '_gps_venue', true);
-        $credits = (int) get_post_meta($event_id, '_gps_ce_credits', true);
+        $credits = (float) get_post_meta($event_id, '_gps_ce_credits', true);
 
         ?>
         <div class="gps-single-event">
@@ -230,7 +230,7 @@ class Single_Event_Widget extends Base_Widget {
                     <div class="gps-meta-item gps-meta-credits">
                         <i class="far fa-certificate"></i>
                         <strong><?php _e('CE Credits:', 'gps-courses'); ?></strong>
-                        <span><?php echo (int) $credits; ?></span>
+                        <span><?php echo esc_html(\GPSC\Credits::format($credits)); ?></span>
                     </div>
                     <?php endif; ?>
                 </div>

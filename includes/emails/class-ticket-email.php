@@ -108,7 +108,7 @@ class GPSC_Ticket_Email extends WC_Email {
             get_post_meta($this->ticket->event_id, '_gps_end_time', true)
         );
         $event_venue = get_post_meta($this->ticket->event_id, '_gps_venue', true);
-        $ce_credits = (int) get_post_meta($this->ticket->event_id, '_gps_ce_credits', true);
+        $ce_credits = (float) get_post_meta($this->ticket->event_id, '_gps_ce_credits', true);
 
         // Get ticket type
         $ticket_type = get_post($this->ticket->ticket_type_id);

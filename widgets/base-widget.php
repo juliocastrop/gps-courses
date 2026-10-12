@@ -306,11 +306,11 @@ abstract class Base_Widget extends Widget_Base {
         }
 
         if ($show_credits) {
-            $credits = (int) get_post_meta($event_id, '_gps_ce_credits', true);
+            $credits = (float) get_post_meta($event_id, '_gps_ce_credits', true);
             if ($credits > 0) {
                 echo '<span class="gps-meta-item gps-meta-credits">';
                 echo '<i class="far fa-certificate"></i> ';
-                echo sprintf(_n('%d CE Credit', '%d CE Credits', $credits, 'gps-courses'), $credits);
+                echo esc_html(sprintf(_n('%s CE Credit', '%s CE Credits', (float) $credits == 1 ? 1 : 2, 'gps-courses'), \GPSC\Credits::format($credits)));
                 echo '</span>';
             }
         }

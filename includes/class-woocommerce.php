@@ -1930,7 +1930,7 @@ class Woo {
                             </td>
                             <td data-title="<?php esc_attr_e('CE Credits', 'gps-courses'); ?>">
                                 <?php if ($ce_credits): ?>
-                                    <?php echo (int) $ce_credits; ?> <?php _e('Credits', 'gps-courses'); ?>
+                                    <?php echo esc_html(Credits::format($ce_credits)); ?> <?php _e('Credits', 'gps-courses'); ?>
                                 <?php else: ?>
                                     —
                                 <?php endif; ?>
@@ -2038,7 +2038,7 @@ class Woo {
                  GROUP BY registration_id"
             ));
             foreach ($credits_results as $credit) {
-                $all_credits[$credit->registration_id] = (int) $credit->total_credits;
+                $all_credits[$credit->registration_id] = (float) $credit->total_credits;
             }
         }
 
@@ -2107,7 +2107,7 @@ class Woo {
                                 // Fast lookup - no database query needed!
                                 $attendance = isset($attendance_records[$session->id]) ? $attendance_records[$session->id] : null;
                                 $attended = !empty($attendance);
-                                $credits_awarded = $attended ? (int) $attendance->credits_awarded : 0;
+                                $credits_awarded = $attended ? (float) $attendance->credits_awarded : 0;
                                 $is_past = strtotime($session->session_date) < time();
                             ?>
                             <div style="display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #e2e8f0; <?php echo $attended ? 'background: #f0fdf4;' : ''; ?>">

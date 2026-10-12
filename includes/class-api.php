@@ -430,7 +430,7 @@ class API {
             'end_date' => get_post_meta($event_id, '_gps_end_date', true),
             'venue' => get_post_meta($event_id, '_gps_venue', true),
             'address' => get_post_meta($event_id, '_gps_address', true),
-            'ce_credits' => (int) get_post_meta($event_id, '_gps_ce_credits', true),
+            'ce_credits' => (float) get_post_meta($event_id, '_gps_ce_credits', true),
             'capacity' => (int) get_post_meta($event_id, '_gps_capacity', true),
             'registration_deadline' => get_post_meta($event_id, '_gps_registration_deadline', true),
         ];
@@ -849,7 +849,7 @@ class API {
                     $end_time = isset($meta['_gps_end_time']) ? $meta['_gps_end_time'] : '';
                     $venue = isset($meta['_gps_venue']) ? $meta['_gps_venue'] : '';
                     $location = isset($meta['_gps_location']) ? $meta['_gps_location'] : '';
-                    $credits = isset($meta['_gps_ce_credits']) ? (int) $meta['_gps_ce_credits'] : 0;
+                    $credits = isset($meta['_gps_ce_credits']) ? (float) $meta['_gps_ce_credits'] : 0;
 
                     // Format times
                     $formatted_start_time = $start_time ? date('g:i A', strtotime($start_time)) : '';

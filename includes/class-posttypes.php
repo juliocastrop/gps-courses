@@ -180,7 +180,7 @@ class Posttypes {
         // ====== Metadatos (REST + sanitización server-side) ======
         // Event/Course
         register_post_meta('gps_event','_gps_ce_credits',[
-            'type'         => 'integer',
+            'type'         => 'number',
             'single'       => true,
             'default'      => 0,
             'show_in_rest' => true,
@@ -471,7 +471,7 @@ class Posttypes {
 
         $start = get_post_meta($post->ID, '_gps_date_start', true);
         $end   = get_post_meta($post->ID, '_gps_date_end',   true);
-        $ce    = (int) get_post_meta($post->ID, '_gps_ce_credits', true);
+        $ce    = (float) get_post_meta($post->ID, '_gps_ce_credits', true);
         $venue = get_post_meta($post->ID, '_gps_venue',      true);
         ?>
         <p><label><strong><?php _e('Start (YYYY-MM-DD HH:MM)','gps-courses'); ?></strong></label>
@@ -481,7 +481,7 @@ class Posttypes {
         <input type="text" name="gps_date_end" value="<?php echo esc_attr($end); ?>" class="widefat" placeholder="2025-11-22 17:00"></p>
 
         <p><label><strong><?php _e('CE Credits','gps-courses'); ?></strong></label>
-        <input type="number" min="0" step="1" name="gps_ce_credits" value="<?php echo esc_attr($ce); ?>" class="widefat"></p>
+        <input type="number" min="0" step="0.5" name="gps_ce_credits" value="<?php echo esc_attr($ce); ?>" class="widefat"></p>
 
         <p><label><strong><?php _e('Venue / Address','gps-courses'); ?></strong></label>
         <input type="text" name="gps_venue" value="<?php echo esc_attr($venue); ?>" class="widefat" placeholder="6320 Sugarloaf Pkwy, Duluth, GA"></p>

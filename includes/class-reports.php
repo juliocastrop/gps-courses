@@ -95,7 +95,7 @@ class Reports {
 
         $total_checked_in = (int) $wpdb->get_var("SELECT COUNT(DISTINCT ticket_id) FROM {$wpdb->prefix}gps_attendance");
         $total_enrollments = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}gps_enrollments");
-        $total_credits_awarded = (int) $wpdb->get_var("SELECT COALESCE(SUM(credits), 0) FROM {$wpdb->prefix}gps_ce_ledger WHERE transaction_type = 'attendance'");
+        $total_credits_awarded = (float) $wpdb->get_var("SELECT COALESCE(SUM(credits), 0) FROM {$wpdb->prefix}gps_ce_ledger WHERE transaction_type = 'attendance'");
 
         // Get recent events
         $events = get_posts([
@@ -158,7 +158,7 @@ class Reports {
                         <span class="dashicons dashicons-awards"></span>
                     </div>
                     <div class="gps-stat-content">
-                        <h3><?php echo number_format_i18n($total_credits_awarded); ?></h3>
+                        <h3><?php echo esc_html(Credits::format($total_credits_awarded)); ?></h3>
                         <p><?php _e('CE Credits Awarded', 'gps-courses'); ?></p>
                     </div>
                 </div>
@@ -392,7 +392,7 @@ class Reports {
                             </td>
                             <td>
                                 <?php if ($ce_credits): ?>
-                                    <span class="gps-credits-badge"><?php echo (int) $ce_credits; ?></span>
+                                    <span class="gps-credits-badge"><?php echo esc_html(Credits::format($ce_credits)); ?></span>
                                 <?php else: ?>
                                     —
                                 <?php endif; ?>
@@ -679,7 +679,7 @@ class Reports {
         switch ($operation) {
             case 'award_credits':
                 // Award credits to all checked-in attendees who haven't received them
-                $credits = (int) get_post_meta($event_id, '_gps_ce_credits', true);
+                $credits = (float) get_post_meta($event_id, '_gps_ce_credits', true);
 
                 if (!$credits) {
                     wp_send_json_error(['message' => __('This event has no CE credits configured.', 'gps-courses')]);
@@ -703,7 +703,7 @@ class Reports {
                 }
 
                 wp_send_json_success([
-                    'message' => sprintf(__('Awarded %d CE credits to %d attendees.', 'gps-courses'), $credits, $count),
+                    'message' => sprintf(__('Awarded %1$s CE credits to %2$d attendees.', 'gps-courses'), Credits::format($credits), $count),
                 ]);
                 break;
 

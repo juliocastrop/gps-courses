@@ -245,7 +245,7 @@ class Emails {
         $event_start = trim($event_start_date . ' ' . $event_start_time);
         $event_end   = trim($event_end_date . ' ' . $event_end_time);
         $event_venue = get_post_meta($ticket->event_id, '_gps_venue', true);
-        $ce_credits = (int) get_post_meta($ticket->event_id, '_gps_ce_credits', true);
+        $ce_credits = (float) get_post_meta($ticket->event_id, '_gps_ce_credits', true);
 
         // Get ticket type
         $ticket_type_post = get_post($ticket->ticket_type_id);
@@ -364,8 +364,8 @@ class Emails {
 
             case 'credits':
                 return sprintf(
-                    __('CE Credits Awarded: %d Credits from %s', 'gps-courses'),
-                    $data['credits'],
+                    __('CE Credits Awarded: %1$s Credits from %2$s', 'gps-courses'),
+                    Credits::format($data['credits']),
                     $data['event']->post_title
                 );
 
@@ -541,7 +541,7 @@ class Emails {
                                     <?php if ($data['ce_credits'] > 0): ?>
                                     <p style="margin: 0; font-size: 14px; color: #64748b;">
                                         <strong style="color: #1e293b;"><?php _e('CE Credits:', 'gps-courses'); ?></strong>
-                                        <?php echo (int) $data['ce_credits']; ?>
+                                        <?php echo esc_html(Credits::format($data['ce_credits'])); ?>
                                     </p>
                                     <?php endif; ?>
                                 </td>

@@ -213,7 +213,7 @@ class Seminar_Notifications {
         $progress = Seminar_Registrations::get_user_progress($registration->id);
 
         $to = $user->user_email;
-        $subject = sprintf(__('🏆 CE Credits Awarded - %d Credits', 'gps-courses'), $credits);
+        $subject = sprintf(__('🏆 CE Credits Awarded - %s Credits', 'gps-courses'), Credits::format($credits));
 
         $message = '
         <div style="text-align: center; margin-bottom: 30px;">
@@ -233,7 +233,7 @@ class Seminar_Notifications {
                 Credits Earned
             </p>
             <p style="margin: 0; font-size: 48px; font-weight: bold; color: #0c4a6e;">
-                ' . (int) $credits . '
+                ' . esc_html(Credits::format($credits)) . '
             </p>
             <p style="margin: 5px 0 0; font-size: 16px; color: #0369a1;">
                 CE Credits
@@ -244,7 +244,7 @@ class Seminar_Notifications {
             Dear ' . esc_html($user->display_name) . ',
         </p>
         <p style="margin: 0 0 30px 0; font-size: 16px; color: #475569;">
-            You have been awarded <strong style="color: #2271b1;">' . $credits . ' CE credits</strong> for attending a GPS Monthly Seminar session.
+            You have been awarded <strong style="color: #2271b1;">' . esc_html(Credits::format($credits)) . ' CE credits</strong> for attending a GPS Monthly Seminar session.
         </p>
 
         <div style="background-color: #f8fafc; padding: 25px; border-radius: 8px; margin-bottom: 30px;">
@@ -267,7 +267,7 @@ class Seminar_Notifications {
                 <tr>
                     <td style="padding: 12px; background-color: #eff6ff; border-radius: 0 0 6px 6px; border-top: 2px solid #3b82f6;">
                         <div style="font-size: 14px; color: #1e40af; margin-bottom: 5px; font-weight: 600;">Total CE Credits Earned</div>
-                        <div style="font-size: 28px; font-weight: bold; color: #1e40af;">' . $progress['total_credits'] . '</div>
+                        <div style="font-size: 28px; font-weight: bold; color: #1e40af;">' . esc_html(Credits::format($progress['total_credits'])) . '</div>
                     </td>
                 </tr>
             </table>

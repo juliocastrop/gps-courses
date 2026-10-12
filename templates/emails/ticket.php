@@ -158,7 +158,7 @@ $settings = [
                                     </td>
                                     <td style="padding: 12px 0; color: #333;">
                                         <span style="background: <?php echo esc_attr($settings['ce_badge_bg_color']); ?>; color: <?php echo esc_attr($settings['ce_badge_text_color']); ?>; padding: 4px 12px; border-radius: 12px; font-weight: bold; display: inline-block;">
-                                            <?php echo (int) $ce_credits; ?> Credits
+                                            <?php echo esc_html(\GPSC\Credits::format($ce_credits)); ?> Credits
                                         </span>
                                     </td>
                                 </tr>

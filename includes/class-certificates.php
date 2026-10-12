@@ -677,7 +677,7 @@ class Certificates {
             $pdf->SetTextColor($secondary_rgb[0], $secondary_rgb[1], $secondary_rgb[2]);
             $pdf->SetXY(20, $next_y);
             $credits_val = $data['ce_credits'];
-            $credits_text = number_format($credits_val, ($credits_val == intval($credits_val)) ? 0 : 1) . ' ' . ($credits_val == 1 ? 'CE Credit Hour' : 'CE Credit Hours');
+            $credits_text = Credits::format($credits_val) . ' ' . ($credits_val == 1 ? 'CE Credit Hour' : 'CE Credit Hours');
             $pdf->Cell($w - 40, 5, $credits_text, 0, 1, 'C');
             $next_y += 6;
         }
@@ -977,7 +977,7 @@ class Certificates {
                                                 <?php endif; ?>
                                                 <?php if (!empty($data['ce_credits']) && $data['ce_credits'] > 0):
                                                     $credits_val = $data['ce_credits'];
-                                                    $credits_text = number_format($credits_val, ($credits_val == intval($credits_val)) ? 0 : 1);
+                                                    $credits_text = Credits::format($credits_val);
                                                 ?>
                                                     <p style="margin: 4px 0 0; font-size: 14px; color: #0B52AC; font-weight: 600;">CE Credits Awarded: <?php echo $credits_text; ?></p>
                                                 <?php endif; ?>
@@ -1308,7 +1308,7 @@ class Certificates {
             $pdf->SetTextColor($secondary_rgb[0], $secondary_rgb[1], $secondary_rgb[2]);
             $pdf->SetXY(20, $next_y);
             $credits_val = $data['ce_credits'];
-            $credits_text = number_format($credits_val, ($credits_val == intval($credits_val)) ? 0 : 1) . ' ' . ($credits_val == 1 ? 'CE Credit Hour' : 'CE Credit Hours');
+            $credits_text = Credits::format($credits_val) . ' ' . ($credits_val == 1 ? 'CE Credit Hour' : 'CE Credit Hours');
             $pdf->Cell($w - 40, 5, $credits_text, 0, 1, 'C');
             $next_y += 6;
         }

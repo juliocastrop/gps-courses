@@ -163,7 +163,7 @@ class Seminar_Progress_Widget extends Base_Widget {
                             <div class="gps-stat-label-small"><?php _e('Remaining', 'gps-courses'); ?></div>
                         </div>
                         <div class="gps-stat-box">
-                            <div class="gps-stat-number"><?php echo $progress['total_credits']; ?></div>
+                            <div class="gps-stat-number"><?php echo esc_html(\GPSC\Credits::format($progress['total_credits'])); ?></div>
                             <div class="gps-stat-label-small"><?php _e('CE Credits', 'gps-courses'); ?></div>
                         </div>
                         <div class="gps-stat-box">

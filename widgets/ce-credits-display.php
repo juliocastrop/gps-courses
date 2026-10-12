@@ -417,7 +417,7 @@ class Ce_Credits_Display_Widget extends Base_Widget {
             return;
         }
 
-        $credits = (int) get_post_meta($event_id, '_gps_ce_credits', true);
+        $credits = (float) get_post_meta($event_id, '_gps_ce_credits', true);
 
         ?>
         <div class="gps-ce-credits-box gps-credits-event">
@@ -482,7 +482,7 @@ class Ce_Credits_Display_Widget extends Base_Widget {
 
             <div class="gps-ledger-total">
                 <?php _e('Total Credits:', 'gps-courses'); ?>
-                <strong><?php echo (int) array_sum(array_column($ledger, 'credits')); ?></strong>
+                <strong><?php echo esc_html(\GPSC\Credits::format(array_sum(array_column($ledger, 'credits')))); ?></strong>
             </div>
         </div>
         <?php
