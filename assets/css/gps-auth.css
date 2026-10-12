@@ -664,3 +664,17 @@
         transition: none !important;
     }
 }
+
+/* WooCommerce adds its own eye button to every password field; ours ("Show") stays */
+#gps-auth .show-password-input {
+    display: none !important;
+}
+
+/* Confirmation screen: title, message and link without a form around them */
+#gps-auth .gps-auth__title + .gps-alert {
+    margin-top: 14px;
+}
+
+#gps-auth .gps-alert + .gps-auth__foot {
+    margin-top: 20px;
+}
