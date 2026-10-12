@@ -99,9 +99,21 @@ class Plugin {
         Registration_Guard::init();
 
         Woo::hooks();
+
+        // One shared look for every form on the site (Fluent Forms, WooCommerce
+        // account forms, GPS waitlist, email verification code). Late priority
+        // so it loads after the plugins' own stylesheets.
+        add_action('wp_enqueue_scripts', [__CLASS__, 'enqueue_form_styles'], 100);
     }
 
     public static function register() {
         Posttypes::register();
+    }
+
+    public static function enqueue_form_styles() {
+        $file = GPSC_PATH . 'assets/css/gps-forms.css';
+        // Version by file time so caches pick up every CSS change.
+        $ver  = file_exists($file) ? (string) filemtime($file) : GPSC_VERSION;
+        wp_enqueue_style('gps-forms', GPSC_URL . 'assets/css/gps-forms.css', [], $ver);
     }
 }

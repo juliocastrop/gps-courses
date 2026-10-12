@@ -1,0 +1,648 @@
+/**
+ * GPS Forms — one visual language for every form on the site.
+ *
+ * Applies the same tokens to:
+ *   - Fluent Forms            (.fluentform …)            e.g. Contact
+ *   - WooCommerce account     (.woocommerce …)           login, register, lost/reset password
+ *   - GPS Courses waitlist    (.gps-waitlist-form …)
+ *   - Email verification code (.gps-reg-code-row …)
+ *
+ * Change a token here and every form follows. Values match the approved
+ * redesign mockup (Oct 2026).
+ */
+
+:root {
+    --gps-navy: #193463;
+    --gps-navy-deep: #12264a;
+    --gps-blue: #0B52AC;
+    --gps-gold: #DDC89D;
+    --gps-gold-deep: #BC9D67;
+    --gps-ink: #1b2436;
+    --gps-muted: #5b6880;
+    --gps-line: #dde3ec;
+    --gps-field: #f7f9fc;
+    --gps-paper: #ffffff;
+    --gps-ok: #1d7a4e;
+    --gps-ok-tint: #e7f4ed;
+    --gps-err: #b4322a;
+    --gps-err-tint: #fbecea;
+    --gps-radius: 8px;
+    --gps-card-radius: 14px;
+    --gps-focus: 0 0 0 3px rgba(11, 82, 172, 0.18);
+    --gps-card-shadow: 0 1px 0 var(--gps-line), 0 18px 40px -24px rgba(18, 38, 74, 0.45);
+    --gps-font: "Montserrat", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+/* ===================================================================
+ * Shared field look (Fluent Forms + WooCommerce + GPS waitlist)
+ * =================================================================== */
+
+.fluentform .frm-fluent-form .ff-el-form-control,
+.woocommerce form .form-row .input-text,
+.woocommerce form .form-row select,
+.woocommerce form .form-row textarea,
+.woocommerce-page form .form-row .input-text,
+.gps-waitlist-form .gps-waitlist-input {
+    font-family: var(--gps-font);
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--gps-ink);
+    background: var(--gps-field);
+    border: 1.5px solid var(--gps-line);
+    border-radius: var(--gps-radius);
+    padding: 11px 13px;
+    min-height: 46px;
+    box-shadow: none;
+    transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+}
+
+.fluentform .frm-fluent-form textarea.ff-el-form-control,
+.woocommerce form .form-row textarea {
+    min-height: 120px;
+}
+
+.fluentform .frm-fluent-form .ff-el-form-control::placeholder,
+.woocommerce form .form-row .input-text::placeholder,
+.gps-waitlist-form .gps-waitlist-input::placeholder {
+    color: #657187;
+    opacity: 1;
+}
+
+.fluentform .frm-fluent-form .ff-el-form-control:focus,
+.woocommerce form .form-row .input-text:focus,
+.woocommerce form .form-row select:focus,
+.woocommerce form .form-row textarea:focus,
+.gps-waitlist-form .gps-waitlist-input:focus {
+    outline: none;
+    border-color: var(--gps-blue);
+    background: var(--gps-paper);
+    box-shadow: var(--gps-focus);
+}
+
+/* Labels */
+.fluentform .frm-fluent-form .ff-el-input--label label,
+.woocommerce form .form-row label,
+.gps-reg-code-row label {
+    font-family: var(--gps-font);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gps-ink);
+    margin-bottom: 6px;
+}
+
+.fluentform .frm-fluent-form .ff-el-is-required.asterisk-right label::after,
+.woocommerce form .form-row .required {
+    color: var(--gps-err);
+    text-decoration: none;
+}
+
+/* Field spacing */
+.fluentform .frm-fluent-form .ff-el-group {
+    margin-bottom: 18px;
+}
+
+.woocommerce form .form-row {
+    margin: 0 0 16px;
+    padding: 0;
+}
+
+/* Errors next to the field */
+.fluentform .frm-fluent-form .ff-el-is-error .ff-el-form-control,
+.woocommerce form .form-row.woocommerce-invalid .input-text,
+.woocommerce form .form-row.woocommerce-invalid select {
+    border-color: var(--gps-err);
+    background: var(--gps-paper);
+}
+
+.fluentform .frm-fluent-form .error.text-danger,
+.fluentform .ff-errors-in-stack .error {
+    color: var(--gps-err);
+    font-family: var(--gps-font);
+    font-size: 12.5px;
+    font-weight: 600;
+    margin-top: 6px;
+}
+
+/* Checkboxes and radios */
+.fluentform .frm-fluent-form input[type="checkbox"],
+.fluentform .frm-fluent-form input[type="radio"],
+.woocommerce #customer_login form input[type="checkbox"],
+.woocommerce form.woocommerce-EditAccountForm input[type="checkbox"],
+.woocommerce form.checkout input[type="checkbox"] {
+    accent-color: var(--gps-navy);
+    width: 18px;
+    height: 18px;
+}
+
+/* Fluent Forms: space between box and label */
+.fluentform .frm-fluent-form input[type="checkbox"],
+.fluentform .frm-fluent-form input[type="radio"] {
+    margin: 0 8px 0 0;
+    vertical-align: -3px;
+}
+
+.fluentform .frm-fluent-form .ff-el-form-check-label {
+    font-family: var(--gps-font);
+    font-size: 14px;
+    line-height: 1.45;
+    font-weight: 500;
+    color: var(--gps-ink);
+}
+
+.woocommerce form .woocommerce-form__label-for-checkbox {
+    font-family: var(--gps-font);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gps-ink);
+}
+
+/* Phone field (Fluent Forms intl-tel-input) */
+.fluentform .frm-fluent-form .iti {
+    width: 100%;
+}
+
+.fluentform .frm-fluent-form .iti input.ff-el-form-control {
+    padding-right: 8px;
+    font-size: 14px;
+}
+
+/* ===================================================================
+ * Buttons
+ * =================================================================== */
+
+.fluentform form.frm-fluent-form .ff-btn.ff-btn-submit,
+.woocommerce .woocommerce-form-login__submit,
+.woocommerce .woocommerce-form-register__submit,
+.woocommerce form.lost_reset_password .woocommerce-Button,
+.woocommerce form.woocommerce-ResetPassword .woocommerce-Button {
+    font-family: var(--gps-font);
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #fff;
+    background: var(--gps-navy);
+    border: 0;
+    border-radius: var(--gps-radius);
+    padding: 14px 22px;
+    min-height: 48px;
+    text-transform: none;
+    letter-spacing: 0;
+    box-shadow: none;
+    cursor: pointer;
+    transition: background-color .15s ease;
+}
+
+.fluentform form.frm-fluent-form .ff-btn.ff-btn-submit:hover,
+.fluentform form.frm-fluent-form .ff-btn.ff-btn-submit:focus-visible,
+.woocommerce .woocommerce-form-login__submit:hover,
+.woocommerce .woocommerce-form-register__submit:hover,
+.woocommerce form.lost_reset_password .woocommerce-Button:hover,
+.woocommerce form.woocommerce-ResetPassword .woocommerce-Button:hover {
+    background: var(--gps-blue);
+    color: #fff;
+    border: 0;
+}
+
+/* Secondary button: "Send code" */
+.gps-reg-code-row .gps-reg-send-code,
+.fluentform .frm-fluent-form .gps-reg-send-code {
+    font-family: var(--gps-font);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--gps-blue) !important;
+    background: var(--gps-paper) !important;
+    border: 1.5px solid var(--gps-blue) !important;
+    border-radius: var(--gps-radius);
+    padding: 10px 16px;
+    min-height: 46px;
+}
+
+.gps-reg-code-row .gps-reg-send-code:hover,
+.fluentform .frm-fluent-form .gps-reg-send-code:hover {
+    background: rgba(11, 82, 172, 0.06) !important;
+}
+
+.gps-reg-code-row .gps-reg-send-code:disabled,
+.gps-reg-code-row .gps-reg-send-code[disabled] {
+    opacity: .55 !important;
+    cursor: not-allowed;
+}
+
+.gps-reg-code-row .gps-reg-code-msg {
+    font-family: var(--gps-font);
+    font-size: 12.5px;
+    color: var(--gps-muted);
+}
+
+/* Gold action: waitlist (matches the course "Register" button) */
+.gps-waitlist-form .gps-waitlist-submit {
+    font-family: var(--gps-font);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--gps-navy);
+    background: var(--gps-gold);
+    border: 0;
+    border-radius: var(--gps-radius);
+    padding: 13px 18px;
+    min-height: 48px;
+    width: 100%;
+    cursor: pointer;
+    transition: background-color .15s ease, color .15s ease;
+}
+
+.gps-waitlist-form .gps-waitlist-submit:hover {
+    background: var(--gps-gold-deep);
+    color: var(--gps-navy);
+}
+
+/* Links inside forms */
+.woocommerce .woocommerce-LostPassword a,
+.woocommerce form .lost_password a,
+.fluentform .frm-fluent-form a {
+    color: var(--gps-blue);
+    font-weight: 600;
+    text-underline-offset: 3px;
+}
+
+/* ===================================================================
+ * Confirmation and notices
+ * =================================================================== */
+
+.fluentform .ff-message-success {
+    font-family: var(--gps-font);
+    font-size: 14px;
+    color: var(--gps-ok);
+    background: var(--gps-ok-tint);
+    border: 0;
+    border-radius: var(--gps-radius);
+    padding: 14px 16px;
+    box-shadow: none;
+}
+
+.woocommerce-notices-wrapper .woocommerce-error,
+.woocommerce-notices-wrapper .woocommerce-message,
+.woocommerce-notices-wrapper .woocommerce-info,
+.woocommerce .woocommerce-error,
+.woocommerce .woocommerce-message,
+.woocommerce .woocommerce-info {
+    font-family: var(--gps-font);
+    font-size: 14px;
+    border: 0;
+    border-radius: var(--gps-radius);
+    padding: 14px 16px 14px 44px;
+    box-shadow: none;
+}
+
+.woocommerce .woocommerce-error {
+    background: var(--gps-err-tint);
+    color: var(--gps-err);
+}
+
+.woocommerce .woocommerce-error::before {
+    color: var(--gps-err);
+}
+
+.woocommerce .woocommerce-message {
+    background: var(--gps-ok-tint);
+    color: var(--gps-ok);
+}
+
+.woocommerce .woocommerce-message::before {
+    color: var(--gps-ok);
+}
+
+.woocommerce .woocommerce-info {
+    background: #eef3fb;
+    color: var(--gps-navy);
+}
+
+.woocommerce .woocommerce-info::before {
+    color: var(--gps-blue);
+}
+
+/* ===================================================================
+ * WooCommerce My Account: login / register as two cards
+ * (until the tabbed account template replaces this layout)
+ * =================================================================== */
+
+.woocommerce #customer_login .u-column1,
+.woocommerce #customer_login .u-column2 {
+    background: var(--gps-paper);
+    border-radius: var(--gps-card-radius);
+    box-shadow: var(--gps-card-shadow);
+    padding: 28px;
+}
+
+.woocommerce #customer_login h2 {
+    font-family: var(--gps-font);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--gps-navy);
+    margin: 0 0 16px;
+}
+
+.woocommerce #customer_login form.login,
+.woocommerce #customer_login form.register,
+.woocommerce form.lost_reset_password {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    border-radius: 0;
+}
+
+.woocommerce #customer_login form.login .woocommerce-form-login__submit,
+.woocommerce #customer_login form.register .woocommerce-form-register__submit {
+    width: 100%;
+    margin-top: 6px;
+}
+
+.woocommerce form .woocommerce-privacy-policy-text {
+    font-family: var(--gps-font);
+    font-size: 12.5px;
+    color: var(--gps-muted);
+}
+
+@media (max-width: 768px) {
+    .woocommerce #customer_login .u-column1,
+    .woocommerce #customer_login .u-column2 {
+        padding: 20px 18px;
+        margin-bottom: 18px;
+    }
+}
+
+/* ===================================================================
+ * Elementor Pro "My Account" widget
+ * Its own rules use 6-class selectors with hard-coded colors, so the
+ * shared look is re-applied here one class stronger
+ * (.elementor-widget-woocommerce-my-account.elementor-widget …).
+ * Same tokens as above — no new values.
+ * =================================================================== */
+
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce form.login,
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce form.register,
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce form.woocommerce-ResetPassword {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
+}
+
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce form .form-row {
+    margin: 0 0 16px;
+    padding: 0;
+}
+
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce form .form-row label {
+    font-family: var(--gps-font);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gps-ink);
+    margin-bottom: 6px;
+}
+
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce form .form-row .input-text {
+    font-family: var(--gps-font);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--gps-ink);
+    background: var(--gps-field);
+    border: 1.5px solid var(--gps-line);
+    border-radius: var(--gps-radius);
+    padding: 11px 13px;
+    min-height: 46px;
+}
+
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce form .form-row .input-text:focus {
+    border-color: var(--gps-blue);
+    background: var(--gps-paper);
+    color: var(--gps-ink);
+    box-shadow: var(--gps-focus);
+}
+
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce form.login .button,
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce form.register .button,
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce form.woocommerce-ResetPassword .button,
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce-EditAccountForm .button,
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce-address-fields .button {
+    font-family: var(--gps-font);
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--gps-navy);
+    border: 0;
+    border-radius: var(--gps-radius);
+    padding: 14px 22px;
+    min-height: 48px;
+    width: 100%;
+}
+
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce form.login .button:hover,
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce form.register .button:hover,
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce form.woocommerce-ResetPassword .button:hover,
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce-EditAccountForm .button:hover,
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce-address-fields .button:hover {
+    background: var(--gps-blue);
+    color: #fff;
+}
+
+/* The "Send code" button sits inside form.register but is secondary */
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce form.register .gps-reg-code-row .button.gps-reg-send-code {
+    width: auto;
+    color: var(--gps-blue);
+    background: var(--gps-paper);
+    border: 1.5px solid var(--gps-blue);
+    padding: 10px 16px;
+    min-height: 46px;
+}
+
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce form .woocommerce-privacy-policy-text,
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce form .woocommerce-privacy-policy-text p {
+    font-family: var(--gps-font);
+    font-size: 12.5px;
+    color: var(--gps-muted);
+}
+
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce form .woocommerce-form__label-for-checkbox {
+    font-family: var(--gps-font);
+    font-size: 13px;
+    color: var(--gps-ink);
+}
+
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce form .woocommerce-LostPassword {
+    font-size: 13px;
+    margin-top: 12px;
+}
+
+/* ===================================================================
+ * Buttons inside WooCommerce notices ("Browse products", "View cart")
+ * keep a fixed size: they are sized in em and shrank with the notice text.
+ * =================================================================== */
+
+.woocommerce .woocommerce-info .button,
+.woocommerce .woocommerce-message .button,
+.woocommerce .woocommerce-error .button {
+    font-family: var(--gps-font);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.2;
+    padding: 10px 16px;
+    border: 0;
+    border-radius: var(--gps-radius);
+    background: var(--gps-navy);
+    color: #fff;
+}
+
+.woocommerce .woocommerce-info .button:hover,
+.woocommerce .woocommerce-message .button:hover,
+.woocommerce .woocommerce-error .button:hover {
+    background: var(--gps-blue);
+    color: #fff;
+}
+
+/* Same buttons inside the Elementor My Account widget (its link color wins otherwise) */
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce .woocommerce-info .button,
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce .woocommerce-message .button {
+    color: #fff;
+    background: var(--gps-navy);
+}
+
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce .woocommerce-info .button:hover,
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce .woocommerce-message .button:hover {
+    color: #fff;
+    background: var(--gps-blue);
+}
+
+/* ===================================================================
+ * Country / state dropdowns (select2): same box as the text fields
+ * =================================================================== */
+
+.woocommerce form .form-row .select2-container .select2-selection--single,
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce form .form-row .select2-container .select2-selection--single,
+.elementor-widget-woocommerce-checkout-page.elementor-widget .select2-container--default .select2-selection--single {
+    height: 46px;
+    background: var(--gps-field);
+    border: 1.5px solid var(--gps-line);
+    border-radius: var(--gps-radius);
+}
+
+.woocommerce form .form-row .select2-container .select2-selection--single .select2-selection__rendered,
+.elementor-widget-woocommerce-my-account.elementor-widget .e-my-account-tab .woocommerce form .form-row .select2-container .select2-selection--single .select2-selection__rendered,
+.elementor-widget-woocommerce-checkout-page.elementor-widget .select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 43px;
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: 13px;
+    font-family: var(--gps-font);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--gps-ink);
+}
+
+.woocommerce form .form-row .select2-container .select2-selection--single .select2-selection__arrow {
+    height: 43px;
+}
+
+/* ===================================================================
+ * Elementor Pro "Checkout" widget
+ * Its field rules use #customer_details / #place_order, so these carry
+ * the same ids plus one class more. Same tokens, no new values.
+ * =================================================================== */
+
+.elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce #customer_details .form-row label {
+    font-family: var(--gps-font);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gps-ink);
+    margin-bottom: 6px;
+}
+
+.elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce #customer_details .form-row .input-text {
+    font-family: var(--gps-font);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--gps-ink);
+    background: var(--gps-field);
+    border: 1.5px solid var(--gps-line);
+    border-radius: var(--gps-radius);
+    padding: 11px 13px;
+    min-height: 46px;
+}
+
+.elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce #customer_details .form-row .input-text:focus {
+    border-color: var(--gps-blue);
+    background: var(--gps-paper);
+    color: var(--gps-ink);
+    box-shadow: var(--gps-focus);
+}
+
+.elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout #payment #place_order {
+    font-family: var(--gps-font);
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--gps-navy);
+    border: 0;
+    border-radius: var(--gps-radius);
+    padding: 15px 22px;
+    min-height: 50px;
+}
+
+.elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout #payment #place_order:hover {
+    background: var(--gps-blue);
+    color: #fff;
+}
+
+/* ===================================================================
+ * GPS Courses waitlist layout
+ * =================================================================== */
+
+.gps-waitlist-form .gps-waitlist-row,
+.gps-waitlist-form .gps-waitlist-fields {
+    gap: 12px;
+}
+
+.gps-waitlist-form .gps-waitlist-input {
+    width: 100%;
+}
+
+/* First / last name side by side gets cramped on phones: stack them */
+@media (max-width: 480px) {
+    .gps-waitlist-form .gps-waitlist-row {
+        flex-direction: column;
+    }
+
+    .gps-waitlist-form .gps-waitlist-row .gps-waitlist-input {
+        width: 100%;
+    }
+}
+
+.gps-waitlist-form .gps-waitlist-response {
+    font-family: var(--gps-font);
+    font-size: 13.5px;
+    border-radius: var(--gps-radius);
+}
+
+/* ===================================================================
+ * Motion and focus accessibility
+ * =================================================================== */
+
+.fluentform .frm-fluent-form :focus-visible,
+.woocommerce #customer_login form :focus-visible,
+.woocommerce form.woocommerce-EditAccountForm :focus-visible,
+.woocommerce form.checkout :focus-visible,
+.woocommerce .woocommerce-address-fields :focus-visible,
+.gps-waitlist-form :focus-visible {
+    outline: 3px solid rgba(11, 82, 172, 0.45);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fluentform .frm-fluent-form *,
+    .woocommerce #customer_login form *,
+    .woocommerce form.checkout *,
+    .gps-waitlist-form * {
+        transition: none !important;
+    }
+}

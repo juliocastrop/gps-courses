@@ -383,7 +383,7 @@ class Registration_Guard {
                     <input type="text" class="ff-el-form-control" name="gps_reg_code" id="gps_reg_code_ff_<?php echo (int) $form->id; ?>"
                            inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"
                            placeholder="123456" style="flex:1; letter-spacing:4px;" />
-                    <button type="button" class="ff-btn ff-btn-md gps-reg-send-code" style="white-space:nowrap; background:#ffffff; color:#0B52AC; border:1px solid #0B52AC;"<?php echo self::send_code_button_attrs(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in send_code_button_attrs() ?>><?php esc_html_e('Send code', 'gps-courses'); ?></button>
+                    <button type="button" class="ff-btn ff-btn-md gps-reg-send-code" style="white-space:nowrap;"<?php echo self::send_code_button_attrs(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in send_code_button_attrs() ?>><?php esc_html_e('Send code', 'gps-courses'); ?></button>
                 </span>
                 <small class="gps-reg-code-msg" style="display:block; margin-top:6px;" aria-live="polite">
                     <?php esc_html_e('Enter your email above, then click "Send code". We will email you a 6-digit code.', 'gps-courses'); ?>
