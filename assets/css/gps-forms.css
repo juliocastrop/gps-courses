@@ -172,6 +172,30 @@
     font-size: 14px;
 }
 
+/* Country picker is a <button>: drop the theme's global button look */
+.fluentform .frm-fluent-form .iti .iti__selected-country,
+.fluentform .frm-fluent-form .iti .iti__selected-country:hover,
+.fluentform .frm-fluent-form .iti .iti__selected-country:focus,
+.fluentform .frm-fluent-form .iti .iti__selected-country[aria-expanded="true"] {
+    background: transparent;
+    color: var(--gps-ink);
+    border: 0;
+    border-radius: var(--gps-radius) 0 0 var(--gps-radius);
+    box-shadow: none;
+    padding: 0 6px 0 12px;
+    min-height: 0;
+}
+
+.fluentform .frm-fluent-form .iti .iti__selected-country:hover,
+.fluentform .frm-fluent-form .iti .iti__selected-country[aria-expanded="true"] {
+    background: rgba(25, 52, 99, .06);
+}
+
+.fluentform .frm-fluent-form .iti .iti__selected-country:focus-visible {
+    outline: 2px solid var(--gps-blue);
+    outline-offset: -2px;
+}
+
 /* ===================================================================
  * Buttons
  * =================================================================== */
