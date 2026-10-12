@@ -81,7 +81,12 @@ class Account_Auth {
                 'passwordMatch'=> __('The passwords do not match.', 'gps-courses'),
                 'terms'        => __('Please accept the terms to continue.', 'gps-courses'),
                 'code'         => __('Enter the 6-digit code from the email.', 'gps-courses'),
-                'phone'        => __('Enter a valid phone number, or leave it empty.', 'gps-courses'),
+                'phone'        => __('Enter a valid mobile phone number.', 'gps-courses'),
+                'phoneRequired'=> __('Enter your mobile phone number.', 'gps-courses'),
+                'role'         => __('Choose your role.', 'gps-courses'),
+                'interests'    => __('Pick at least one topic.', 'gps-courses'),
+                'legalError'   => __('We could not load the document. Use "Open in a new tab".', 'gps-courses'),
+                'loading'      => __('Loading…', 'gps-courses'),
                 'sending'      => __('Sending…', 'gps-courses'),
                 'checking'     => __('Checking…', 'gps-courses'),
                 'creating'     => __('Creating your account…', 'gps-courses'),
@@ -120,7 +125,8 @@ class Account_Auth {
             'can_register' => 'yes' === get_option('woocommerce_enable_myaccount_registration'),
             'logo'         => self::logo_url(),
             'terms_url'    => self::terms_url(),
-            'privacy_url'  => get_privacy_policy_url(),
+            'privacy_url'  => self::privacy_url(),
+            'legal_api'    => self::legal_api_url(),
             'roles'        => self::roles(),
             'interests'    => self::interests(),
         ];
@@ -133,9 +139,30 @@ class Account_Auth {
         return (string) apply_filters('gps_account_auth_logo_url', $url ?: '');
     }
 
+    /**
+     * The legal page shown in the registration modal. GPS keeps terms and
+     * privacy in one document (WooCommerce's terms page); /privacy-policy/
+     * is still WordPress' sample text, so it is not used here.
+     */
+    protected static function legal_page_id() {
+        $id = function_exists('wc_terms_and_conditions_page_id') ? (int) wc_terms_and_conditions_page_id() : 0;
+        return (int) apply_filters('gps_account_auth_legal_page_id', $id);
+    }
+
     protected static function terms_url() {
-        $id = function_exists('wc_terms_and_conditions_page_id') ? wc_terms_and_conditions_page_id() : 0;
+        $id = self::legal_page_id();
         return $id ? get_permalink($id) : get_privacy_policy_url();
+    }
+
+    protected static function privacy_url() {
+        $id = (int) apply_filters('gps_account_auth_privacy_page_id', self::legal_page_id());
+        return $id ? get_permalink($id) : get_privacy_policy_url();
+    }
+
+    /** REST URL the modal loads the legal text from (published pages are public). */
+    protected static function legal_api_url() {
+        $id = self::legal_page_id();
+        return $id ? add_query_arg('_fields', 'title,content', rest_url('wp/v2/pages/' . $id)) : '';
     }
 
     /** Same options as the old Fluent Forms registration (#6). */
@@ -201,8 +228,19 @@ class Account_Auth {
             $errors->add('gps_terms', __('Please accept the Terms and Conditions and Privacy Policy.', 'gps-courses'));
         }
         $phone = self::posted('gps_phone');
-        if ($phone !== '' && !self::phone_ok($phone)) {
-            $errors->add('gps_phone', __('Enter a valid phone number, or leave it empty.', 'gps-courses'));
+        if ($phone === '') {
+            $errors->add('gps_phone', __('Please enter your mobile phone number.', 'gps-courses'));
+        } elseif (!self::phone_ok($phone)) {
+            $errors->add('gps_phone', __('Please enter a valid mobile phone number.', 'gps-courses'));
+        }
+        if (!in_array(self::posted('gps_profession'), self::roles(), true)) {
+            $errors->add('gps_profession', __('Please choose your role.', 'gps-courses'));
+        }
+        $picked = (isset($_POST['gps_interests']) && is_array($_POST['gps_interests']))
+            ? array_intersect(self::interests(), array_map('sanitize_text_field', wp_unslash($_POST['gps_interests'])))
+            : [];
+        if (!$picked) {
+            $errors->add('gps_interests', __('Please pick at least one topic you are interested in.', 'gps-courses'));
         }
         return $errors;
     }

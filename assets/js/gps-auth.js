@@ -164,6 +164,83 @@
     });
 
     /* ------------------------------------------------------------------
+     * Terms / privacy in a modal (text loaded from the page through the REST API)
+     * ------------------------------------------------------------------ */
+
+    var legal = document.getElementById('gps-legal');
+    var legalCache = null;
+    var ALLOWED = { H1: 'h3', H2: 'h3', H3: 'h4', H4: 'h4', H5: 'h5', H6: 'h5', P: 'p', UL: 'ul', OL: 'ol', LI: 'li', STRONG: 'strong', B: 'strong', EM: 'em', I: 'em', A: 'a', BR: 'br' };
+
+    /** Copy only text structure (headings, paragraphs, lists, links) from the page HTML. */
+    function cleanCopy(src, dest) {
+        Array.prototype.forEach.call(src.childNodes, function (node) {
+            if (node.nodeType === 3) {
+                if (node.textContent.trim() || dest.lastChild) { dest.appendChild(document.createTextNode(node.textContent)); }
+                return;
+            }
+            if (node.nodeType !== 1 || node.namespaceURI !== 'http://www.w3.org/1999/xhtml' ||
+                /^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE|IFRAME|FORM|BUTTON|IMG|SELECT|TEXTAREA)$/.test(node.tagName.toUpperCase())) { return; }
+            var tag = ALLOWED[node.tagName];
+            if (!tag) { cleanCopy(node, dest); return; }
+            var el = document.createElement(tag);
+            if (tag === 'a') {
+                var href = node.getAttribute('href') || '';
+                if (/^(https?:|mailto:|tel:|#)/i.test(href)) { el.setAttribute('href', href); }
+                el.setAttribute('target', '_blank');
+                el.setAttribute('rel', 'noopener');
+            }
+            cleanCopy(node, el);
+            if (tag === 'br' || el.textContent.trim()) { dest.appendChild(el); }
+        });
+    }
+
+    function openLegal(link) {
+        var body = $('[data-gps-legal-body]', legal);
+        var focusPrivacy = link.getAttribute('data-gps-legal-focus') === 'privacy';
+        var show = function () {
+            if (!legal.open) { legal.showModal(); }
+            body.scrollTop = 0;
+            if (focusPrivacy) {
+                var heads = $$('h3, h4', body);
+                // The document's own "Privacy Policy" section heading
+                for (var i = 0; i < heads.length; i++) {
+                    if (/^\s*privacy policy\s*$/i.test(heads[i].textContent)) { body.scrollTop = heads[i].offsetTop - body.offsetTop - 8; break; }
+                }
+            }
+            body.focus();
+        };
+        if (legalCache === true) { show(); return; }
+        if (legalCache) { show(); return; } // still loading
+        body.textContent = t.loading;
+        show();
+        legalCache = fetch(link.getAttribute('data-gps-legal'), { credentials: 'same-origin' })
+            .then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); })
+            .then(function (page) {
+                var doc = new DOMParser().parseFromString((page && page.content && page.content.rendered) || '', 'text/html');
+                var frag = document.createDocumentFragment();
+                cleanCopy(doc.body, frag);
+                if (!frag.textContent.trim()) { throw new Error('empty'); }
+                body.textContent = '';
+                body.appendChild(frag);
+                legalCache = true;
+                if (legal.open) { show(); } // closed while loading: stay closed
+            })
+            .catch(function () { legalCache = null; body.textContent = t.legalError; });
+    }
+
+    if (legal && typeof legal.showModal === 'function') {
+        root.addEventListener('click', function (e) {
+            var link = e.target.closest && e.target.closest('[data-gps-legal]');
+            if (!link || !link.getAttribute('data-gps-legal') || e.metaKey || e.ctrlKey || e.shiftKey) { return; }
+            e.preventDefault();
+            openLegal(link);
+        });
+        legal.addEventListener('click', function (e) {
+            if (e.target === legal || (e.target.closest && e.target.closest('[data-gps-legal-close]'))) { legal.close(); }
+        });
+    }
+
+    /* ------------------------------------------------------------------
      * Simple forms: login, lost password, reset password
      * ------------------------------------------------------------------ */
 
@@ -424,21 +501,34 @@
         emailInput.select();
     });
 
-    // Step 3: "Skip for now" sends the account without the profile
-    var skipping = false;
-    $('[data-gps-skip]', reg).addEventListener('click', function () {
-        skipping = true;
-        $$('select, input[type="tel"]', stepEl(3)).forEach(function (el) { el.value = ''; setError(el, ''); });
-        $$('.gps-chip input, input[name="gps_marketing"]', stepEl(3)).forEach(function (el) { el.checked = false; });
-    });
+    // Step 3: role, at least one topic and the phone are required
+    var topicsGroup = $('[data-gps-group="interests"]', reg);
+    function checkTopics() {
+        if (!topicsGroup) { return true; }
+        var ok = $$('input:checked', topicsGroup).length > 0;
+        topicsGroup.classList.toggle('is-invalid', !ok);
+        var slot = $('[data-gps-err]', topicsGroup);
+        if (slot) { slot.textContent = ok ? '' : t.interests; }
+        return ok;
+    }
+    if (topicsGroup) {
+        topicsGroup.addEventListener('change', function () {
+            if (topicsGroup.classList.contains('is-invalid')) { checkTopics(); }
+        });
+    }
 
     // Enter in steps 1-2 moves forward instead of posting a half-filled form
     reg.addEventListener('submit', function (e) {
         if (current === 1) { e.preventDefault(); stepOne(); return; }
         if (current === 2) { e.preventDefault(); verify(); return; }
         if (!codeHidden.value) { e.preventDefault(); goStep(2); return; }
-        if (!skipping && !checkAll(stepEl(3))) { e.preventDefault(); return; }
-        skipping = false;
+        var fieldsOk = checkAll(stepEl(3));
+        var topicsOk = checkTopics();
+        if (!fieldsOk || !topicsOk) {
+            e.preventDefault();
+            if (fieldsOk && !topicsOk) { $('input', topicsGroup).focus(); }
+            return;
+        }
         if (reg.getAttribute('data-sending')) { e.preventDefault(); return; }
         reg.setAttribute('data-sending', '1');
         var submit = $('[data-gps-submit]', reg);

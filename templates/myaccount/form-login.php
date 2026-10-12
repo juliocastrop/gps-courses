@@ -149,8 +149,8 @@ do_action('woocommerce_before_customer_login_form');
                                 printf(
                                     /* translators: 1: terms link, 2: privacy link */
                                     esc_html__('I agree to the %1$s and %2$s.', 'gps-courses'),
-                                    '<a href="' . esc_url($gps['terms_url']) . '" target="_blank" rel="noopener">' . esc_html__('Terms and Conditions', 'gps-courses') . '</a>',
-                                    '<a href="' . esc_url($gps['privacy_url']) . '" target="_blank" rel="noopener">' . esc_html__('Privacy Policy', 'gps-courses') . '</a>'
+                                    '<a href="' . esc_url($gps['terms_url']) . '" target="_blank" rel="noopener" data-gps-legal="' . esc_attr($gps['legal_api']) . '" aria-haspopup="dialog">' . esc_html__('Terms and Conditions', 'gps-courses') . '</a>',
+                                    '<a href="' . esc_url($gps['privacy_url']) . '" target="_blank" rel="noopener" data-gps-legal="' . esc_attr($gps['legal_api']) . '" data-gps-legal-focus="privacy" aria-haspopup="dialog">' . esc_html__('Privacy Policy', 'gps-courses') . '</a>'
                                 );
                                 ?>
                             </span>
@@ -202,20 +202,21 @@ do_action('woocommerce_before_customer_login_form');
                 <!-- Step 3 -->
                 <div class="gps-step" data-gps-step="3">
                     <h2 class="gps-auth__title"><?php esc_html_e('Tell us about your practice', 'gps-courses'); ?></h2>
-                    <p class="gps-auth__sub"><?php esc_html_e('Your email is verified. This helps us recommend the right courses. You can skip it.', 'gps-courses'); ?></p>
+                    <p class="gps-auth__sub"><?php esc_html_e('Your email is verified. This helps us recommend the right courses and keep you posted on course day.', 'gps-courses'); ?></p>
 
                     <div class="gps-field">
                         <label for="gps_profession"><?php esc_html_e('Your role', 'gps-courses'); ?></label>
-                        <select name="gps_profession" id="gps_profession">
+                        <select name="gps_profession" id="gps_profession" required data-gps-msg="role">
                             <option value=""><?php esc_html_e('Select your role', 'gps-courses'); ?></option>
                             <?php foreach ($gps['roles'] as $role) : ?>
                                 <option value="<?php echo esc_attr($role); ?>"<?php selected(Account_Auth::posted('gps_profession'), $role); ?>><?php echo esc_html($role); ?></option>
                             <?php endforeach; ?>
                         </select>
+                        <span class="gps-field__err" data-gps-err aria-live="polite"></span>
                     </div>
 
-                    <fieldset class="gps-field gps-field--group">
-                        <legend class="gps-field__label"><?php esc_html_e('Topics you\'re interested in', 'gps-courses'); ?> <span class="gps-opt"><?php esc_html_e('(pick any)', 'gps-courses'); ?></span></legend>
+                    <fieldset class="gps-field gps-field--group" data-gps-group="interests">
+                        <legend class="gps-field__label"><?php esc_html_e('Topics you\'re interested in', 'gps-courses'); ?> <span class="gps-opt"><?php esc_html_e('(pick at least one)', 'gps-courses'); ?></span></legend>
                         <div class="gps-chips">
                             <?php foreach ($gps['interests'] as $topic) : ?>
                                 <label class="gps-chip">
@@ -224,11 +225,12 @@ do_action('woocommerce_before_customer_login_form');
                                 </label>
                             <?php endforeach; ?>
                         </div>
+                        <span class="gps-field__err" data-gps-err aria-live="polite"></span>
                     </fieldset>
 
                     <div class="gps-field">
-                        <label for="gps_phone"><?php esc_html_e('Mobile phone', 'gps-courses'); ?> <span class="gps-opt"><?php esc_html_e('(optional, for course-day updates)', 'gps-courses'); ?></span></label>
-                        <input type="tel" name="gps_phone" id="gps_phone" autocomplete="tel" placeholder="(404) 555-0123" value="<?php echo esc_attr(Account_Auth::posted('gps_phone')); ?>" data-gps-msg="phone">
+                        <label for="gps_phone"><?php esc_html_e('Mobile phone', 'gps-courses'); ?> <span class="gps-opt"><?php esc_html_e('(for course-day updates)', 'gps-courses'); ?></span></label>
+                        <input type="tel" name="gps_phone" id="gps_phone" autocomplete="tel" placeholder="(404) 555-0123" required value="<?php echo esc_attr(Account_Auth::posted('gps_phone')); ?>" data-gps-msg="phoneRequired">
                         <span class="gps-field__err" data-gps-err aria-live="polite"></span>
                     </div>
 
@@ -256,7 +258,6 @@ do_action('woocommerce_before_customer_login_form');
                     <div class="gps-alert" data-gps-alert role="alert" hidden></div>
 
                     <button type="submit" class="gps-btn" name="register" value="<?php esc_attr_e('Register', 'gps-courses'); ?>" data-gps-submit><?php esc_html_e('Create account', 'gps-courses'); ?></button>
-                    <p class="gps-auth__foot"><button type="submit" class="gps-link" name="register" value="<?php esc_attr_e('Register', 'gps-courses'); ?>" data-gps-skip formnovalidate><?php esc_html_e('Skip for now', 'gps-courses'); ?></button></p>
                 </div>
 
                 <?php do_action('woocommerce_register_form_end'); ?>
@@ -266,4 +267,17 @@ do_action('woocommerce_before_customer_login_form');
 
     </div>
 </div>
+<?php if ($can_reg) : ?>
+<dialog class="gps-legal" id="gps-legal" aria-labelledby="gps-legal-title">
+    <div class="gps-legal__head">
+        <h2 class="gps-legal__title" id="gps-legal-title"><?php esc_html_e('Terms and Conditions & Privacy Policy', 'gps-courses'); ?></h2>
+        <button type="button" class="gps-legal__close" data-gps-legal-close aria-label="<?php esc_attr_e('Close', 'gps-courses'); ?>">&times;</button>
+    </div>
+    <div class="gps-legal__body" data-gps-legal-body tabindex="0"></div>
+    <div class="gps-legal__foot">
+        <a class="gps-link" href="<?php echo esc_url($gps['terms_url']); ?>" target="_blank" rel="noopener"><?php esc_html_e('Open in a new tab', 'gps-courses'); ?></a>
+        <button type="button" class="gps-btn gps-btn--inline" data-gps-legal-close><?php esc_html_e('Close', 'gps-courses'); ?></button>
+    </div>
+</dialog>
+<?php endif; ?>
 <?php do_action('woocommerce_after_customer_login_form'); ?>
