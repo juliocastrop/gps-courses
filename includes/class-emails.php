@@ -20,6 +20,87 @@ class Emails {
 
         // Password reset from FluentForm
         add_action('fluentform_before_insert_submission', [__CLASS__, 'handle_password_reset'], 10, 3);
+
+        // Fluent Forms notifications (contact form) in the GPS email frame
+        add_filter('fluentform/email_header', [__CLASS__, 'fluentform_email_header'], 10, 3);
+        add_filter('fluentform/email_footer', [__CLASS__, 'fluentform_email_footer'], 10, 3);
+        add_filter('fluentform/email_styles', [__CLASS__, 'fluentform_email_styles'], 10, 3);
+    }
+
+    /**
+     * Fluent Forms whose notification emails use the GPS frame.
+     */
+    private static function fluentform_uses_gps_frame($form) {
+        $form_ids = apply_filters('gps_fluentform_branded_email_forms', [3]);
+        return $form && in_array((int) $form->id, array_map('intval', (array) $form_ids), true);
+    }
+
+    /**
+     * Opening half of the GPS frame: logo, navy band with the heading, body cell.
+     * Same Email Settings values as the ticket email.
+     */
+    public static function fluentform_email_header($header, $form, $notification) {
+        if (!self::fluentform_uses_gps_frame($form)) {
+            return $header;
+        }
+
+        $to_sender = (($notification['sendTo']['type'] ?? '') === 'field');
+        $heading   = $to_sender ? __('We received your message', 'gps-courses') : __('New contact message', 'gps-courses');
+        $heading   = apply_filters('gps_fluentform_email_heading', $heading, $form, $notification);
+
+        $logo        = Email_Settings::get('logo');
+        $header_bg   = Email_Settings::get('header_bg_color');
+        $header_text = Email_Settings::get('header_text_color');
+        $width       = (int) Email_Settings::get('container_width');
+        if ($width < 320 || $width > 1200) {
+            $width = 600;
+        }
+
+        $html  = '<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />'
+               . '<meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>' . esc_html(get_bloginfo('name')) . '</title></head>'
+               . '<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:Arial,sans-serif;">'
+               . '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f5f5f5;"><tr><td align="center" style="padding:40px 20px;">'
+               . '<table width="' . $width . '" cellpadding="0" cellspacing="0" border="0" style="max-width:' . $width . 'px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">';
+
+        if ($logo) {
+            $html .= '<tr><td align="center" style="padding:30px;background-color:#ffffff;">'
+                   . '<img src="' . esc_url($logo) . '" alt="' . esc_attr(get_bloginfo('name')) . '" width="200" style="max-width:200px;height:auto;border:0;"></td></tr>';
+        }
+
+        $html .= '<tr><td align="center" style="background-color:' . esc_attr($header_bg) . ';padding:36px 30px;">'
+               . '<h1 style="margin:0;text-align:center;font-family:Arial,sans-serif;font-size:26px;font-weight:bold;line-height:1.3;color:' . esc_attr($header_text) . ';">' . esc_html($heading) . '</h1></td></tr>'
+               . '<tr><td style="padding:30px 40px;font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#333333;">';
+
+        return $html;
+    }
+
+    /**
+     * {all_data} prints a fixed 600px table; keep it inside the GPS card.
+     */
+    public static function fluentform_email_styles($css, $form, $notification) {
+        if (!self::fluentform_uses_gps_frame($form)) {
+            return $css;
+        }
+        return $css . ' table.ff_all_data { width: 100%; }';
+    }
+
+    /**
+     * Closing half of the GPS frame: grey footer with address and copyright.
+     */
+    public static function fluentform_email_footer($footer, $form, $notification) {
+        if (!self::fluentform_uses_gps_frame($form)) {
+            return $footer;
+        }
+
+        $footer_bg   = Email_Settings::get('footer_bg_color');
+        $footer_text = Email_Settings::get('footer_text_color');
+        $address     = Email_Settings::get('footer_address') ?: '6320 Sugarloaf Parkway, Duluth, GA 30097';
+
+        return '</td></tr>'
+             . '<tr><td align="center" style="background-color:' . esc_attr($footer_bg) . ';color:' . esc_attr($footer_text) . ';padding:26px 30px;font-family:Arial,sans-serif;">'
+             . '<p style="margin:0;font-size:14px;color:' . esc_attr($footer_text) . ';">' . esc_html(get_bloginfo('name')) . '<br>' . nl2br(esc_html($address)) . '</p>'
+             . '<p style="margin:12px 0 0;font-size:12px;color:' . esc_attr($footer_text) . ';opacity:0.7;">&copy; ' . esc_html(date_i18n('Y')) . ' ' . esc_html(get_bloginfo('name')) . '</p>'
+             . '</td></tr></table></td></tr></table></body></html>';
     }
 
     /**
