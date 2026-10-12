@@ -549,14 +549,14 @@ class Seminar_Certificates {
         return $wpdb->insert(
             $wpdb->prefix . 'gps_certificates',
             [
-                'ticket_id' => 0, // N/A for seminars
+                // ticket_id stays NULL: it only links course tickets (unique)
                 'user_id' => $registration->user_id,
                 'event_id' => $registration->seminar_id,
                 'certificate_path' => $certificate_path,
                 'certificate_url' => self::get_certificate_url($certificate_path),
                 'generated_at' => current_time('mysql'),
             ],
-            ['%d', '%d', '%d', '%s', '%s', '%s']
+            ['%d', '%d', '%s', '%s', '%s']
         );
     }
 
@@ -730,7 +730,12 @@ class Seminar_Certificates {
                 c.generated_at as certificate_generated_at
             FROM {$wpdb->prefix}gps_seminar_registrations r
             INNER JOIN {$wpdb->users} u ON r.user_id = u.ID
-            LEFT JOIN {$wpdb->prefix}gps_certificates c ON c.user_id = r.user_id AND c.event_id = r.seminar_id
+            LEFT JOIN (
+                SELECT user_id, event_id, MAX(id) AS last_id
+                FROM {$wpdb->prefix}gps_certificates
+                GROUP BY user_id, event_id
+            ) lc ON lc.user_id = r.user_id AND lc.event_id = r.seminar_id
+            LEFT JOIN {$wpdb->prefix}gps_certificates c ON c.id = lc.last_id
             WHERE r.seminar_id = %d
             AND r.status = 'active'
             ORDER BY u.display_name ASC",

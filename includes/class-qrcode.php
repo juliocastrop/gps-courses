@@ -52,6 +52,10 @@ class QRCodeGenerator {
                 'timestamp' => current_time('timestamp'),
                 'hash' => self::generate_verification_hash($ticket_code, $ticket_id, $data),
             ];
+            // Other ticket kinds (e.g. individual seminar sessions) tell the scanner what they are
+            if (!empty($data['type'])) {
+                $qr_data['type'] = (string) $data['type'];
+            }
 
             // JSON encode the data
             $json_data = wp_json_encode($qr_data);

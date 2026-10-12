@@ -397,7 +397,9 @@ class Seminar_Attendance {
         $session_id = (int) $_POST['session_id'];
 
         // Handle individual session ticket QR codes
-        if (isset($qr_data['type']) && $qr_data['type'] === 'session_ticket') {
+        $is_session_ticket = (isset($qr_data['type']) && $qr_data['type'] === 'session_ticket')
+            || (isset($qr_data['ticket_code']) && 0 === strpos((string) $qr_data['ticket_code'], 'ST-'));
+        if ($is_session_ticket) {
             $result = Session_Tickets::check_in_by_code(
                 $qr_data['ticket_code'],
                 $session_id

@@ -31,7 +31,7 @@ class Activator {
             id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             user_id BIGINT(20) UNSIGNED NOT NULL,
             event_id BIGINT(20) UNSIGNED NOT NULL,
-            credits INT(11) NOT NULL,
+            credits DECIMAL(6,2) NOT NULL DEFAULT 0,
             source VARCHAR(20) DEFAULT 'auto',
             transaction_type VARCHAR(20) DEFAULT 'attendance',
             notes VARCHAR(255) DEFAULT NULL,
@@ -105,7 +105,7 @@ class Activator {
 
         $certificates = "CREATE TABLE {$wpdb->prefix}gps_certificates (
             id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-            ticket_id BIGINT(20) UNSIGNED NOT NULL,
+            ticket_id BIGINT(20) UNSIGNED DEFAULT NULL,
             user_id BIGINT(20) UNSIGNED NOT NULL,
             event_id BIGINT(20) UNSIGNED NOT NULL,
             certificate_path VARCHAR(255) DEFAULT NULL,
@@ -299,6 +299,10 @@ class Activator {
 
         flush_rewrite_rules();
 
+        // Changes dbDelta does not apply on existing tables
+        self::migrate_ledger_decimal_credits();
+        self::migrate_certificates_nullable_ticket();
+
         update_option('gps_courses_db_version', GPSC_VERSION);
     }
 
@@ -341,6 +345,45 @@ class Activator {
 
             // Ensure promotional QR tables exist
             self::migrate_qr_tables();
+
+            // CE credits with decimals; several seminar/session certificates per user
+            self::migrate_ledger_decimal_credits();
+            self::migrate_certificates_nullable_ticket();
+        }
+    }
+
+    /**
+     * gps_ce_ledger.credits was INT, so 1.5 credits were stored as 1.
+     */
+    public static function migrate_ledger_decimal_credits() {
+        global $wpdb;
+        $table  = $wpdb->prefix . 'gps_ce_ledger';
+        $column = $wpdb->get_row("SHOW COLUMNS FROM $table LIKE 'credits'");
+        if ($column && false === stripos((string) $column->Type, 'decimal')) {
+            if (false === $wpdb->query("ALTER TABLE $table MODIFY credits DECIMAL(6,2) NOT NULL DEFAULT 0")) {
+                error_log('GPS Courses: could not change gps_ce_ledger.credits to DECIMAL: ' . $wpdb->last_error);
+            } else {
+                error_log('GPS Courses: gps_ce_ledger.credits changed to DECIMAL(6,2)');
+            }
+        }
+    }
+
+    /**
+     * gps_certificates.ticket_id is UNIQUE and seminar/session certificates
+     * were saved with ticket_id = 0, so only the first one could be stored.
+     * NULL is allowed many times under a UNIQUE key.
+     */
+    public static function migrate_certificates_nullable_ticket() {
+        global $wpdb;
+        $table  = $wpdb->prefix . 'gps_certificates';
+        $column = $wpdb->get_row("SHOW COLUMNS FROM $table LIKE 'ticket_id'");
+        if ($column && 'NO' === strtoupper((string) $column->Null)) {
+            if (false === $wpdb->query("ALTER TABLE $table MODIFY ticket_id BIGINT(20) UNSIGNED NULL DEFAULT NULL")) {
+                error_log('GPS Courses: could not make gps_certificates.ticket_id nullable: ' . $wpdb->last_error);
+                return;
+            }
+            $wpdb->query("UPDATE $table SET ticket_id = NULL WHERE ticket_id = 0");
+            error_log('GPS Courses: gps_certificates.ticket_id is now nullable');
         }
     }
 

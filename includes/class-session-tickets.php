@@ -425,14 +425,14 @@ class Session_Tickets {
         $wpdb->insert(
             $wpdb->prefix . 'gps_certificates',
             [
-                'ticket_id'        => 0, // Not a course ticket
+                // ticket_id stays NULL: it only links course tickets (unique)
                 'user_id'          => $ticket->user_id ?: 0,
                 'event_id'         => $ticket->seminar_id,
                 'certificate_path' => $filepath,
                 'certificate_url'  => $cert_url,
                 'generated_at'     => current_time('mysql'),
             ],
-            ['%d', '%d', '%d', '%s', '%s', '%s']
+            ['%d', '%d', '%s', '%s', '%s']
         );
 
         return $filepath;
@@ -528,43 +528,16 @@ class Session_Tickets {
      * Generate QR code for a session ticket
      */
     private static function generate_qr_code($ticket_id, $ticket_code, $session_id) {
-        // Use the existing QR code utility if available
-        if (!class_exists('\\GPSC\\QR_Code')) {
+        // Same generator as course tickets; returns a path relative to uploads
+        // (use QRCodeGenerator::get_qr_code_url() to display it).
+        if (!class_exists(__NAMESPACE__ . '\\QRCodeGenerator')) {
             return null;
         }
-
-        $qr_data = json_encode([
-            'type'        => 'session_ticket',
-            'ticket_id'   => $ticket_id,
-            'ticket_code' => $ticket_code,
-            'session_id'  => $session_id,
+        $path = QRCodeGenerator::generate_qr_code($ticket_code, $ticket_id, [
+            'type'     => 'session_ticket',
+            'event_id' => (int) $session_id,
         ]);
-
-        $upload_dir = wp_upload_dir();
-        $qr_dir = $upload_dir['basedir'] . '/gps-qrcodes/sessions/';
-        if (!file_exists($qr_dir)) {
-            wp_mkdir_p($qr_dir);
-        }
-
-        $filename = 'session-qr-' . $ticket_id . '.png';
-        $filepath = $qr_dir . $filename;
-
-        // Use library to generate QR
-        try {
-            $qr = new \Endroid\QrCode\QrCode($qr_data);
-            $qr->setSize(300);
-            $qr->setMargin(10);
-
-            $writer = new \Endroid\QrCode\Writer\PngWriter();
-            $result = $writer->write($qr);
-            file_put_contents($filepath, $result->getString());
-
-            // Return relative path for storage
-            return str_replace(ABSPATH, '/', $filepath);
-        } catch (\Exception $e) {
-            error_log('GPS Session Tickets: QR code generation failed - ' . $e->getMessage());
-            return null;
-        }
+        return $path ?: null;
     }
 
     /**

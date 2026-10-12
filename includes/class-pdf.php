@@ -202,9 +202,10 @@ class PDF_Generator {
         $pdf->Ln(10);
 
         // QR Code
-        if ($ticket->qr_code_path && file_exists(ABSPATH . $ticket->qr_code_path)) {
+        $qr_file = QRCodeGenerator::get_qr_code_path($ticket->qr_code_path);
+        if ($qr_file && file_exists($qr_file)) {
             $qr_y = $pdf->GetY();
-            $pdf->Image(ABSPATH . $ticket->qr_code_path, 65, $qr_y, 80, 80, 'PNG');
+            $pdf->Image($qr_file, 65, $qr_y, 80, 80, 'PNG');
             $pdf->SetY($qr_y + 85);
 
             $pdf->SetFont('helvetica', '', 10);
@@ -288,8 +289,9 @@ class PDF_Generator {
             $pdf->Cell(50, 8, 'Ticket Code:', 0, 0, 'L');
             $pdf->Cell(0, 8, $ticket->ticket_code, 0, 1, 'L');
 
-            if ($ticket->qr_code_path && file_exists(ABSPATH . $ticket->qr_code_path)) {
-                $pdf->Image(ABSPATH . $ticket->qr_code_path, 65, $pdf->GetY() + 10, 80, 80, 'PNG');
+            $qr_file = QRCodeGenerator::get_qr_code_path($ticket->qr_code_path);
+            if ($qr_file && file_exists($qr_file)) {
+                $pdf->Image($qr_file, 65, $pdf->GetY() + 10, 80, 80, 'PNG');
             }
         }
 

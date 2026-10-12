@@ -117,7 +117,7 @@ class GPSC_Ticket_Email extends WC_Email {
 
         // Get QR code
         $qr_code_path = $this->ticket->qr_code_path;
-        $qr_code_url = $qr_code_path ? site_url($qr_code_path) : '';
+        $qr_code_url = $qr_code_path ? \GPSC\QRCodeGenerator::get_qr_code_url($qr_code_path) : '';
 
         return wc_get_template_html(
             $this->template_html,

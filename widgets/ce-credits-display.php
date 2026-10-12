@@ -384,7 +384,7 @@ class Ce_Credits_Display_Widget extends Base_Widget {
                     <div class="gps-credits-label"><?php echo esc_html($settings['label_text']); ?></div>
                     <?php endif; ?>
 
-                    <div class="gps-credits-number"><?php echo (int) $total_credits; ?></div>
+                    <div class="gps-credits-number"><?php echo esc_html(\GPSC\Credits::format($total_credits)); ?></div>
                 </div>
             </div>
 
@@ -398,7 +398,7 @@ class Ce_Credits_Display_Widget extends Base_Widget {
                     <div class="gps-progress-fill" style="width: <?php echo esc_attr($percentage); ?>%"></div>
                 </div>
                 <div class="gps-progress-text">
-                    <?php echo (int) $total_credits; ?> / <?php echo (int) $goal; ?> <?php _e('Credits', 'gps-courses'); ?>
+                    <?php echo esc_html(\GPSC\Credits::format($total_credits)); ?> / <?php echo (int) $goal; ?> <?php _e('Credits', 'gps-courses'); ?>
                 </div>
             </div>
             <?php endif; ?>
@@ -430,7 +430,7 @@ class Ce_Credits_Display_Widget extends Base_Widget {
 
                 <div class="gps-credits-content">
                     <div class="gps-credits-label"><?php _e('CE Credits:', 'gps-courses'); ?></div>
-                    <div class="gps-credits-number"><?php echo (int) $credits; ?></div>
+                    <div class="gps-credits-number"><?php echo esc_html(\GPSC\Credits::format($credits)); ?></div>
                 </div>
             </div>
         </div>
@@ -473,7 +473,7 @@ class Ce_Credits_Display_Widget extends Base_Widget {
                             echo $event ? esc_html($event->post_title) : __('Unknown Event', 'gps-courses');
                             ?>
                         </td>
-                        <td><strong><?php echo (int) $entry->credits; ?></strong></td>
+                        <td><strong><?php echo esc_html(\GPSC\Credits::format($entry->credits)); ?></strong></td>
                         <td><span class="gps-source-badge"><?php echo esc_html(ucfirst($entry->source)); ?></span></td>
                     </tr>
                     <?php endforeach; ?>

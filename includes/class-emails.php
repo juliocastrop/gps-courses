@@ -630,7 +630,7 @@ class Emails {
                                             <?php _e('Credits Earned', 'gps-courses'); ?>
                                         </p>
                                         <p style="margin: 0; font-size: 48px; font-weight: bold; color: #0c4a6e;">
-                                            <?php echo (int) $credits; ?>
+                                            <?php echo esc_html(Credits::format($credits)); ?>
                                         </p>
                                         <p style="margin: 5px 0 0; font-size: 16px; color: #0369a1;">
                                             <?php _e('CE Credits', 'gps-courses'); ?>
@@ -663,7 +663,7 @@ class Emails {
                                             </td>
                                             <td align="right">
                                                 <p style="margin: 0; font-size: 24px; font-weight: bold; color: #3b82f6;">
-                                                    <?php echo (int) $total_credits; ?>
+                                                    <?php echo esc_html(Credits::format($total_credits)); ?>
                                                 </p>
                                             </td>
                                         </tr>

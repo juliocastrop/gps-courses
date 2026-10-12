@@ -39,7 +39,7 @@ class Credits {
 
     public static function user_total($user_id) {
         global $wpdb;
-        return (int) $wpdb->get_var($wpdb->prepare(
+        return (float) $wpdb->get_var($wpdb->prepare(
             "SELECT COALESCE(SUM(credits),0) FROM {$wpdb->prefix}gps_ce_ledger WHERE user_id=%d",
             $user_id
         ));
@@ -51,6 +51,13 @@ class Credits {
             "SELECT * FROM {$wpdb->prefix}gps_ce_ledger WHERE user_id=%d ORDER BY awarded_at DESC",
             $user_id
         ));
+    }
+
+    /** 12 -> "12", 3.5 -> "3.5", 2.25 -> "2.25" for display. */
+    public static function format($credits) {
+        $credits = round((float) $credits, 2);
+        $decimals = (floor($credits) == $credits) ? 0 : ((round($credits, 1) == $credits) ? 1 : 2);
+        return number_format_i18n($credits, $decimals);
     }
 
     // Aliases for compatibility

@@ -519,6 +519,14 @@ class Certificates {
     }
 
     /**
+     * Public entry to the course certificate layout, for other certificate
+     * types (individual seminar sessions) that share the same design.
+     */
+    public static function render_certificate_content_static($pdf, $data) {
+        self::render_certificate_content($pdf, $data);
+    }
+
+    /**
      * Render certificate content
      */
     private static function render_certificate_content($pdf, $data) {

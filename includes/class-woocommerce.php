@@ -1980,7 +1980,7 @@ class Woo {
              FROM {$wpdb->prefix}gps_seminar_registrations r
              INNER JOIN {$wpdb->posts} p ON r.seminar_id = p.ID
              WHERE r.user_id = %d AND r.status = 'active'
-             ORDER BY r.registered_at DESC",
+             ORDER BY r.registration_date DESC, r.id DESC",
             $user_id
         ));
 
@@ -2067,13 +2067,13 @@ class Woo {
                             </h3>
                             <p style="margin: 0; color: #64748b; font-size: 14px;">
                                 <?php _e('Registered:', 'gps-courses'); ?>
-                                <?php echo date_i18n(get_option('date_format'), strtotime($registration->registered_at)); ?>
+                                <?php echo date_i18n(get_option('date_format'), strtotime($registration->registration_date)); ?>
                             </p>
                         </div>
                         <div style="text-align: right;">
                             <div style="background: #eff6ff; padding: 10px 15px; border-radius: 6px; border-left: 3px solid #3b82f6;">
                                 <div style="font-size: 12px; color: #1e40af; margin-bottom: 3px;"><?php _e('Total Credits', 'gps-courses'); ?></div>
-                                <div style="font-size: 24px; font-weight: bold; color: #1e40af;"><?php echo (int) $total_credits; ?></div>
+                                <div style="font-size: 24px; font-weight: bold; color: #1e40af;"><?php echo esc_html(Credits::format($total_credits)); ?></div>
                             </div>
                         </div>
                     </div>
@@ -2127,7 +2127,7 @@ class Woo {
                                         🕐 <?php echo date('g:i A', strtotime($session->session_time_start)); ?> - <?php echo date('g:i A', strtotime($session->session_time_end)); ?>
                                         <?php if ($attended): ?>
                                             &nbsp;•&nbsp;
-                                            <strong style="color: #10b981;"><?php echo (int) $credits_awarded; ?> <?php _e('Credits', 'gps-courses'); ?></strong>
+                                            <strong style="color: #10b981;"><?php echo esc_html(Credits::format($credits_awarded)); ?> <?php _e('Credits', 'gps-courses'); ?></strong>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -2431,7 +2431,7 @@ class Woo {
 
             <div class="gps-credits-summary">
                 <div class="gps-credits-box">
-                    <span class="gps-credits-number"><?php echo (int) $total_credits; ?></span>
+                    <span class="gps-credits-number"><?php echo esc_html(Credits::format($total_credits)); ?></span>
                     <span class="gps-credits-label"><?php _e('Total CE Credits Earned', 'gps-courses'); ?></span>
                 </div>
             </div>
@@ -2466,7 +2466,7 @@ class Woo {
                                 <?php endif; ?>
                             </td>
                             <td data-title="<?php esc_attr_e('Credits', 'gps-courses'); ?>">
-                                <strong><?php echo (int) $entry->credits; ?></strong>
+                                <strong><?php echo esc_html(Credits::format($entry->credits)); ?></strong>
                             </td>
                             <td data-title="<?php esc_attr_e('Type', 'gps-courses'); ?>">
                                 <span class="gps-credit-type <?php echo esc_attr($entry->transaction_type); ?>">
@@ -2568,7 +2568,7 @@ class Woo {
                             </td>
                             <td data-title="<?php esc_attr_e('QR Code', 'gps-courses'); ?>">
                                 <?php if ($ticket->qr_code_path): ?>
-                                    <img src="<?php echo site_url($ticket->qr_code_path); ?>" alt="QR Code" style="max-width: 100px;" onerror="this.style.display='none'">
+                                    <img src="<?php echo esc_url(QRCodeGenerator::get_qr_code_url($ticket->qr_code_path)); ?>" alt="QR Code" style="max-width: 100px;" onerror="this.style.display='none'">
                                 <?php endif; ?>
                             </td>
                             <td data-title="<?php esc_attr_e('Actions', 'gps-courses'); ?>">

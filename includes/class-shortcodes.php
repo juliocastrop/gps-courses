@@ -43,8 +43,8 @@ class Shortcodes {
         }
 
         return sprintf(
-            '<span class="gps-ce-credits-plain">%d %s</span>',
-            (int) $credits,
+            '<span class="gps-ce-credits-plain">%s %s</span>',
+            esc_html(Credits::format($credits)),
             _n('CE Credit', 'CE Credits', $credits, 'gps-courses')
         );
     }
@@ -68,7 +68,7 @@ class Shortcodes {
             <div class="gps-ce-profile-header">
                 <h3><?php _e('CE Credits Profile', 'gps-courses'); ?></h3>
                 <div class="gps-total-credits">
-                    <span class="gps-credits-number"><?php echo (int) $total_credits; ?></span>
+                    <span class="gps-credits-number"><?php echo esc_html(Credits::format($total_credits)); ?></span>
                     <span class="gps-credits-label"><?php _e('Total Credits', 'gps-courses'); ?></span>
                 </div>
             </div>
@@ -100,7 +100,7 @@ class Shortcodes {
                                         —
                                     <?php endif; ?>
                                 </td>
-                                <td><strong><?php echo (int) $entry->credits; ?></strong></td>
+                                <td><strong><?php echo esc_html(Credits::format($entry->credits)); ?></strong></td>
                                 <td><span class="gps-credit-type <?php echo esc_attr($entry->transaction_type); ?>"><?php echo esc_html(ucwords(str_replace('_', ' ', $entry->transaction_type))); ?></span></td>
                                 <td><?php echo esc_html($entry->notes); ?></td>
                             </tr>
@@ -136,7 +136,7 @@ class Shortcodes {
         ob_start();
         ?>
         <div class="gps-ce-credits-total">
-            <span class="gps-credits-number"><?php echo (int) $total_credits; ?></span>
+            <span class="gps-credits-number"><?php echo esc_html(Credits::format($total_credits)); ?></span>
             <?php if ($atts['show_label'] === 'yes'): ?>
                 <span class="gps-credits-label"><?php echo esc_html($atts['label']); ?></span>
             <?php endif; ?>
