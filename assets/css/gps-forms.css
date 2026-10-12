@@ -157,6 +157,11 @@
     color: var(--gps-ink);
 }
 
+/* Name field: keep first/last labels aligned when one shows an error */
+.fluentform .frm-fluent-form .ff-t-container {
+    align-items: flex-start;
+}
+
 /* Phone field (Fluent Forms intl-tel-input) */
 .fluentform .frm-fluent-form .iti {
     width: 100%;
@@ -191,6 +196,13 @@
     box-shadow: none;
     cursor: pointer;
     transition: background-color .15s ease;
+}
+
+/* Fluent Forms dims the button to 0.8 opacity on focus/hover; keep it solid */
+.fluentform form.frm-fluent-form .ff-btn.ff-btn-submit,
+.fluentform form.frm-fluent-form .ff-btn.ff-btn-submit:focus,
+.fluentform form.frm-fluent-form .ff-btn.ff-btn-submit:hover {
+    opacity: 1;
 }
 
 .fluentform form.frm-fluent-form .ff-btn.ff-btn-submit:hover,
