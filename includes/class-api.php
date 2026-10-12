@@ -101,13 +101,15 @@ class API {
         register_rest_route($namespace, '/waitlist/add', [
             'methods' => 'POST',
             'callback' => [__CLASS__, 'add_to_waitlist'],
-            'permission_callback' => '__return_true', // Public endpoint
+            // Staff only: GIA now calls gpsc_waitlist_add() in PHP (public-api.php)
+            'permission_callback' => function () { return current_user_can('manage_woocommerce'); },
         ]);
 
         register_rest_route($namespace, '/waitlist/check', [
             'methods' => 'GET',
             'callback' => [__CLASS__, 'check_waitlist_status'],
-            'permission_callback' => '__return_true', // Public endpoint
+            // Staff only: it lists every course an email is waiting for
+            'permission_callback' => function () { return current_user_can('manage_woocommerce'); },
         ]);
     }
 

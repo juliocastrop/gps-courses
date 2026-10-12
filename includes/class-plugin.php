@@ -50,6 +50,7 @@ class Plugin {
         require_once GPSC_PATH . 'includes/class-fluentform-login.php';
         require_once GPSC_PATH . 'includes/class-account-auth.php';
         require_once GPSC_PATH . 'includes/class-account-dashboard.php';
+        require_once GPSC_PATH . 'includes/public-api.php';
 
         require_once GPSC_PATH . 'includes/helpers.php';
 
