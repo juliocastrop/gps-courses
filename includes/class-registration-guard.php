@@ -60,6 +60,14 @@ class Registration_Guard {
     /** Minimum seconds between two codes for the same email. */
     const OTP_COOLDOWN = 60;
 
+    /**
+     * Set by a template that renders its own code input (the GPS My Account
+     * template), so the default field + "Send code" button is not added twice.
+     *
+     * @var bool
+     */
+    public static $custom_code_field = false;
+
     public static function init() {
         // Render honeypot + timestamp on both registration forms
         add_action('register_form', [__CLASS__, 'render_honeypot']);
@@ -73,6 +81,8 @@ class Registration_Guard {
         add_filter('woocommerce_process_registration_errors', [__CLASS__, 'validate_registration_code'], 10, 4);
         add_action('wp_ajax_nopriv_gps_reg_send_code', [__CLASS__, 'ajax_send_code']);
         add_action('wp_ajax_gps_reg_send_code', [__CLASS__, 'ajax_send_code']);
+        add_action('wp_ajax_nopriv_gps_reg_check_code', [__CLASS__, 'ajax_check_code']);
+        add_action('wp_ajax_gps_reg_check_code', [__CLASS__, 'ajax_check_code']);
 
         // Same email code on Fluent Forms user-registration forms (e.g. /register/).
         // The field renders right before the submit button (Fluent Forms prints
@@ -288,6 +298,9 @@ class Registration_Guard {
      * (FlyingPress delay/defer, Rocket Loader) move or delay inline scripts.
      */
     public static function render_otp_field() {
+        if (self::$custom_code_field) {
+            return;
+        }
         ?>
         <p class="woocommerce-form-row woocommerce-form-row--wide form-row form-row-wide gps-reg-code-row">
             <label for="gps_reg_code"><?php esc_html_e('Email verification code', 'gps-courses'); ?>&nbsp;<span class="required" aria-hidden="true">*</span></label>
@@ -480,7 +493,7 @@ class Registration_Guard {
         // endpoint is protected by the bot checks and the per-email/IP throttles.
         $email = sanitize_email(wp_unslash(isset($_POST['email']) ? $_POST['email'] : ''));
         if (!is_email($email)) {
-            wp_send_json_error(['message' => __('Please enter a valid email address.', 'gps-courses')]);
+            wp_send_json_error(['code' => 'invalid_email', 'message' => __('Please enter a valid email address.', 'gps-courses')]);
         }
         $email = strtolower($email);
 
@@ -488,7 +501,7 @@ class Registration_Guard {
         $reason = self::detect_bot($email, '', false);
         if ($reason) {
             self::log_block($email, '', $reason, 'send_code');
-            wp_send_json_error(['message' => self::user_message()]);
+            wp_send_json_error(['code' => 'blocked', 'message' => self::user_message()]);
         }
 
         // Throttle before anything else touches the email (also limits enumeration).
@@ -497,13 +510,13 @@ class Registration_Guard {
         $ip_key    = $ip ? md5($ip) : '';
         $ip_max    = (int) apply_filters('gps_reg_otp_ip_max', self::OTP_IP_SEND_MAX);
         if (get_transient('gps_reg_otp_cd_' . $email_key)) {
-            wp_send_json_error(['message' => __('Please wait a minute before requesting another code.', 'gps-courses')]);
+            wp_send_json_error(['code' => 'cooldown', 'message' => __('Please wait a minute before requesting another code.', 'gps-courses')]);
         }
         $sent_email = (int) get_transient('gps_reg_otp_n_' . $email_key);
         $sent_ip    = $ip_key ? (int) get_transient('gps_reg_otp_ip_' . $ip_key) : 0;
         if ($sent_email >= self::OTP_SEND_MAX || ($ip_key && $sent_ip >= $ip_max)) {
             self::log_block($email, '', 'otp_send_limit', 'send_code');
-            wp_send_json_error(['message' => __('Too many codes requested. Please try again in 15 minutes.', 'gps-courses')]);
+            wp_send_json_error(['code' => 'limit', 'message' => __('Too many codes requested. Please try again in 15 minutes.', 'gps-courses')]);
         }
 
         if (email_exists($email)) {
@@ -512,7 +525,7 @@ class Registration_Guard {
             if ($ip_key) {
                 set_transient('gps_reg_otp_ip_' . $ip_key, $sent_ip + 1, self::OTP_SEND_WINDOW);
             }
-            wp_send_json_error(['message' => __('An account with this email already exists. Please log in instead.', 'gps-courses')]);
+            wp_send_json_error(['code' => 'exists', 'message' => __('An account with this email already exists. Please log in instead.', 'gps-courses')]);
         }
 
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
@@ -524,7 +537,7 @@ class Registration_Guard {
 
         if (!self::send_code_email($email, $code)) {
             delete_transient(self::otp_key($email));
-            wp_send_json_error(['message' => __('We could not send the email. Please try again or contact us.', 'gps-courses')]);
+            wp_send_json_error(['code' => 'mail_failed', 'message' => __('We could not send the email. Please try again or contact us.', 'gps-courses')]);
         }
 
         set_transient('gps_reg_otp_cd_' . $email_key, 1, self::OTP_COOLDOWN);
@@ -534,12 +547,47 @@ class Registration_Guard {
         }
 
         wp_send_json_success([
+            'code'    => 'sent',
             'message' => sprintf(
                 /* translators: %s: email address */
                 __('We sent a 6-digit code to %s. It expires in 10 minutes — check your spam folder if you don\'t see it.', 'gps-courses'),
                 $email
             ),
         ]);
+    }
+
+    /**
+     * AJAX: check a code before the last registration step, so a typo is caught
+     * right away instead of after the profile step. Uses the same attempt
+     * counter as the final check and does not consume the code.
+     */
+    public static function ajax_check_code() {
+        $email = strtolower(sanitize_email(wp_unslash(isset($_POST['email']) ? $_POST['email'] : '')));
+        $code  = isset($_POST['code']) ? sanitize_text_field(wp_unslash($_POST['code'])) : '';
+        if (!is_email($email)) {
+            wp_send_json_error(['code' => 'invalid_email', 'message' => __('Please enter a valid email address.', 'gps-courses')]);
+        }
+
+        // Per-IP cap on guesses across all emails (the per-code cap is OTP_MAX_ATTEMPTS).
+        $ip     = self::client_ip();
+        $ip_key = $ip ? 'gps_reg_otp_chk_' . md5($ip) : '';
+        if ($ip_key) {
+            $checks = (int) get_transient($ip_key);
+            if ($checks >= (int) apply_filters('gps_reg_otp_check_ip_max', 20)) {
+                wp_send_json_error(['code' => 'limit', 'message' => __('Too many attempts. Please try again in 15 minutes.', 'gps-courses')]);
+            }
+            set_transient($ip_key, $checks + 1, self::OTP_SEND_WINDOW);
+        }
+
+        $error = self::verify_otp($email, $code);
+        if ($error) {
+            // Log real guesses only, so calls without a pending code can't flood the log.
+            if (in_array($error['reason'], ['otp_invalid', 'otp_too_many'], true)) {
+                self::log_block($email, '', $error['reason'], 'check_code');
+            }
+            wp_send_json_error(['code' => $error['reason'], 'message' => $error['message']]);
+        }
+        wp_send_json_success(['code' => 'ok']);
     }
 
     /**

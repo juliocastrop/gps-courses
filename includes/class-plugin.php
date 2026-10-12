@@ -48,6 +48,7 @@ class Plugin {
         require_once GPSC_PATH . 'includes/class-receipts.php';
         require_once GPSC_PATH . 'includes/class-registration-guard.php';
         require_once GPSC_PATH . 'includes/class-fluentform-login.php';
+        require_once GPSC_PATH . 'includes/class-account-auth.php';
 
         require_once GPSC_PATH . 'includes/helpers.php';
 
@@ -99,6 +100,7 @@ class Plugin {
         Receipts::init();
         Registration_Guard::init();
         Fluentform_Login::init();
+        Account_Auth::init();
 
         Woo::hooks();
 
