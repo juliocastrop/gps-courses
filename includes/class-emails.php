@@ -25,6 +25,9 @@ class Emails {
         add_filter('fluentform/email_header', [__CLASS__, 'fluentform_email_header'], 10, 3);
         add_filter('fluentform/email_footer', [__CLASS__, 'fluentform_email_footer'], 10, 3);
         add_filter('fluentform/email_styles', [__CLASS__, 'fluentform_email_styles'], 10, 3);
+
+        // WooCommerce emails in the same frame
+        add_filter('wc_get_template', [__CLASS__, 'woocommerce_email_template'], 20, 2);
     }
 
     /**
@@ -48,30 +51,76 @@ class Emails {
         $heading   = $to_sender ? __('We received your message', 'gps-courses') : __('New contact message', 'gps-courses');
         $heading   = apply_filters('gps_fluentform_email_heading', $heading, $form, $notification);
 
-        $logo        = Email_Settings::get('logo');
+        return self::frame_open($heading);
+    }
+
+    /* ====================================================================
+     * GPS email frame, shared by every email the site sends: plugin emails,
+     * Fluent Forms notifications and WooCommerce's own (via its templates).
+     * ==================================================================== */
+
+    /**
+     * Logo for the navy band. Gmail and Outlook don't show SVG, so an SVG
+     * setting falls back to the white PNG logo.
+     */
+    public static function frame_logo() {
+        $logo = (string) Email_Settings::get('logo');
+        if ($logo === '' || preg_match('/\.svg(\?|$)/i', $logo)) {
+            $id   = (int) apply_filters('gps_email_png_logo_id', 7626);
+            $png  = $id ? wp_get_attachment_image_url($id, 'full') : '';
+            $logo = $png ?: '';
+        }
+        return (string) apply_filters('gps_email_frame_logo', $logo);
+    }
+
+    /**
+     * Everything up to and including the opening body cell.
+     *
+     * @param string $heading         Plain text heading for the navy band.
+     * @param string $body_cell_attrs Extra attributes for the body <td> (an id, for example). Printed as is: internal literals only.
+     * @param string $body_align      left|center
+     */
+    public static function frame_open($heading, $body_cell_attrs = '', $body_align = 'left') {
+        $logo        = self::frame_logo();
         $header_bg   = Email_Settings::get('header_bg_color');
         $header_text = Email_Settings::get('header_text_color');
         $width       = (int) Email_Settings::get('container_width');
         if ($width < 320 || $width > 1200) {
             $width = 600;
         }
+        $align = $body_align === 'center' ? 'center' : 'left';
 
         $html  = '<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />'
                . '<meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>' . esc_html(get_bloginfo('name')) . '</title></head>'
                . '<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:Arial,sans-serif;">'
-               . '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f5f5f5;"><tr><td align="center" style="padding:40px 20px;">'
-               . '<table width="' . $width . '" cellpadding="0" cellspacing="0" border="0" style="max-width:' . $width . 'px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">';
+               . '<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background-color:#f5f5f5;"><tr><td align="center" style="padding:40px 20px;">'
+               . '<table width="' . $width . '" cellpadding="0" cellspacing="0" border="0" role="presentation" style="max-width:' . $width . 'px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">';
 
         if ($logo) {
             $html .= '<tr><td align="center" style="padding:32px 30px 0;background-color:' . esc_attr($header_bg) . ';">'
-                   . '<img src="' . esc_url($logo) . '" alt="' . esc_attr(get_bloginfo('name')) . '" width="200" style="max-width:200px;height:auto;border:0;"></td></tr>';
+                   . '<img src="' . esc_url($logo) . '" alt="' . esc_attr(get_bloginfo('name')) . '" width="200" style="display:inline-block;width:200px;max-width:200px;height:auto;border:0;margin:0;"></td></tr>';
         }
 
         $html .= '<tr><td align="center" style="background-color:' . esc_attr($header_bg) . ';padding:' . ($logo ? '24px 30px 36px' : '36px 30px') . ';">'
-               . '<h1 style="margin:0;text-align:center;font-family:Arial,sans-serif;font-size:26px;font-weight:bold;line-height:1.3;color:' . esc_attr($header_text) . ';">' . esc_html($heading) . '</h1></td></tr>'
-               . '<tr><td style="padding:30px 40px;font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#333333;">';
+               . '<h1 style="margin:0;text-align:center;font-family:Arial,sans-serif;font-size:26px;font-weight:bold;line-height:1.3;letter-spacing:normal;color:' . esc_attr($header_text) . ';">' . esc_html($heading) . '</h1></td></tr>'
+               . '<tr><td ' . $body_cell_attrs . ' style="padding:30px 40px;text-align:' . $align . ';font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#333333;background-color:#ffffff;">';
 
         return $html;
+    }
+
+    /**
+     * Closes the body cell and adds the grey footer with address and copyright.
+     */
+    public static function frame_close() {
+        $footer_bg   = Email_Settings::get('footer_bg_color');
+        $footer_text = Email_Settings::get('footer_text_color');
+        $address     = Email_Settings::get('footer_address') ?: '6320 Sugarloaf Parkway, Duluth, GA 30097';
+
+        return '</td></tr>'
+             . '<tr><td align="center" style="background-color:' . esc_attr($footer_bg) . ';color:' . esc_attr($footer_text) . ';padding:26px 30px;font-family:Arial,sans-serif;">'
+             . '<p style="margin:0;font-size:14px;color:' . esc_attr($footer_text) . ';">' . esc_html(get_bloginfo('name')) . '<br>' . nl2br(esc_html($address)) . '</p>'
+             . '<p style="margin:12px 0 0;font-size:12px;color:' . esc_attr($footer_text) . ';opacity:0.7;">&copy; ' . esc_html(date_i18n('Y')) . ' ' . esc_html(get_bloginfo('name')) . '</p>'
+             . '</td></tr></table></td></tr></table></body></html>';
     }
 
     /**
@@ -85,22 +134,28 @@ class Emails {
     }
 
     /**
-     * Closing half of the GPS frame: grey footer with address and copyright.
+     * Closing half of the GPS frame for Fluent Forms.
      */
     public static function fluentform_email_footer($footer, $form, $notification) {
         if (!self::fluentform_uses_gps_frame($form)) {
             return $footer;
         }
+        return self::frame_close();
+    }
 
-        $footer_bg   = Email_Settings::get('footer_bg_color');
-        $footer_text = Email_Settings::get('footer_text_color');
-        $address     = Email_Settings::get('footer_address') ?: '6320 Sugarloaf Parkway, Duluth, GA 30097';
-
-        return '</td></tr>'
-             . '<tr><td align="center" style="background-color:' . esc_attr($footer_bg) . ';color:' . esc_attr($footer_text) . ';padding:26px 30px;font-family:Arial,sans-serif;">'
-             . '<p style="margin:0;font-size:14px;color:' . esc_attr($footer_text) . ';">' . esc_html(get_bloginfo('name')) . '<br>' . nl2br(esc_html($address)) . '</p>'
-             . '<p style="margin:12px 0 0;font-size:12px;color:' . esc_attr($footer_text) . ';opacity:0.7;">&copy; ' . esc_html(date_i18n('Y')) . ' ' . esc_html(get_bloginfo('name')) . '</p>'
-             . '</td></tr></table></td></tr></table></body></html>';
+    /**
+     * WooCommerce emails (order, account, password reset) use the GPS frame:
+     * our email-header.php / email-footer.php replace WooCommerce's.
+     */
+    public static function woocommerce_email_template($template, $template_name) {
+        if (!in_array($template_name, ['emails/email-header.php', 'emails/email-footer.php'], true)) {
+            return $template;
+        }
+        if (!apply_filters('gps_woocommerce_emails_use_gps_frame', true)) {
+            return $template;
+        }
+        $ours = GPSC_PATH . 'templates/' . $template_name;
+        return file_exists($ours) ? $ours : $template;
     }
 
     /**

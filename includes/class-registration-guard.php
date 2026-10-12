@@ -692,8 +692,11 @@ class Registration_Guard {
         return ['Content-Type: text/html; charset=UTF-8', sprintf('From: %s <%s>', $from_name, $from_mail)];
     }
 
-    /** Shared branded layout: navy header + white card. $body is already-escaped HTML. */
+    /** GPS email frame (logo, navy band, footer). $body is already-escaped HTML. */
     protected static function email_layout($heading, $body) {
+        if (method_exists(Emails::class, 'frame_open')) {
+            return Emails::frame_open($heading, '', 'center') . $body . Emails::frame_close();
+        }
         return '<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">'
             . '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f5f5f5;"><tr><td align="center" style="padding:40px 20px;">'
             . '<table width="560" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">'
