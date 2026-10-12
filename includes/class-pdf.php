@@ -42,8 +42,10 @@ class PDF_Generator {
             wp_die(__('Ticket not found.', 'gps-courses'));
         }
 
-        // Verify user owns this ticket
-        if ($ticket->user_id != get_current_user_id() && !current_user_can('manage_options')) {
+        // The buyer or the designated attendee may download it
+        $uid        = get_current_user_id();
+        $designated = isset($ticket->designated_attendee_id) ? (int) $ticket->designated_attendee_id : 0;
+        if ((int) $ticket->user_id !== $uid && $designated !== $uid && !current_user_can('manage_options')) {
             wp_die(__('Unauthorized access.', 'gps-courses'));
         }
 
