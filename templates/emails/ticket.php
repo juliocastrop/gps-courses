@@ -59,7 +59,7 @@ $settings = [
                     <?php if (!empty($settings['logo'])): ?>
                     <!-- Logo -->
                     <tr>
-                        <td style="text-align: center; padding: 30px 40px 20px; background: white;">
+                        <td style="text-align: center; padding: 30px 40px 0; background: <?php echo esc_attr($settings['header_bg_color']); ?>; border-radius: 8px 8px 0 0;">
                             <img src="<?php echo esc_url($settings['logo']); ?>" alt="<?php echo esc_attr(get_bloginfo('name')); ?>" style="max-width: 200px; height: auto;">
                         </td>
                     </tr>

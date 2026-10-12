@@ -36,7 +36,7 @@ class Emails {
     }
 
     /**
-     * Opening half of the GPS frame: logo, navy band with the heading, body cell.
+     * Opening half of the GPS frame: navy band with the logo and heading, body cell.
      * Same Email Settings values as the ticket email.
      */
     public static function fluentform_email_header($header, $form, $notification) {
@@ -63,11 +63,11 @@ class Emails {
                . '<table width="' . $width . '" cellpadding="0" cellspacing="0" border="0" style="max-width:' . $width . 'px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">';
 
         if ($logo) {
-            $html .= '<tr><td align="center" style="padding:30px;background-color:#ffffff;">'
+            $html .= '<tr><td align="center" style="padding:32px 30px 0;background-color:' . esc_attr($header_bg) . ';">'
                    . '<img src="' . esc_url($logo) . '" alt="' . esc_attr(get_bloginfo('name')) . '" width="200" style="max-width:200px;height:auto;border:0;"></td></tr>';
         }
 
-        $html .= '<tr><td align="center" style="background-color:' . esc_attr($header_bg) . ';padding:36px 30px;">'
+        $html .= '<tr><td align="center" style="background-color:' . esc_attr($header_bg) . ';padding:' . ($logo ? '24px 30px 36px' : '36px 30px') . ';">'
                . '<h1 style="margin:0;text-align:center;font-family:Arial,sans-serif;font-size:26px;font-weight:bold;line-height:1.3;color:' . esc_attr($header_text) . ';">' . esc_html($heading) . '</h1></td></tr>'
                . '<tr><td style="padding:30px 40px;font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#333333;">';
 

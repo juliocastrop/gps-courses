@@ -47,6 +47,7 @@ class Plugin {
         require_once GPSC_PATH . 'includes/class-discount-notes.php';
         require_once GPSC_PATH . 'includes/class-receipts.php';
         require_once GPSC_PATH . 'includes/class-registration-guard.php';
+        require_once GPSC_PATH . 'includes/class-fluentform-login.php';
 
         require_once GPSC_PATH . 'includes/helpers.php';
 
@@ -97,6 +98,7 @@ class Plugin {
         Discount_Notes::init();
         Receipts::init();
         Registration_Guard::init();
+        Fluentform_Login::init();
 
         Woo::hooks();
 

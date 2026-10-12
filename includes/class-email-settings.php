@@ -382,7 +382,7 @@ class Email_Settings {
 
                             <?php if (!empty($logo)): ?>
                             <tr>
-                                <td style="text-align: center; padding: 30px; background: #ffffff;">
+                                <td style="text-align: center; padding: 30px 30px 0; background: <?php echo esc_attr($header_bg_color); ?>;">
                                     <img src="<?php echo esc_url($logo); ?>" alt="Logo" style="max-width: 200px; height: auto;">
                                 </td>
                             </tr>
@@ -1579,7 +1579,7 @@ class Email_Settings {
         <div style="font-family: Arial, sans-serif; max-width: <?php echo esc_attr($container_width); ?>; margin: 0 auto; background: white; border-radius: <?php echo esc_attr($border_radius); ?>; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
 
             <?php if ($logo): ?>
-            <div style="text-align: center; padding: 30px; background: white;">
+            <div style="text-align: center; padding: 30px 30px 0; background: <?php echo esc_attr($header_bg); ?>;">
                 <img src="<?php echo esc_url($logo); ?>" alt="Logo" style="max-width: 200px; height: auto;">
             </div>
             <?php endif; ?>
