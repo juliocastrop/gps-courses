@@ -100,7 +100,7 @@ class Other_Dates_Widget extends Base_Widget {
 
     protected function render() {
         $settings = $this->get_settings_for_display();
-        $event_id = !empty($settings['event_id']) ? (int) $settings['event_id'] : (int) get_the_ID();
+        $event_id = \GPSC\resolve_widget_event_id($settings['event_id'] ?? '', $this->get_id());
         $editor   = class_exists('\GPSC\Elementor_Integration') && \Elementor\Plugin::$instance && \GPSC\Elementor_Integration::is_elementor_editor();
 
         if (!$event_id || 'gps_event' !== get_post_type($event_id) || !class_exists('\GPSC\Course_Stage')) {

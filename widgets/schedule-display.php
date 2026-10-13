@@ -547,7 +547,7 @@ class Schedule_Display_Widget extends Base_Widget {
         $settings = $this->get_settings_for_display();
 
         // Get event ID
-        $event_id = !empty($settings['event_id']) ? (int) $settings['event_id'] : get_the_ID();
+        $event_id = \GPSC\resolve_widget_event_id($settings['event_id'] ?? '', $this->get_id());
 
         if (!$event_id || get_post_type($event_id) !== 'gps_event') {
             echo '<p>' . __('Please select a valid event.', 'gps-courses') . '</p>';

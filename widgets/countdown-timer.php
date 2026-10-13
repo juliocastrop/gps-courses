@@ -645,7 +645,7 @@ class Countdown_Timer_Widget extends Base_Widget {
         $stage_event = 0;
 
         if ($settings['countdown_type'] === 'event') {
-            $event_id = !empty($settings['event_id']) ? (int) $settings['event_id'] : get_the_ID();
+            $event_id = \GPSC\resolve_widget_event_id($settings['event_id'] ?? '', $this->get_id());
 
             if ($event_id && get_post_type($event_id) === 'gps_event') {
                 $target_date = get_post_meta($event_id, '_gps_start_date', true);

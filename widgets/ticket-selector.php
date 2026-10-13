@@ -538,8 +538,8 @@ class Ticket_Selector_Widget extends Base_Widget {
     protected function render() {
         $settings = $this->get_settings_for_display();
 
-        // Get event ID
-        $event_id = !empty($settings['event_id']) ? (int) $settings['event_id'] : get_the_ID();
+        // Get event ID (a stale ID copied from another course falls back to this one)
+        $event_id = \GPSC\resolve_widget_event_id($settings['event_id'] ?? '', $this->get_id());
 
         if (!$event_id || get_post_type($event_id) !== 'gps_event') {
             echo '<p>' . __('Please select a valid event.', 'gps-courses') . '</p>';
@@ -785,9 +785,14 @@ class Ticket_Selector_Widget extends Base_Widget {
                 <div class="gps-policy-tooltip">
                     <h4><?php _e('Course Refund Policy', 'gps-courses'); ?></h4>
                     <ul>
-                        <li><?php _e('30+ days before: 100% refund', 'gps-courses'); ?></li>
-                        <li><?php _e('15-29 days before: 50% refund', 'gps-courses'); ?></li>
-                        <li><?php _e('14 days or less: No refund', 'gps-courses'); ?></li>
+                        <?php
+                        // Settings → Course page (or the course's own policy, "Page content" tab)
+                        $refund_lines = class_exists('\\GPSC\\Course_Page')
+                            ? \GPSC\Course_Page::refund_lines($event->ID)
+                            : [__('30+ days before: 100% refund', 'gps-courses'), __('15-29 days before: 50% refund', 'gps-courses'), __('14 days or less: No refund', 'gps-courses')];
+                        foreach ($refund_lines as $refund_line): ?>
+                        <li><?php echo esc_html($refund_line); ?></li>
+                        <?php endforeach; ?>
                     </ul>
                 </div>
             </div>
@@ -1201,81 +1206,8 @@ class Ticket_Selector_Widget extends Base_Widget {
      * the other upcoming editions of the course.
      */
     protected function render_stage_state($event_id, $stage, array $settings) {
-        $range   = \GPSC\Course_Stage::date_range($event_id);
-        $archive = get_post_type_archive_link('gps_event');
-        $show    = (isset($settings['show_other_dates']) ? $settings['show_other_dates'] : 'yes') === 'yes';
-        $others  = $show ? \GPSC\Course_Stage::other_editions($event_id) : [];
-        $dates   = $others ? \GPSC\Course_Stage::render_other_dates($event_id, ['editions' => $others]) : '';
-        $form    = function ($title, $intro = '') use ($event_id) {
-            return class_exists('\\GPSC\\Interest_List') ? \GPSC\Interest_List::render_form($event_id, ['title' => $title, 'intro' => $intro]) : '';
-        };
-        $more = $archive
-            ? '<a class="gps-stage-box__more" href="' . esc_url($archive) . '">' . esc_html__('See upcoming courses', 'gps-courses') . ' <span aria-hidden="true">&rarr;</span></a>'
-            : '';
-
-        echo '<div class="gps-ticket-selector gps-stage-box gps-stage-box--' . esc_attr($stage) . '">';
-        $closed = 'soon' === $stage && \GPSC\Course_Stage::sales_closed($event_id);
-        $chip   = $closed ? __('Registration closed', 'gps-courses') : \GPSC\Course_Stage::label($stage);
-        echo '<div class="gps-stage-box__head"><span class="gps-chip gps-chip--' . esc_attr($closed ? 'past' : $stage) . '">' . esc_html($chip) . '</span>';
-
-        switch ($stage) {
-            case 'soon':
-                if ($closed) {
-                    // Every ticket's sale has ended before the course starts
-                    echo '<h3 class="gps-stage-box__title">' . esc_html__('Registration is closed for this edition.', 'gps-courses') . '</h3></div>';
-                    if ('' !== $range) {
-                        /* translators: %s: course dates */
-                        echo '<p class="gps-stage-box__text">' . sprintf(esc_html__('Course dates: %s.', 'gps-courses'), '<strong>' . esc_html($range) . '</strong>') . '</p>';
-                    }
-                    echo $dates;
-                    echo $form(__('Notify me about the next dates', 'gps-courses'));
-                    echo $more;
-                    break;
-                }
-                $opens = \GPSC\Course_Stage::registration_opens($event_id);
-                echo '<h3 class="gps-stage-box__title">' . esc_html__('Registration opens soon', 'gps-courses') . '</h3></div>';
-                $text = [];
-                if ($opens) {
-                    /* translators: %s: date registration opens */
-                    $text[] = sprintf(esc_html__('Registration opens %s.', 'gps-courses'), '<strong>' . esc_html(date_i18n('F j, Y', $opens)) . '</strong>');
-                }
-                if ('' !== $range) {
-                    /* translators: %s: course dates */
-                    $text[] = sprintf(esc_html__('Course dates: %s.', 'gps-courses'), '<strong>' . esc_html($range) . '</strong>');
-                }
-                if ($text) {
-                    echo '<p class="gps-stage-box__text">' . implode(' ', $text) . '</p>';
-                }
-                echo $form(__('Get notified when registration opens', 'gps-courses'));
-                echo $dates;
-                break;
-
-            case 'in_progress':
-                echo '<h3 class="gps-stage-box__title">' . esc_html__('Registration is closed for this edition.', 'gps-courses') . '</h3></div>';
-                if ('' !== $range) {
-                    /* translators: %s: course dates */
-                    echo '<p class="gps-stage-box__text">' . sprintf(esc_html__('This course is taking place %s.', 'gps-courses'), '<strong>' . esc_html($range) . '</strong>') . '</p>';
-                }
-                echo $dates;
-                echo $more;
-                break;
-
-            default: // past
-                $title = '' !== $range
-                    /* translators: %s: course dates */
-                    ? sprintf(__('This course has taken place on %s.', 'gps-courses'), $range)
-                    : __('This course has already taken place.', 'gps-courses');
-                echo '<h3 class="gps-stage-box__title">' . esc_html($title) . '</h3></div>';
-                echo '<p class="gps-stage-box__text">' . ($others
-                    ? esc_html__("Pick one of the dates below, or leave your email and we'll tell you when more dates are added.", 'gps-courses')
-                    : esc_html__("New dates haven't been announced yet. Leave your email and we'll let you know as soon as they are.", 'gps-courses')) . '</p>';
-                echo $dates;
-                echo $form(__('Notify me about the next dates', 'gps-courses'));
-                echo $more;
-                break;
-        }
-
-        echo '</div>';
+        $show = (isset($settings['show_other_dates']) ? $settings['show_other_dates'] : 'yes') === 'yes';
+        echo \GPSC\Course_Stage::render_closed_box($event_id, $stage, ['show_other_dates' => $show]); // escaped inside
     }
 
     private function get_events_list() {

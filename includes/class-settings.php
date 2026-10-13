@@ -138,6 +138,10 @@ class Settings {
                     <span class="dashicons dashicons-cart"></span>
                     <?php _e('WooCommerce', 'gps-courses'); ?>
                 </a>
+                <a href="?page=gps-settings&tab=course_page" class="nav-tab <?php echo $active_tab === 'course_page' ? 'nav-tab-active' : ''; ?>">
+                    <span class="dashicons dashicons-layout"></span>
+                    <?php _e('Course page', 'gps-courses'); ?>
+                </a>
             </nav>
 
             <div class="gps-settings-content">
@@ -157,6 +161,11 @@ class Settings {
                         break;
                     case 'woocommerce':
                         self::render_woocommerce_tab();
+                        break;
+                    case 'course_page':
+                        if (class_exists(__NAMESPACE__ . '\\Course_Page')) {
+                            Course_Page::render_settings_tab();
+                        }
                         break;
                 }
                 ?>

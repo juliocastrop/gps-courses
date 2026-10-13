@@ -508,6 +508,99 @@ class Course_Stage {
     }
 
     /**
+     * Registration box when registration isn't open: coming soon (interest
+     * form), in progress (closed) or over (interest form for the next dates),
+     * plus the other upcoming editions. Shared by the Ticket Selector widget
+     * and the GPS course page template.
+     *
+     * @param array $args show_other_dates (bool), heading_tag (title tag), class
+     */
+    public static function render_closed_box($event_id, $stage, array $args = []) {
+        $args = wp_parse_args($args, [
+            'show_other_dates' => true,
+            'heading_tag'      => 'h3',
+            'class'            => '',
+        ]);
+        $tag     = in_array($args['heading_tag'], ['h2', 'h3', 'h4'], true) ? $args['heading_tag'] : 'h3';
+        $range   = self::date_range($event_id);
+        $archive = get_post_type_archive_link('gps_event');
+        $others  = $args['show_other_dates'] ? self::other_editions($event_id) : [];
+        $dates   = $others ? self::render_other_dates($event_id, ['editions' => $others]) : '';
+        $form    = function ($title, $intro = '') use ($event_id) {
+            return class_exists(__NAMESPACE__ . '\\Interest_List') ? Interest_List::render_form($event_id, ['title' => $title, 'intro' => $intro]) : '';
+        };
+        $more = $archive
+            ? '<a class="gps-stage-box__more" href="' . esc_url($archive) . '">' . esc_html__('See upcoming courses', 'gps-courses') . ' <span aria-hidden="true">&rarr;</span></a>'
+            : '';
+        $h_open  = '<' . $tag . ' class="gps-stage-box__title">';
+        $h_close = '</' . $tag . '>';
+
+        $html  = '<div class="gps-ticket-selector gps-stage-box gps-stage-box--' . esc_attr($stage) . ('' !== $args['class'] ? ' ' . esc_attr($args['class']) : '') . '">';
+        $closed = 'soon' === $stage && self::sales_closed($event_id);
+        $chip   = $closed ? __('Registration closed', 'gps-courses') : self::label($stage);
+        $html  .= '<div class="gps-stage-box__head"><span class="gps-chip gps-chip--' . esc_attr($closed ? 'past' : $stage) . '">' . esc_html($chip) . '</span>';
+
+        switch ($stage) {
+            case 'soon':
+                if ($closed) {
+                    // Every ticket's sale has ended before the course starts
+                    $html .= $h_open . esc_html__('Registration is closed for this edition.', 'gps-courses') . $h_close . '</div>';
+                    if ('' !== $range) {
+                        /* translators: %s: course dates */
+                        $html .= '<p class="gps-stage-box__text">' . sprintf(esc_html__('Course dates: %s.', 'gps-courses'), '<strong>' . esc_html($range) . '</strong>') . '</p>';
+                    }
+                    $html .= $dates;
+                    $html .= $form(__('Notify me about the next dates', 'gps-courses'));
+                    $html .= $more;
+                    break;
+                }
+                $opens = self::registration_opens($event_id);
+                $html .= $h_open . esc_html__('Registration opens soon', 'gps-courses') . $h_close . '</div>';
+                $text = [];
+                if ($opens) {
+                    /* translators: %s: date registration opens */
+                    $text[] = sprintf(esc_html__('Registration opens %s.', 'gps-courses'), '<strong>' . esc_html(date_i18n('F j, Y', $opens)) . '</strong>');
+                }
+                if ('' !== $range) {
+                    /* translators: %s: course dates */
+                    $text[] = sprintf(esc_html__('Course dates: %s.', 'gps-courses'), '<strong>' . esc_html($range) . '</strong>');
+                }
+                if ($text) {
+                    $html .= '<p class="gps-stage-box__text">' . implode(' ', $text) . '</p>';
+                }
+                $html .= $form(__('Get notified when registration opens', 'gps-courses'));
+                $html .= $dates;
+                break;
+
+            case 'in_progress':
+                $html .= $h_open . esc_html__('Registration is closed for this edition.', 'gps-courses') . $h_close . '</div>';
+                if ('' !== $range) {
+                    /* translators: %s: course dates */
+                    $html .= '<p class="gps-stage-box__text">' . sprintf(esc_html__('This course is taking place %s.', 'gps-courses'), '<strong>' . esc_html($range) . '</strong>') . '</p>';
+                }
+                $html .= $dates;
+                $html .= $more;
+                break;
+
+            default: // past
+                $title = '' !== $range
+                    /* translators: %s: course dates */
+                    ? sprintf(__('This course has taken place on %s.', 'gps-courses'), $range)
+                    : __('This course has already taken place.', 'gps-courses');
+                $html .= $h_open . esc_html($title) . $h_close . '</div>';
+                $html .= '<p class="gps-stage-box__text">' . ($others
+                    ? esc_html__("Pick one of the dates below, or leave your email and we'll tell you when more dates are added.", 'gps-courses')
+                    : esc_html__("New dates haven't been announced yet. Leave your email and we'll let you know as soon as they are.", 'gps-courses')) . '</p>';
+                $html .= $dates;
+                $html .= $form(__('Notify me about the next dates', 'gps-courses'));
+                $html .= $more;
+                break;
+        }
+
+        return $html . '</div>';
+    }
+
+    /**
      * "Other dates for this course": date range, status chip and link per
      * upcoming edition. '' when there are none.
      *

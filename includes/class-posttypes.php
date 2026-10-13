@@ -672,6 +672,11 @@ class Posttypes {
 
         <p><label><strong><?php _e('Facebook','gps-courses'); ?></strong></label>
         <input type="url" name="gps_social_facebook" value="<?php echo esc_attr($facebook); ?>" class="widefat" placeholder="https://facebook.com/username"></p>
+
+        <hr>
+        <p><label><strong><?php _e('Profile page (optional)','gps-courses'); ?></strong></label>
+        <input type="url" name="gps_profile_url" value="<?php echo esc_attr(get_post_meta($post->ID, '_gps_profile_url', true)); ?>" class="widefat" placeholder="https://gpsdentaltraining.com/about/">
+        <small><?php _e('"View full profile" link on course pages. Photo = featured image, bio = the main text.','gps-courses'); ?></small></p>
         <?php
     }
 
@@ -695,6 +700,13 @@ class Posttypes {
         update_post_meta($post_id, '_gps_social_twitter',   $twitter);
         update_post_meta($post_id, '_gps_social_linkedin',  $linkedin);
         update_post_meta($post_id, '_gps_social_facebook',  $facebook);
+
+        $profile = esc_url_raw($_POST['gps_profile_url'] ?? '');
+        if ($profile) {
+            update_post_meta($post_id, '_gps_profile_url', $profile);
+        } else {
+            delete_post_meta($post_id, '_gps_profile_url');
+        }
     }
 
     /* -------- Monthly Seminar Metaboxes -------- */
@@ -1081,6 +1093,7 @@ class Posttypes {
                     <li><a href="#gps-tab-details"><span class="dashicons dashicons-info"></span> <?php _e('Details', 'gps-courses'); ?></a></li>
                     <li><a href="#gps-tab-location"><span class="dashicons dashicons-location"></span> <?php _e('Location', 'gps-courses'); ?></a></li>
                     <li><a href="#gps-tab-content"><span class="dashicons dashicons-edit"></span> <?php _e('Description', 'gps-courses'); ?></a></li>
+                    <li><a href="#gps-tab-page"><span class="dashicons dashicons-layout"></span> <?php _e('Page content', 'gps-courses'); ?></a></li>
                     <li><a href="#gps-tab-qr"><span class="dashicons dashicons-share-alt2"></span> <?php _e('Promotional QR', 'gps-courses'); ?></a></li>
                     <li><a href="#gps-tab-hero"><span class="dashicons dashicons-slides"></span> <?php _e('Home hero', 'gps-courses'); ?></a></li>
                     <li><a href="#gps-tab-interest"><span class="dashicons dashicons-groups"></span> <?php _e('Interest list', 'gps-courses'); ?></a></li>
@@ -1331,6 +1344,15 @@ class Posttypes {
                         ?>
                         <p class="description"><?php _e('Full event description and details', 'gps-courses'); ?></p>
                     </div>
+                </div>
+
+                <!-- Page content Tab (GPS course page template) -->
+                <div id="gps-tab-page" class="gps-tab-content">
+                    <?php
+                    if (class_exists('\GPSC\Course_Page')) {
+                        \GPSC\Course_Page::render_event_tab($post);
+                    }
+                    ?>
                 </div>
 
                 <div id="gps-tab-qr" class="gps-tab-content">

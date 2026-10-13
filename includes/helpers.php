@@ -4,6 +4,48 @@ namespace GPSC;
 if (!defined('ABSPATH')) exit;
 
 /**
+ * The course a GPS widget should show.
+ *
+ * Widgets keep the "Select Event" they were saved with, so a course duplicated
+ * to create a new edition would keep showing the original course's tickets,
+ * dates and agenda. On a course page the current course wins unless the saved
+ * course is valid AND was chosen on purpose: when the saved course's own
+ * Elementor data contains this very widget (same element ID), the widget was
+ * copied along with the page and the saved ID is stale.
+ *
+ * @param mixed  $saved     the widget's event_id setting ('' = current course)
+ * @param string $widget_id Elementor element ID ($this->get_id())
+ * @return int
+ */
+function resolve_widget_event_id($saved, $widget_id = '') {
+    $current = (int) get_the_ID();
+    $saved   = (int) $saved;
+    $result  = $saved ?: $current;
+
+    if ($saved && $saved !== $current) {
+        $valid = 'gps_event' === get_post_type($saved) && 'publish' === get_post_status($saved);
+        $on_course = $current && 'gps_event' === get_post_type($current);
+        if (!$valid) {
+            // Deleted, drafted or not a course: use the page's course
+            $result = $current;
+        } elseif ($on_course) {
+            $copied = true; // without an element ID we can't tell: prefer the page's course
+            if ('' !== (string) $widget_id) {
+                $data   = get_post_meta($saved, '_elementor_data', true);
+                $data   = is_string($data) ? $data : wp_json_encode($data);
+                $copied = false !== strpos((string) $data, '"id":"' . $widget_id . '"');
+            }
+            // A duplicate is always newer than its source: an older page that points at a
+            // newer edition on purpose (e.g. the old URL selling the new dates) keeps its choice
+            $copied = $copied && get_post_time('U', true, $current) >= get_post_time('U', true, $saved);
+            $result = $copied ? $current : $saved;
+        }
+    }
+
+    return (int) apply_filters('gpsc_widget_event_id', $result, $saved, $current, $widget_id);
+}
+
+/**
  * Nov 21, 2025  |  Nov 21 – 22, 2025  |  Nov 30 – Dec 1, 2025  |  Dec 31, 2025 – Jan 1, 2026
  */
 function format_date_range($start, $end, $tz = null) {
