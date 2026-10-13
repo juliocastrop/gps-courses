@@ -1,0 +1,1987 @@
+/**
+ * GPS checkout, order received and My Account orders.
+ *
+ * Loaded only on those pages (GPSC\Shop_Checkout), and every rule is scoped
+ * to the body classes that class adds (.gps-shop--checkout / --thankyou /
+ * --orders), so nothing here reaches other pages. Tokens come from
+ * gps-forms.css (navy, blue, gold, Montserrat, field look); no new colors
+ * except the status tints at the end.
+ *
+ * The checkout is the Elementor Pro "Checkout" widget: its rules use up to
+ * one id plus four classes, so the prefixes below are one step stronger.
+ * The Stripe Payment Element lives in its own iframe and reads its look
+ * from the checkout fields; nothing here sizes or clips that iframe.
+ */
+
+/* ===================================================================
+ * 1. CHECKOUT
+ * Prefix: body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget
+ * =================================================================== */
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget {
+    font-family: var(--gps-font);
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--gps-ink);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget a {
+    color: var(--gps-blue);
+    font-weight: 600;
+    text-underline-offset: 3px;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget a:hover {
+    color: var(--gps-navy);
+}
+
+/* ---------- Page heading + progress ---------- */
+
+.gps-shop--checkout .gps-co-head {
+    margin: 0 0 28px;
+    font-family: var(--gps-font);
+}
+
+.gps-shop--checkout .gps-co-head__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--gps-ok);
+}
+
+.gps-shop--checkout .gps-co-head__eyebrow .gps-ico {
+    width: 15px;
+    height: 15px;
+}
+
+body.gps-shop--checkout.gps-shop .gps-co-head .gps-co-head__title {
+    margin: 0 0 18px;
+    font-family: var(--gps-font);
+    font-size: 30px;
+    line-height: 1.2;
+    font-weight: 700;
+    color: var(--gps-navy);
+}
+
+.gps-shop--checkout .gps-co-steps {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gps-muted);
+}
+
+.gps-shop--checkout .gps-co-steps__step {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+}
+
+.gps-shop--checkout .gps-co-steps__step + .gps-co-steps__step::before {
+    content: "";
+    width: 36px;
+    height: 2px;
+    margin: 0 12px;
+    border-radius: 2px;
+    background: var(--gps-line);
+}
+
+.gps-shop--checkout .gps-co-steps__step.is-current::before {
+    background: var(--gps-navy);
+}
+
+body.gps-shop--checkout.gps-shop .gps-co-steps__step a {
+    display: inline-flex;
+    align-items: center;
+    color: var(--gps-navy);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+body.gps-shop--checkout.gps-shop .gps-co-steps__step a:hover {
+    color: var(--gps-blue);
+    text-decoration: underline;
+}
+
+.gps-shop--checkout .gps-co-steps__dot {
+    display: inline-grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    margin-right: 8px;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--gps-muted);
+    background: var(--gps-paper);
+    box-shadow: inset 0 0 0 1.5px var(--gps-line);
+}
+
+.gps-shop--checkout .gps-co-steps__step.is-done .gps-co-steps__dot {
+    color: #fff;
+    background: var(--gps-navy);
+    box-shadow: none;
+}
+
+.gps-shop--checkout .gps-co-steps__step.is-done .gps-ico {
+    width: 14px;
+    height: 14px;
+}
+
+.gps-shop--checkout .gps-co-steps__step.is-current {
+    color: var(--gps-navy);
+}
+
+.gps-shop--checkout .gps-co-steps__step.is-current .gps-co-steps__dot {
+    color: var(--gps-navy);
+    background: var(--gps-gold);
+    box-shadow: none;
+}
+
+/* ---------- Two-column layout ---------- */
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .e-checkout__container {
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
+    grid-column-gap: 32px;
+    grid-row-gap: 24px;
+    align-items: start;
+}
+
+/* ---------- Cards ---------- */
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce #customer_details .col-1,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-additional-fields,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .shipping_address,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .e-woocommerce-login-section,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .e-checkout__order_review,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout #payment {
+    background: var(--gps-paper);
+    border: 0;
+    border-radius: var(--gps-card-radius);
+    box-shadow: var(--gps-card-shadow);
+    padding: 28px 30px;
+    margin: 0 0 24px;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce #customer_details .col2-set .col-2,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce #customer_details .col-2 {
+    padding-top: 0;
+}
+
+/* Section titles */
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce h3,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce #order_review_heading {
+    margin: 0 0 20px;
+    font-family: var(--gps-font);
+    font-size: 19px;
+    line-height: 1.3;
+    font-weight: 700;
+    color: var(--gps-navy);
+    text-align: left;
+}
+
+/* Payment card title (WooCommerce prints none) */
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout #payment::before {
+    content: "Payment";
+    display: block;
+    margin: 0 0 16px;
+    font-family: var(--gps-font);
+    font-size: 19px;
+    line-height: 1.3;
+    font-weight: 700;
+    color: var(--gps-navy);
+}
+
+/* ---------- Billing fields ---------- */
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout .woocommerce-billing-fields .form-row,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout .woocommerce-shipping-fields .form-row,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout .woocommerce-additional-fields .form-row {
+    margin: 0 0 16px;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout .woocommerce-billing-fields .form-row:last-child,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout .woocommerce-additional-fields .form-row:last-child {
+    margin-bottom: 0;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout .form-row-first,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout .form-row-last {
+    width: calc(50% - 8px);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce #customer_details .form-row .input-text,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce #customer_details .form-row select {
+    width: 100%;
+    font-family: var(--gps-font);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--gps-ink);
+    background: var(--gps-field);
+    border: 1.5px solid var(--gps-line);
+    border-radius: var(--gps-radius);
+    padding: 11px 13px;
+    min-height: 46px;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce #customer_details .form-row textarea.input-text {
+    min-height: 96px;
+    resize: vertical;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce #customer_details .form-row .input-text:focus,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce #customer_details .form-row select:focus {
+    outline: none;
+    border-color: var(--gps-blue);
+    background: var(--gps-paper);
+    box-shadow: var(--gps-focus);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce #customer_details .form-row label .optional {
+    font-weight: 500;
+    color: var(--gps-muted);
+}
+
+/* Read-only country (single selling country) */
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce #customer_details .form-row strong {
+    font-weight: 600;
+    color: var(--gps-ink);
+}
+
+/* select2 open dropdown + focus ring */
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .select2-container--focus .select2-selection--single,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .select2-container--open .select2-selection--single {
+    border-color: var(--gps-blue);
+    background: var(--gps-paper);
+    box-shadow: var(--gps-focus);
+}
+
+body.gps-shop--checkout.gps-shop .select2-dropdown {
+    border: 1.5px solid var(--gps-blue);
+    border-radius: var(--gps-radius);
+    font-family: var(--gps-font);
+    overflow: hidden;
+}
+
+body.gps-shop--checkout.gps-shop .select2-results__option--highlighted[aria-selected],
+body.gps-shop--checkout.gps-shop .select2-results__option--highlighted[data-selected] {
+    background: var(--gps-navy);
+    color: #fff;
+}
+
+/* ---------- Field errors ---------- */
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce #customer_details .form-row.woocommerce-invalid .input-text,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce #customer_details .form-row.woocommerce-invalid select,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce #customer_details .form-row.woocommerce-invalid .select2-selection--single {
+    border-color: var(--gps-err);
+    background: var(--gps-paper);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce #customer_details .form-row.woocommerce-invalid label {
+    color: var(--gps-err);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .checkout-inline-error-message {
+    margin: 6px 0 0;
+    font-family: var(--gps-font);
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--gps-err);
+}
+
+/* Errors list at the top of the form (re-applied: the widget blanks .woocommerce-info) */
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-NoticeGroup .woocommerce-error,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-notices-wrapper .woocommerce-error {
+    margin: 0 0 24px;
+    padding: 14px 18px 14px 46px;
+    list-style: none;
+    border: 0;
+    border-radius: var(--gps-radius);
+    background: var(--gps-err-tint);
+    color: var(--gps-err);
+    font-family: var(--gps-font);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-error li + li {
+    margin-top: 4px;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-error strong {
+    font-weight: 700;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-notices-wrapper .woocommerce-info,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-notices-wrapper .woocommerce-message {
+    margin: 0 0 24px;
+    padding: 14px 18px 14px 46px;
+    border: 0;
+    border-radius: var(--gps-radius);
+    font-family: var(--gps-font);
+    font-size: 14px;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-notices-wrapper .woocommerce-info {
+    background: #eef3fb;
+    color: var(--gps-navy);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-notices-wrapper .woocommerce-message {
+    background: var(--gps-ok-tint);
+    color: var(--gps-ok);
+}
+
+/* ---------- Returning customer login (only shown to logged-out visitors) ---------- */
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .e-woocommerce-login-section {
+    padding: 18px 24px;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .e-woocommerce-login-nudge {
+    margin: 0;
+    font-size: 14px;
+    color: var(--gps-muted);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .e-woocommerce-login-anchor .form-row .input-text {
+    font-family: var(--gps-font);
+    font-size: 15px;
+    color: var(--gps-ink);
+    background: var(--gps-field);
+    border: 1.5px solid var(--gps-line);
+    border-radius: var(--gps-radius);
+    padding: 11px 13px;
+    min-height: 46px;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .e-woocommerce-login-anchor .woocommerce-form-login__submit {
+    font-family: var(--gps-font);
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--gps-navy);
+    border: 0;
+    border-radius: var(--gps-radius);
+    min-height: 46px;
+}
+
+/* ---------- Order summary ---------- */
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table {
+    width: 100%;
+    margin: 0;
+    border: 0;
+    border-collapse: collapse;
+    font-family: var(--gps-font);
+    font-size: 14px;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table th,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table td {
+    padding: 12px 0;
+    border: 0;
+    background: transparent;
+    vertical-align: top;
+    text-align: left;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table thead th {
+    padding: 0 0 10px;
+    border-bottom: 1px solid var(--gps-line);
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--gps-muted);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table .product-total,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table tfoot td {
+    text-align: right;
+    white-space: nowrap;
+    padding-left: 16px;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table .cart_item td {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--gps-line);
+    color: var(--gps-ink);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table .cart_item td.product-name {
+    max-width: none;
+    padding-inline-end: 0;
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table .cart_item td.product-total {
+    padding-left: 16px;
+    font-weight: 700;
+    color: var(--gps-navy);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table .product-quantity {
+    font-weight: 600;
+    color: var(--gps-muted);
+    white-space: nowrap;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table .product-name .variation,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table .product-name .wc-item-meta {
+    margin: 4px 0 0;
+    font-family: var(--gps-font);
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--gps-muted);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table tfoot th,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table tfoot td {
+    padding: 8px 0;
+    font-weight: 500;
+    color: var(--gps-muted);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table tfoot tr:first-child th,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table tfoot tr:first-child td {
+    padding-top: 16px;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table tfoot td {
+    color: var(--gps-ink);
+    font-weight: 600;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table .cart-discount td {
+    color: var(--gps-ok);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table .woocommerce-remove-coupon {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gps-muted);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table .woocommerce-remove-coupon:hover {
+    color: var(--gps-err);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table .order-total th,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table .order-total td {
+    padding: 14px 0 0;
+    border-top: 1px solid var(--gps-line);
+    vertical-align: middle;
+    color: var(--gps-navy);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table .order-total th {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table .order-total td,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table .order-total td strong {
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1.2;
+    color: var(--gps-navy);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table .order-total .includes_tax {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--gps-muted);
+}
+
+/* ---------- Coupon: a quiet dashed strip, not a third card ---------- */
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .e-coupon-box {
+    margin: 0 0 24px;
+    padding: 14px 18px;
+    background: transparent;
+    border: 1.5px dashed #c9d3e2;
+    border-radius: var(--gps-card-radius);
+    box-shadow: none;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .e-woocommerce-coupon-nudge {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--gps-muted);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .e-coupon-anchor {
+    margin-top: 12px;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .e-coupon-anchor-description {
+    display: block;
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gps-ink);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .coupon-container-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: stretch;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .e-coupon-box .form-row .input-text {
+    width: 100%;
+    margin: 0;
+    font-family: var(--gps-font);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--gps-ink);
+    background: var(--gps-field);
+    border: 1.5px solid var(--gps-line);
+    border-radius: var(--gps-radius);
+    padding: 11px 13px;
+    min-height: 46px;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .e-coupon-box .form-row .input-text:focus {
+    outline: none;
+    border-color: var(--gps-blue);
+    background: var(--gps-paper);
+    box-shadow: var(--gps-focus);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .e-coupon-box button.woocommerce-button {
+    width: auto;
+    height: 100%;
+    min-height: 46px;
+    margin: 0;
+    padding: 0 20px;
+    font-family: var(--gps-font);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--gps-navy);
+    background: var(--gps-paper);
+    border: 1.5px solid var(--gps-navy);
+    border-radius: var(--gps-radius);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .e-coupon-box button.woocommerce-button:hover {
+    color: #fff;
+    background: var(--gps-navy);
+}
+
+/* ---------- Refund policy (printed by class-woocommerce.php) ---------- */
+
+body.gps-shop--checkout.gps-shop .gps-checkout-refund-policy {
+    margin: 0 0 24px;
+    padding: 18px 20px;
+    background: #eef3fb;
+    border: 0;
+    border-radius: var(--gps-card-radius);
+    font-family: var(--gps-font);
+}
+
+body.gps-shop--checkout.gps-shop .gps-checkout-refund-policy .gps-policy-header {
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: var(--gps-navy);
+}
+
+body.gps-shop--checkout.gps-shop .gps-checkout-refund-policy .gps-policy-header strong {
+    font-weight: 700;
+}
+
+body.gps-shop--checkout.gps-shop .gps-checkout-refund-policy .gps-policy-header svg {
+    color: var(--gps-blue);
+}
+
+body.gps-shop--checkout.gps-shop .gps-checkout-refund-policy .gps-policy-details li {
+    padding: 3px 0 3px 18px;
+    font-size: 13px;
+    color: var(--gps-ink);
+}
+
+body.gps-shop--checkout.gps-shop .gps-checkout-refund-policy .gps-policy-details li::before {
+    left: 4px;
+    color: var(--gps-gold-deep);
+}
+
+/* ---------- Payment box ---------- */
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout #payment .payment_methods {
+    margin: 0 0 4px;
+    padding: 0;
+    border: 0;
+    list-style: none;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout #payment .payment_methods > li {
+    margin: 0;
+    padding: 0;
+    line-height: 1.4;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout #payment .payment_methods > li + li {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--gps-line);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .wc_payment_method > label {
+    display: inline;
+    font-family: var(--gps-font);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--gps-ink);
+    cursor: pointer;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .wc_payment_method > label img {
+    max-height: 22px;
+    width: auto;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .wc_payment_method > .input-radio {
+    accent-color: var(--gps-navy);
+    width: 18px;
+    height: 18px;
+    margin: 0 8px 0 0;
+    vertical-align: -4px;
+}
+
+/* The box that holds the Stripe Payment Element: no grey fill, no arrow */
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout #payment .payment_methods .payment_box {
+    margin: 14px 0 0;
+    padding: 0;
+    background: transparent;
+    color: var(--gps-ink);
+    font-size: 14px;
+    border-radius: 0;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout #payment .payment_methods .payment_box p {
+    margin: 0 0 10px;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout #payment .payment_box fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+/* Stripe card error under the element */
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget #payment #wc-stripe-upe-errors:not(:empty),
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget #payment .stripe-source-errors:not(:empty) {
+    margin-top: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gps-err);
+}
+
+/* "Save payment information" */
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget #payment .woocommerce-SavedPaymentMethods-saveNew {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 14px 0 0;
+    font-size: 13px;
+    color: var(--gps-ink);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget #payment .woocommerce-SavedPaymentMethods-saveNew input[type="checkbox"] {
+    flex: 0 0 auto;
+    margin: 1px 0 0;
+    accent-color: var(--gps-navy);
+    width: 18px;
+    height: 18px;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget #payment .woocommerce-SavedPaymentMethods-saveNew label {
+    margin: 0;
+    font-weight: 500;
+    line-height: 1.45;
+}
+
+/* Saved cards list (returning customers) */
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget #payment .woocommerce-SavedPaymentMethods {
+    margin: 0 0 12px;
+    padding: 0;
+    list-style: none;
+    font-size: 14px;
+}
+
+/* ---------- Place order area: terms, consent, button ---------- */
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout #payment .place-order {
+    margin: 20px 0 0;
+    padding: 20px 0 0;
+    border-top: 1px solid var(--gps-line);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-privacy-policy-text,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-privacy-policy-text p {
+    margin: 0 0 12px;
+    font-family: var(--gps-font);
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--gps-muted);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-terms-and-conditions-wrapper .form-row,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .wcrp-gdpr-consent .form-row {
+    margin: 0;
+    padding: 0;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-terms-and-conditions-wrapper .woocommerce-form__label-for-checkbox,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .wcrp-gdpr-consent .woocommerce-form__label-for-checkbox {
+    position: relative;
+    display: block;
+    margin: 0;
+    padding-left: 28px;
+    font-family: var(--gps-font);
+    font-size: 13.5px;
+    font-weight: 500;
+    line-height: 1.45;
+    color: var(--gps-ink);
+    cursor: pointer;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-terms-and-conditions-wrapper .woocommerce-form__label-for-checkbox span,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .wcrp-gdpr-consent .woocommerce-form__label-for-checkbox span {
+    top: 0;
+    color: inherit;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-terms-and-conditions-wrapper input[type="checkbox"],
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .wcrp-gdpr-consent input[type="checkbox"] {
+    position: absolute;
+    left: 0;
+    top: 1px;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--gps-navy);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-terms-and-conditions-wrapper abbr.required {
+    color: var(--gps-err);
+    text-decoration: none;
+    border: 0;
+}
+
+/* Terms not accepted (WooCommerce marks the row after a failed submit) */
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-terms-and-conditions-wrapper .form-row.woocommerce-invalid .woocommerce-form__label-for-checkbox {
+    color: var(--gps-err);
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-terms-and-conditions-wrapper .form-row.woocommerce-invalid input[type="checkbox"] {
+    outline: 2px solid var(--gps-err);
+    outline-offset: 2px;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-terms-and-conditions {
+    margin: 0 0 12px;
+    padding: 14px;
+    border: 1px solid var(--gps-line);
+    border-radius: var(--gps-radius);
+    font-size: 13px;
+}
+
+/* Cart-recovery consent (wc-cart-recovery-pro): same checkbox row, light panel */
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .wcrp-gdpr-consent {
+    margin: 14px 0 0;
+    padding: 12px 14px;
+    background: var(--gps-field);
+    border: 1px solid var(--gps-line);
+    border-radius: 10px;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .wcrp-gdpr-consent .wcrp-gdpr-message {
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--gps-muted);
+}
+
+/* Place order: the site prints `.woocommerce button.button.alt{background:…!important}`,
+   so the colors here need !important too (with higher specificity they win). */
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout #payment #place_order {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 54px;
+    margin: 20px 0 0;
+    padding: 15px 22px;
+    font-family: var(--gps-font);
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: 0;
+    text-transform: none;
+    color: #fff !important;
+    background: var(--gps-navy) !important;
+    border: 0;
+    border-radius: 10px;
+    box-shadow: 0 10px 22px -14px rgba(18, 38, 74, .8);
+    cursor: pointer;
+    transition: background-color .15s ease, box-shadow .15s ease;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout #payment #place_order::before {
+    content: "";
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout #payment #place_order:hover,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout #payment #place_order:focus-visible {
+    color: #fff !important;
+    background: var(--gps-blue) !important;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout #payment #place_order:focus-visible {
+    outline: 3px solid rgba(11, 82, 172, .45);
+    outline-offset: 3px;
+}
+
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout #payment #place_order:disabled,
+body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout.processing #payment #place_order {
+    opacity: .65;
+    cursor: wait;
+}
+
+/* Trust notes under the button */
+.gps-shop--checkout .gps-co-trust {
+    display: grid;
+    gap: 8px;
+    margin: 16px 0 0;
+    padding: 0;
+    list-style: none;
+    font-family: var(--gps-font);
+}
+
+.gps-shop--checkout .gps-co-trust li {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--gps-muted);
+}
+
+.gps-shop--checkout .gps-co-trust .gps-ico {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
+    color: var(--gps-ok);
+}
+
+.gps-shop--checkout .gps-co-trust li + li .gps-ico {
+    color: var(--gps-gold-deep);
+}
+
+/* Express checkout (Apple Pay / Google Pay) separator, when enabled */
+body.gps-shop--checkout.gps-shop #wc-stripe-express-checkout-button-separator,
+body.gps-shop--checkout.gps-shop #wc-stripe-payment-request-button-separator {
+    font-family: var(--gps-font);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--gps-muted);
+}
+
+/* ---------- Checkout: smaller screens ---------- */
+
+@media (max-width: 1024px) {
+    body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .e-checkout__container {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 767px) {
+    body.gps-shop--checkout.gps-shop .gps-co-head .gps-co-head__title {
+        font-size: 24px;
+        margin-bottom: 14px;
+    }
+
+    .gps-shop--checkout .gps-co-head {
+        margin-bottom: 20px;
+    }
+
+    .gps-shop--checkout .gps-co-steps {
+        font-size: 12px;
+    }
+
+    .gps-shop--checkout .gps-co-steps__step + .gps-co-steps__step::before {
+        width: 14px;
+        margin: 0 8px;
+    }
+
+    .gps-shop--checkout .gps-co-steps__dot {
+        width: 22px;
+        height: 22px;
+        margin-right: 6px;
+        font-size: 11px;
+    }
+
+    body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce #customer_details .col-1,
+    body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-additional-fields,
+    body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .shipping_address,
+    body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .e-woocommerce-login-section,
+    body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .e-checkout__order_review,
+    body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout #payment {
+        padding: 22px 18px;
+        margin-bottom: 18px;
+    }
+
+    body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout .form-row-first,
+    body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce-checkout .form-row-last {
+        width: 100%;
+        float: none;
+    }
+
+    body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table .order-total td,
+    body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .woocommerce-checkout-review-order-table .order-total td strong {
+        font-size: 21px;
+    }
+
+    body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .e-coupon-box {
+        margin-bottom: 18px;
+    }
+
+    /* Keep "Apply" next to the field on phones too */
+    body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce .coupon-container-grid {
+        display: grid;
+    }
+
+    body.gps-shop--checkout.gps-shop .elementor-widget-woocommerce-checkout-page.elementor-widget .woocommerce #coupon_code {
+        margin: 0;
+    }
+}
+
+/* ===================================================================
+ * 2. ORDER RECEIVED (thank-you)
+ * Prefix: body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order
+ * =================================================================== */
+
+body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order {
+    max-width: 880px;
+    margin: 0 auto;
+    font-family: var(--gps-font);
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--gps-ink);
+}
+
+/* WooCommerce's "Thank you. Your order has been received." is emptied in PHP (its <p> keeps whitespace, so :empty alone is not enough) */
+body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order .woocommerce-thankyou-order-received:empty,
+body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order .gps-ty-hero ~ .woocommerce-thankyou-order-received {
+    display: none;
+}
+
+/* ---------- Header ---------- */
+
+.gps-shop--thankyou .gps-ty-hero {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 32px 36px;
+    border-radius: 16px 16px 0 0;
+    background: linear-gradient(135deg, var(--gps-navy) 0%, var(--gps-navy-deep) 100%);
+    color: #fff;
+    overflow: hidden;
+}
+
+.gps-shop--thankyou .gps-ty-hero::after {
+    content: "";
+    position: absolute;
+    right: -60px;
+    top: -70px;
+    width: 220px;
+    height: 220px;
+    border: 26px solid rgba(221, 200, 157, .12);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.gps-shop--thankyou .gps-ty-hero__icon {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--gps-gold);
+    color: var(--gps-navy);
+}
+
+.gps-shop--thankyou .gps-ty-hero__icon .gps-ico {
+    width: 28px;
+    height: 28px;
+    stroke-width: 2.6;
+}
+
+.gps-shop--thankyou .gps-ty-hero--pending .gps-ty-hero__icon {
+    background: transparent;
+    color: var(--gps-gold);
+    box-shadow: inset 0 0 0 2.5px var(--gps-gold);
+}
+
+.gps-shop--thankyou .gps-ty-hero__body {
+    position: relative;
+    z-index: 1;
+    min-width: 0;
+}
+
+body.gps-shop--thankyou.gps-shop .gps-ty-hero .gps-ty-hero__eyebrow {
+    margin: 0 0 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--gps-gold);
+}
+
+body.gps-shop--thankyou.gps-shop .gps-ty-hero .gps-ty-hero__title {
+    margin: 0 0 8px;
+    font-family: var(--gps-font);
+    font-size: 28px;
+    line-height: 1.2;
+    font-weight: 700;
+    color: #fff;
+}
+
+body.gps-shop--thankyou.gps-shop .gps-ty-hero .gps-ty-hero__text {
+    margin: 0;
+    font-size: 15px;
+    color: rgba(255, 255, 255, .85);
+    overflow-wrap: anywhere;
+}
+
+body.gps-shop--thankyou.gps-shop .gps-ty-hero .gps-ty-hero__text strong {
+    color: #fff;
+    font-weight: 700;
+}
+
+/* ---------- Order facts, attached under the header ---------- */
+
+body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order ul.woocommerce-order-overview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    margin: 0 0 24px;
+    padding: 6px 12px;
+    list-style: none;
+    background: var(--gps-paper);
+    border-radius: 0 0 16px 16px;
+    box-shadow: var(--gps-card-shadow);
+}
+
+body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order ul.woocommerce-order-overview::before,
+body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order ul.woocommerce-order-overview::after {
+    display: none;
+}
+
+body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order ul.woocommerce-order-overview li {
+    float: none;
+    margin: 0;
+    padding: 14px 12px;
+    border: 0;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.4;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--gps-muted);
+    flex: 1 1 auto;
+    min-width: 120px;
+}
+
+body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order ul.woocommerce-order-overview li strong {
+    display: block;
+    margin-top: 4px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--gps-navy);
+    overflow-wrap: break-word;
+}
+
+/* Failed payment: WooCommerce's own message and "Pay" button */
+body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order .woocommerce-thankyou-order-failed {
+    margin: 0 0 12px;
+    padding: 16px 18px;
+    border-radius: var(--gps-radius);
+    background: var(--gps-err-tint);
+    color: var(--gps-err);
+    font-weight: 600;
+}
+
+body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order .woocommerce-thankyou-order-failed-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0 0 24px;
+}
+
+/* ---------- What happens next ---------- */
+
+.gps-shop--thankyou .gps-ty-next {
+    margin: 0 0 24px;
+    padding: 28px 30px;
+    background: var(--gps-paper);
+    border-radius: var(--gps-card-radius);
+    box-shadow: var(--gps-card-shadow);
+}
+
+body.gps-shop--thankyou.gps-shop .gps-ty-next .gps-ty-next__title {
+    margin: 0 0 18px;
+    font-family: var(--gps-font);
+    font-size: 20px;
+    line-height: 1.3;
+    font-weight: 700;
+    color: var(--gps-navy);
+}
+
+.gps-shop--thankyou .gps-ty-items {
+    display: grid;
+    gap: 10px;
+    margin: 0 0 22px;
+    padding: 0;
+    list-style: none;
+}
+
+.gps-shop--thankyou .gps-ty-item {
+    margin: 0;
+    padding: 16px 18px;
+    border-radius: 12px;
+    background: var(--gps-field);
+    border-left: 4px solid var(--gps-navy);
+}
+
+.gps-shop--thankyou .gps-ty-item--seminar,
+.gps-shop--thankyou .gps-ty-item--session {
+    border-left-color: var(--gps-gold);
+}
+
+.gps-shop--thankyou .gps-ty-item__tag {
+    display: inline-block;
+    margin: 0 0 6px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: rgba(25, 52, 99, .08);
+    color: var(--gps-navy);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.gps-shop--thankyou .gps-ty-item--seminar .gps-ty-item__tag,
+.gps-shop--thankyou .gps-ty-item--session .gps-ty-item__tag {
+    background: rgba(221, 200, 157, .45);
+    color: #5c4a22;
+}
+
+body.gps-shop--thankyou.gps-shop .gps-ty-item .gps-ty-item__title {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.4;
+    font-weight: 700;
+    color: var(--gps-ink);
+}
+
+body.gps-shop--thankyou.gps-shop .gps-ty-item .gps-ty-item__title a {
+    color: var(--gps-navy);
+    text-decoration: none;
+}
+
+body.gps-shop--thankyou.gps-shop .gps-ty-item .gps-ty-item__title a:hover {
+    color: var(--gps-blue);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+body.gps-shop--thankyou.gps-shop .gps-ty-item .gps-ty-item__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin: 8px 0 0;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--gps-muted);
+}
+
+.gps-shop--thankyou .gps-ty-item__meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.gps-shop--thankyou .gps-ty-item__meta .gps-ico {
+    width: 16px;
+    height: 16px;
+    color: var(--gps-blue);
+}
+
+.gps-shop--thankyou .gps-ty-steps {
+    display: grid;
+    gap: 14px;
+    margin: 0 0 24px;
+    padding: 0;
+    list-style: none;
+    counter-reset: gps-ty-step;
+}
+
+.gps-shop--thankyou .gps-ty-steps li {
+    position: relative;
+    margin: 0;
+    padding: 2px 0 0 42px;
+    min-height: 28px;
+    font-size: 14.5px;
+    line-height: 1.55;
+    color: var(--gps-ink);
+    counter-increment: gps-ty-step;
+}
+
+.gps-shop--thankyou .gps-ty-steps li::before {
+    content: counter(gps-ty-step);
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--gps-navy);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.gps-shop--thankyou .gps-ty-steps strong {
+    color: var(--gps-navy);
+    font-weight: 700;
+}
+
+/* ---------- Buttons (thank-you actions) ---------- */
+
+.gps-shop--thankyou .gps-ty-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 14px;
+    padding-top: 20px;
+    border-top: 1px solid var(--gps-line);
+}
+
+body.gps-shop.gps-shop--thankyou .gps-ty-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 12px 22px;
+    border-radius: var(--gps-radius);
+    font-family: var(--gps-font);
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-decoration: none;
+    transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
+}
+
+body.gps-shop.gps-shop--thankyou .gps-ty-btn .gps-ico {
+    width: 18px;
+    height: 18px;
+}
+
+body.gps-shop.gps-shop--thankyou .gps-ty-btn--navy {
+    color: #fff;
+    background: var(--gps-navy);
+}
+
+body.gps-shop.gps-shop--thankyou .gps-ty-btn--navy:hover {
+    color: #fff;
+    background: var(--gps-blue);
+}
+
+body.gps-shop.gps-shop--thankyou .gps-ty-btn--line {
+    color: var(--gps-navy);
+    background: var(--gps-paper);
+    box-shadow: inset 0 0 0 1.5px var(--gps-line);
+}
+
+body.gps-shop.gps-shop--thankyou .gps-ty-btn--line:hover {
+    color: var(--gps-blue);
+    box-shadow: inset 0 0 0 1.5px var(--gps-blue);
+}
+
+body.gps-shop.gps-shop--thankyou .gps-ty-link {
+    margin-left: auto;
+    font-family: var(--gps-font);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--gps-blue);
+    text-underline-offset: 3px;
+}
+
+body.gps-shop.gps-shop--thankyou .gps-ty-btn:focus-visible,
+body.gps-shop.gps-shop--thankyou .gps-ty-link:focus-visible {
+    outline: 3px solid rgba(11, 82, 172, .45);
+    outline-offset: 2px;
+}
+
+/* ===================================================================
+ * 3. ORDER DETAILS + CUSTOMER DETAILS
+ * Shared by the thank-you page and My Account > View order.
+ * =================================================================== */
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) .woocommerce-order-details,
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) .woocommerce-customer-details {
+    margin: 0 0 24px;
+    padding: 26px 30px;
+    background: var(--gps-paper);
+    border-radius: var(--gps-card-radius);
+    box-shadow: var(--gps-card-shadow);
+    font-family: var(--gps-font);
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) .woocommerce-order-details h2,
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) .woocommerce-customer-details h2 {
+    margin: 0 0 14px;
+    font-family: var(--gps-font);
+    font-size: 18px;
+    line-height: 1.3;
+    font-weight: 700;
+    color: var(--gps-navy);
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) table.order_details {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    border-collapse: collapse;
+    background: transparent;
+    font-size: 14.5px;
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) table.order_details :is(th, td) {
+    padding: 12px 0;
+    border: 0;
+    border-top: 1px solid var(--gps-line);
+    background: transparent;
+    color: var(--gps-ink);
+    font-weight: 500;
+    text-align: left;
+    vertical-align: top;
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) table.order_details thead th {
+    padding: 0 0 10px;
+    border-top: 0;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--gps-muted);
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) table.order_details :is(th, td):last-child {
+    padding-left: 16px;
+    text-align: right;
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) table.order_details tbody .product-name {
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) table.order_details tbody .product-name a {
+    color: var(--gps-navy);
+    text-decoration: none;
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) table.order_details tbody .product-name a:hover {
+    color: var(--gps-blue);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) table.order_details .product-quantity {
+    font-weight: 600;
+    color: var(--gps-muted);
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) table.order_details .wc-item-meta {
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--gps-muted);
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) table.order_details .wc-item-meta :is(p, strong) {
+    display: inline;
+    margin: 0;
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) table.order_details tbody .product-total {
+    font-weight: 700;
+    color: var(--gps-navy);
+    white-space: nowrap;
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) table.order_details tfoot :is(th, td) {
+    padding: 9px 0;
+    font-size: 14px;
+    color: var(--gps-muted);
+    font-weight: 500;
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) table.order_details tfoot td {
+    padding-left: 16px;
+    color: var(--gps-ink);
+    font-weight: 600;
+}
+
+/* Last tfoot row is the order total */
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) table.order_details tfoot tr:last-child :is(th, td) {
+    padding-top: 14px;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--gps-navy);
+    vertical-align: middle;
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) table.order_details tfoot tr:last-child td {
+    font-size: 20px;
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) .woocommerce-customer-details address {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-style: normal;
+    font-size: 14.5px;
+    line-height: 1.65;
+    color: var(--gps-ink);
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) .woocommerce-customer-details address p {
+    margin: 6px 0 0;
+    padding-left: 0;
+    color: var(--gps-muted);
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) .woocommerce-customer-details address p::before {
+    display: none;
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) .woocommerce-customer-details .col2-set {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) .woocommerce-customer-details .col2-set :is(.col-1, .col-2) {
+    float: none;
+    width: auto;
+    max-width: none;
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) .woocommerce-customer-details .col2-set::before,
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) .woocommerce-customer-details .col2-set::after {
+    display: none;
+}
+
+/* "Order again" and the receipt button under the order table */
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) :is(.order-again, .gps-receipt-actions) {
+    margin: 18px 0 0;
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) :is(.order-again .button, .gps-receipt-actions .gps-receipt-btn) {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    margin: 0;
+    padding: 10px 18px;
+    font-family: var(--gps-font);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--gps-navy);
+    background: var(--gps-paper);
+    border: 0;
+    border-radius: var(--gps-radius);
+    box-shadow: inset 0 0 0 1.5px var(--gps-line);
+    text-decoration: none;
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) .gps-receipt-actions .gps-receipt-btn::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4v11M7 10.5l5 5 5-5M5 20h14'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4v11M7 10.5l5 5 5-5M5 20h14'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+:is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) :is(.order-again .button, .gps-receipt-actions .gps-receipt-btn):hover {
+    color: var(--gps-blue);
+    background: var(--gps-paper);
+    box-shadow: inset 0 0 0 1.5px var(--gps-blue);
+}
+
+/* ===================================================================
+ * 4. MY ACCOUNT > ORDERS and VIEW ORDER
+ * Prefix: body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab
+ * =================================================================== */
+
+/* Our cards replace the widget's bordered content frame */
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content-wrapper {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content {
+    font-family: var(--gps-font);
+    font-size: 14.5px;
+    color: var(--gps-ink);
+}
+
+/* ---------- Orders table ---------- */
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table {
+    width: 100%;
+    margin: 0;
+    border: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: var(--gps-card-radius);
+    background: var(--gps-paper);
+    box-shadow: var(--gps-card-shadow);
+    font-size: 14.5px;
+    overflow: hidden;
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table thead th {
+    padding: 16px 18px 12px;
+    border: 0;
+    border-bottom: 1px solid var(--gps-line);
+    background: transparent;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--gps-muted);
+    text-align: left;
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table thead th span {
+    color: inherit;
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table tbody > tr > :is(td, th) {
+    padding: 16px 18px;
+    border: 0;
+    border-top: 1px solid var(--gps-line);
+    background: transparent;
+    color: var(--gps-ink);
+    font-weight: 500;
+    text-align: left;
+    vertical-align: middle;
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table tbody > tr:first-child > :is(td, th) {
+    border-top: 0;
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table tbody .woocommerce-orders-table__cell-order-number a {
+    color: var(--gps-navy);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table tbody .woocommerce-orders-table__cell-order-number a:hover {
+    color: var(--gps-blue);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table .woocommerce-orders-table__cell-order-total .amount {
+    font-weight: 700;
+    color: var(--gps-navy);
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table .woocommerce-orders-table__cell-order-date {
+    white-space: nowrap;
+}
+
+/* Status: colored dot + label (the row carries the status class) */
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table tbody .woocommerce-orders-table__cell-order-status {
+    font-weight: 600;
+    color: var(--gps-status, var(--gps-muted));
+    white-space: nowrap;
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-orders-table__row--status-completed { --gps-status: var(--gps-ok); }
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-orders-table__row--status-processing { --gps-status: var(--gps-blue); }
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-orders-table__row--status-on-hold { --gps-status: #8a6a2c; }
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-orders-table__row--status-pending { --gps-status: #8a6a2c; }
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-orders-table__row--status-failed,
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-orders-table__row--status-cancelled { --gps-status: var(--gps-err); }
+
+@media (min-width: 769px) {
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table tbody .woocommerce-orders-table__cell-order-status::before {
+        content: "";
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        margin-right: 8px;
+        border-radius: 50%;
+        background: currentColor;
+        vertical-align: 1px;
+    }
+}
+
+/* Actions */
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table .woocommerce-orders-table__cell-order-actions {
+    text-align: right;
+    white-space: nowrap;
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table .woocommerce-orders-table__cell-order-actions .button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    margin: 3px 0 3px 6px;
+    padding: 7px 14px;
+    font-family: var(--gps-font);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--gps-navy);
+    background: var(--gps-paper);
+    border: 0;
+    border-radius: var(--gps-radius);
+    box-shadow: inset 0 0 0 1.5px var(--gps-line);
+    text-decoration: none;
+    vertical-align: middle;
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table .woocommerce-orders-table__cell-order-actions .button:hover {
+    color: var(--gps-blue);
+    background: var(--gps-paper);
+    box-shadow: inset 0 0 0 1.5px var(--gps-blue);
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table .woocommerce-orders-table__cell-order-actions .button.pay {
+    color: #fff;
+    background: var(--gps-navy);
+    box-shadow: none;
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table .woocommerce-orders-table__cell-order-actions .button.pay:hover {
+    color: #fff;
+    background: var(--gps-blue);
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table .woocommerce-orders-table__cell-order-actions .button.cancel {
+    color: var(--gps-err);
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table .woocommerce-orders-table__cell-order-actions .button.cancel:hover {
+    box-shadow: inset 0 0 0 1.5px var(--gps-err);
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table .woocommerce-orders-table__cell-order-actions .button:focus-visible,
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content :is(.gps-receipt-btn, .order-again .button):focus-visible {
+    outline: 3px solid rgba(11, 82, 172, .45);
+    outline-offset: 2px;
+}
+
+/* Pagination (Previous / Next) */
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-pagination {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 18px;
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-pagination .button {
+    min-height: 40px;
+    padding: 9px 16px;
+    font-family: var(--gps-font);
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--gps-navy);
+    background: var(--gps-paper);
+    border: 0;
+    border-radius: var(--gps-radius);
+    box-shadow: inset 0 0 0 1.5px var(--gps-line);
+}
+
+/* "No order has been made yet." */
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content .woocommerce-info {
+    padding: 18px 20px 18px 46px;
+    border-radius: var(--gps-card-radius);
+    background: #eef3fb;
+    color: var(--gps-navy);
+    font-family: var(--gps-font);
+}
+
+/* ---------- View order: summary line ---------- */
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab__view-order .woocommerce-MyAccount-content > p:first-of-type {
+    margin: 0 0 20px;
+    padding: 18px 22px;
+    border-radius: var(--gps-card-radius);
+    background: var(--gps-paper);
+    box-shadow: var(--gps-card-shadow);
+    font-size: 14.5px;
+    line-height: 1.7;
+    color: var(--gps-muted);
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab__view-order .woocommerce-MyAccount-content mark {
+    padding: 0;
+    background: transparent;
+    color: var(--gps-navy);
+    font-weight: 700;
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab__view-order .woocommerce-MyAccount-content mark.order-status {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: rgba(25, 52, 99, .08);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* Order updates (customer notes) */
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab__view-order .woocommerce-OrderUpdates {
+    margin: 0 0 24px;
+    padding: 0;
+    list-style: none;
+}
+
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab__view-order .woocommerce-OrderUpdate {
+    margin: 0 0 10px;
+    padding: 14px 18px;
+    border-radius: 12px;
+    background: var(--gps-field);
+    color: var(--gps-ink);
+}
+
+/* The widget gives the order table its own frame: our card replaces it */
+body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab__view-order .woocommerce-MyAccount-content .order_details {
+    margin-bottom: 0;
+}
+
+/* ---------- Orders: phones (WooCommerce stacks the table) ---------- */
+
+@media (max-width: 768px) {
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table {
+        background: transparent;
+        box-shadow: none;
+        border-radius: 0;
+        overflow: visible;
+    }
+
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table tbody > tr {
+        display: block;
+        margin: 0 0 14px;
+        padding: 6px 0;
+        border-radius: var(--gps-card-radius);
+        background: var(--gps-paper);
+        box-shadow: var(--gps-card-shadow);
+    }
+
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table tbody > tr > :is(td, th) {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 18px;
+        border-top: 1px solid var(--gps-line);
+        text-align: right;
+    }
+
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table tbody > tr > :is(td, th):first-child {
+        border-top: 0;
+    }
+
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table tbody > tr > :is(td, th)::before {
+        content: attr(data-title);
+        float: none;
+        flex: 0 0 auto;
+        font-size: 11.5px;
+        font-weight: 700;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        color: var(--gps-muted);
+    }
+
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table tbody > tr:first-child > :is(td, th):not(:first-child) {
+        border-top: 1px solid var(--gps-line);
+    }
+
+    /* "$1,950.00 for 1 item" is an element plus a text node: keep it one line of text */
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table tbody > tr > td.woocommerce-orders-table__cell-order-total {
+        display: block;
+    }
+
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table tbody > tr > td.woocommerce-orders-table__cell-order-total::before {
+        float: left;
+        line-height: 1.9;
+    }
+
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table .woocommerce-orders-table__cell-order-actions {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        white-space: normal;
+    }
+
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table .woocommerce-orders-table__cell-order-actions::before {
+        flex-basis: 100%;
+        text-align: left;
+    }
+
+    body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content table.woocommerce-orders-table .woocommerce-orders-table__cell-order-actions .button {
+        flex: 1 1 0;
+        justify-content: center;
+        min-height: 42px;
+        margin: 0;
+    }
+}
+
+/* ===================================================================
+ * 5. Shared: smaller screens, motion
+ * =================================================================== */
+
+@media (max-width: 767px) {
+    .gps-shop--thankyou .gps-ty-hero {
+        flex-direction: column;
+        gap: 14px;
+        padding: 24px 20px;
+    }
+
+    .gps-shop--thankyou .gps-ty-hero__icon {
+        width: 48px;
+        height: 48px;
+    }
+
+    body.gps-shop--thankyou.gps-shop .gps-ty-hero .gps-ty-hero__title {
+        font-size: 23px;
+    }
+
+    body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order ul.woocommerce-order-overview {
+        padding: 4px 8px;
+    }
+
+    body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order ul.woocommerce-order-overview li {
+        flex-basis: 40%;
+        padding: 12px 10px;
+    }
+
+    body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order ul.woocommerce-order-overview li.email {
+        flex-basis: 100%;
+        order: 9;
+    }
+
+    .gps-shop--thankyou .gps-ty-next {
+        padding: 22px 18px;
+    }
+
+    .gps-shop--thankyou .gps-ty-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    body.gps-shop.gps-shop--thankyou .gps-ty-link {
+        margin: 4px 0 0;
+        text-align: center;
+    }
+
+    :is(body.gps-shop--thankyou.gps-shop .woocommerce .woocommerce-order,
+        body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content) :is(.woocommerce-order-details, .woocommerce-customer-details) {
+        padding: 22px 18px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.gps-shop *,
+    body.gps-shop *::before {
+        transition: none !important;
+    }
+}

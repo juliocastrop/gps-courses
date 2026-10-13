@@ -1,0 +1,382 @@
+/**
+ * GPS header mini-cart (Elementor Pro "Menu Cart", mini-cart type).
+ * Loaded on every page, so it stays small. Tokens from gps-forms.css.
+ * Visibility (transform/opacity of the open/closed states) is left to
+ * Elementor; only position, size and look are set here.
+ */
+
+/* ---------- Toggle + count badge ---------- */
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__toggle .elementor-button:focus-visible {
+    outline: 3px solid var(--gps-gold, #DDC89D);
+    outline-offset: 3px;
+    border-radius: 8px;
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget.elementor-menu-cart--items-indicator-bubble .elementor-menu-cart__toggle .elementor-button-icon .elementor-button-icon-qty[data-counter] {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 9px;
+    background: var(--gps-gold, #DDC89D);
+    color: var(--gps-navy, #193463);
+    font-family: var(--gps-font);
+    font-size: 10.5px;
+    font-weight: 800;
+    line-height: 18px;
+    box-shadow: 0 0 0 2px var(--gps-navy, #193463);
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__toggle .elementor-button-icon .elementor-button-icon-qty[data-counter="0"] {
+    display: none;
+}
+
+/* ---------- Panel: right-aligned under the cart icon ---------- */
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget.elementor-menu-cart--cart-type-mini-cart .elementor-menu-cart__container {
+    inset-inline: auto calc(-1 * var(--gps-mc-shift, 0px));
+    width: min(380px, calc(100vw - 24px));
+    min-width: 0;
+    padding-top: 12px;
+    z-index: 9999;
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__main {
+    padding: 18px 20px 20px;
+    border: 0;
+    border-radius: var(--gps-card-radius, 14px);
+    background: var(--gps-paper, #fff);
+    box-shadow: 0 1px 0 var(--gps-line), 0 24px 48px -18px rgba(18, 38, 74, .45);
+    min-height: 0;
+    font-family: var(--gps-font);
+    color: var(--gps-ink);
+}
+
+/* little arrow pointing at the icon */
+.elementor-widget-woocommerce-menu-cart.elementor-widget.elementor-menu-cart--cart-type-mini-cart .elementor-menu-cart__main::before {
+    content: "";
+    position: absolute;
+    top: -6px;
+    right: calc(22px + var(--gps-mc-shift, 0px));
+    width: 12px;
+    height: 12px;
+    background: var(--gps-paper, #fff);
+    transform: rotate(45deg);
+    border-radius: 2px;
+}
+
+/* Header row: title (added by gps-cart.js) + close button */
+.elementor-widget-woocommerce-menu-cart.elementor-widget .gps-mc-title {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1.3;
+    color: var(--gps-navy);
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__close-button {
+    width: 32px;
+    height: 32px;
+    margin: -4px -6px 10px 0;
+    border-radius: 50%;
+    transition: background-color .15s ease;
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__close-button::before,
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__close-button::after {
+    left: 9px;
+    width: 14px;
+    height: 2px;
+    background: var(--gps-muted);
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__close-button:hover {
+    background: var(--gps-field);
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__close-button:hover::before,
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__close-button:hover::after {
+    background: var(--gps-navy);
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__close-button:focus-visible {
+    outline: 3px solid rgba(11, 82, 172, .45);
+    outline-offset: 1px;
+}
+
+/* ---------- Lines ---------- */
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__products {
+    margin: 0 -4px;
+    padding: 0 4px;
+    border-top: 1px solid var(--gps-line);
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__product {
+    grid-template-columns: 64px minmax(0, 1fr);
+    column-gap: 14px;
+    padding: 14px 36px 14px 0;
+    border-bottom: 1px solid var(--gps-line);
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__product:last-child {
+    border-bottom: 0;
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__product-image img {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 10px;
+    background: var(--gps-field);
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__product-name,
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__product-price {
+    padding-inline-start: 0;
+    font-family: var(--gps-font);
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__product-name a {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--gps-navy);
+    text-decoration: none;
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__product-name a:hover {
+    color: var(--gps-blue);
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__product .variation {
+    margin: 4px 0 0;
+    font-size: 12.5px;
+    color: var(--gps-muted);
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__product .variation dt {
+    font-weight: 600;
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__product-price {
+    margin-top: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gps-muted);
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__product-price .amount {
+    color: var(--gps-ink);
+    font-weight: 700;
+}
+
+/* remove: round button, centered vertically */
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__product-remove {
+    top: 50%;
+    bottom: auto;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 50%;
+    transform: translateY(-50%);
+    background: var(--gps-field);
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__product-remove::before,
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__product-remove::after {
+    left: 30%;
+    width: 40%;
+    height: 1.5px;
+    background: var(--gps-muted);
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__product-remove:hover {
+    border: 0;
+    background: var(--gps-err-tint, #fbecea);
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__product-remove:hover::before,
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__product-remove:hover::after {
+    background: var(--gps-err, #b4322a);
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__product-remove:focus-within {
+    outline: 3px solid rgba(11, 82, 172, .45);
+    outline-offset: 1px;
+}
+
+/* ---------- Subtotal + buttons ---------- */
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__subtotal {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 2px;
+    padding: 14px 0;
+    border: 0;
+    border-top: 1px solid var(--gps-line);
+    font-family: var(--gps-font);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gps-muted);
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__subtotal strong {
+    font-weight: 600;
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__subtotal .amount {
+    font-size: 19px;
+    font-weight: 800;
+    color: var(--gps-navy);
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__footer-buttons {
+    grid-template-columns: 1fr 1.4fr;
+    gap: 10px;
+    padding-top: 0;
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__footer-buttons .elementor-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 46px;
+    padding: 12px 14px;
+    border-radius: var(--gps-radius, 8px);
+    font-family: var(--gps-font);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-transform: none;
+    letter-spacing: 0;
+    transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__footer-buttons .elementor-button--view-cart {
+    background: var(--gps-paper, #fff);
+    color: var(--gps-navy);
+    box-shadow: inset 0 0 0 1.5px var(--gps-line);
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__footer-buttons .elementor-button--view-cart:hover {
+    background: var(--gps-paper, #fff);
+    color: var(--gps-blue);
+    box-shadow: inset 0 0 0 1.5px var(--gps-blue);
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__footer-buttons .elementor-button--checkout {
+    background: var(--gps-navy);
+    color: #fff;
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__footer-buttons .elementor-button--checkout:hover {
+    background: var(--gps-blue);
+    color: #fff;
+}
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .elementor-menu-cart__footer-buttons .elementor-button:focus-visible {
+    outline: 3px solid rgba(11, 82, 172, .45);
+    outline-offset: 2px;
+}
+
+/* ---------- Empty state (markup from Shop_Cart::mini_cart_empty) ---------- */
+
+.elementor-widget-woocommerce-menu-cart.elementor-widget .woocommerce-mini-cart__empty-message {
+    display: none;
+}
+
+.gps-cart-empty--mini {
+    display: grid;
+    justify-items: center;
+    gap: 6px;
+    padding: 8px 4px 2px;
+    border-top: 1px solid var(--gps-line);
+    text-align: center;
+    font-family: var(--gps-font);
+}
+
+.gps-cart-empty--mini .gps-cart-empty__ic {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    margin: 14px 0 6px;
+    border-radius: 50%;
+    background: var(--gps-navy);
+    color: var(--gps-gold);
+}
+
+.gps-cart-empty--mini .gps-cart-empty__title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--gps-navy);
+}
+
+.gps-cart-empty--mini .gps-cart-empty__text {
+    max-width: 30ch;
+    margin: 0 0 10px;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--gps-muted);
+}
+
+.gps-cart-empty__acts {
+    display: grid;
+    gap: 8px;
+    width: 100%;
+}
+
+/* buttons used by both empty states (.gps-cart-empty a: beats the kit's link colour) */
+.gps-cart-empty a.gps-cbtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 46px;
+    padding: 12px 18px;
+    border: 0;
+    border-radius: var(--gps-radius, 8px);
+    font-family: var(--gps-font);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-decoration: none;
+    transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
+}
+
+.gps-cart-empty a.gps-cbtn--navy,
+.gps-cart-empty a.gps-cbtn--navy:visited {
+    background: var(--gps-navy);
+    color: #fff;
+}
+
+.gps-cart-empty a.gps-cbtn--navy:hover,
+.gps-cart-empty a.gps-cbtn--navy:focus {
+    background: var(--gps-blue);
+    color: #fff;
+}
+
+.gps-cart-empty a.gps-cbtn--line,
+.gps-cart-empty a.gps-cbtn--line:visited {
+    background: var(--gps-paper, #fff);
+    color: var(--gps-navy);
+    box-shadow: inset 0 0 0 1.5px rgba(25, 52, 99, .28);
+}
+
+.gps-cart-empty a.gps-cbtn--line:hover,
+.gps-cart-empty a.gps-cbtn--line:focus {
+    color: var(--gps-blue);
+    box-shadow: inset 0 0 0 1.5px var(--gps-blue);
+}
+
+.gps-cart-empty a.gps-cbtn:focus-visible {
+    outline: 3px solid rgba(11, 82, 172, .45);
+    outline-offset: 2px;
+}

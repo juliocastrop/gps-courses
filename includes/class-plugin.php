@@ -51,6 +51,8 @@ class Plugin {
         require_once GPSC_PATH . 'includes/class-account-auth.php';
         require_once GPSC_PATH . 'includes/class-account-dashboard.php';
         require_once GPSC_PATH . 'includes/class-course-catalog.php';
+        require_once GPSC_PATH . 'includes/class-shop-cart.php';
+        require_once GPSC_PATH . 'includes/class-shop-checkout.php';
         require_once GPSC_PATH . 'includes/public-api.php';
 
         require_once GPSC_PATH . 'includes/helpers.php';
@@ -106,6 +108,8 @@ class Plugin {
         Account_Auth::init();
         Account_Dashboard::init();
         Course_Catalog::init();
+        Shop_Cart::init();
+        Shop_Checkout::init();
 
         Woo::hooks();
 

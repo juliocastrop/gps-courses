@@ -13,8 +13,8 @@ use TCPDF;
  * order in runtime. No migration. No new tables.
  *
  * Admin: metabox "GPS Receipt" on the order edit screen with Download,
- * Print and Email buttons. Customer: download link inside the My
- * Account view-order page.
+ * Print and Email buttons. Customer: download link on the My Account
+ * view-order page and on the order-received (thank-you) page.
  */
 class Receipts {
 
@@ -157,16 +157,31 @@ class Receipts {
 
     public static function render_customer_button($order) {
         if (!$order instanceof \WC_Order) return;
-        if (!self::has_gps_items($order)) return;
 
-        $url = add_query_arg([
+        $url = self::customer_download_url($order);
+        if ($url === '') return;
+
+        // The thank-you page shows the same link in its own actions panel.
+        if (!apply_filters('gps_receipt_show_customer_button', true, $order)) return;
+
+        echo '<p class="gps-receipt-actions"><a href="' . esc_url($url) . '" class="button gps-receipt-btn" target="_blank" rel="noopener">' .
+             esc_html__('Download Receipt (PDF)', 'gps-courses') .
+             '<span class="screen-reader-text"> ' . esc_html__('(opens in a new tab)', 'gps-courses') . '</span>' .
+             '</a></p>';
+    }
+
+    /**
+     * Public receipt link for the customer (verified by order key), or ''
+     * when the order has no GPS item or is not paid yet.
+     */
+    public static function customer_download_url($order) {
+        if (!$order instanceof \WC_Order || !self::has_gps_items($order)) return '';
+        if (!$order->is_paid() && !$order->has_status('refunded')) return '';
+
+        return add_query_arg([
             'gps_receipt' => $order->get_id(),
             'key'         => $order->get_order_key(),
         ], home_url('/'));
-
-        echo '<p style="margin-top:20px;"><a href="' . esc_url($url) . '" class="button" target="_blank">' .
-             esc_html__('Download Receipt (PDF)', 'gps-courses') .
-             '</a></p>';
     }
 
     public static function maybe_handle_customer_download() {
@@ -176,7 +191,7 @@ class Receipts {
         $key      = sanitize_text_field($_GET['key']);
 
         $order = wc_get_order($order_id);
-        if (!$order || !hash_equals($order->get_order_key(), $key)) {
+        if (!$order instanceof \WC_Order || !hash_equals($order->get_order_key(), $key) || '' === self::customer_download_url($order)) {
             wp_die(__('Invalid receipt link.', 'gps-courses'), 403);
         }
 
@@ -215,319 +230,530 @@ class Receipts {
     }
 
     /* ====================================================================
-     * Native TCPDF rendering — mirrors the certificate's approach
-     * (class-certificates.php::render_certificate_content) so the
-     * receipt sits in the same visual family.
+     * Native TCPDF rendering. Same printed family as the certificate
+     * (navy band, gold accent, deep navy footer) and the GPS emails
+     * (white logo on the navy band). Long orders flow onto extra pages.
      * ==================================================================== */
 
+    const PAGE_W    = 215.9; // Letter portrait, mm
+    const PAGE_H    = 279.4;
+    const CONTENT_X = 22;    // content left edge
+    const CONTENT_R = 193.9; // content right edge (PAGE_W - 22)
+    const FOOTER_H  = 26;
+
     protected static function render_native($pdf, $order) {
-        $W = 215.9; // Letter portrait width in mm
-        $H = 279.4; // height
-
-        // Colors lifted from Certificate_Settings so the receipt
-        // automatically follows any future brand tweak there.
-        $navy_hex   = Certificate_Settings::get('primary_color')   ?: '#193463';
-        $gold_hex   = Certificate_Settings::get('secondary_color') ?: '#BC9D67';
-        $deep_hex   = '#0C2044'; // matches certificate footer
-        $navy   = self::hex2rgb($navy_hex);
-        $gold   = self::hex2rgb($gold_hex);
-        $deep   = self::hex2rgb($deep_hex);
-        $dark   = [31, 41, 55];
-        $muted  = [107, 114, 128];
-        $note_c = [71, 85, 105];
-        $light  = [248, 249, 251];
-
+        $x0 = self::CONTENT_X;
+        $x1 = self::CONTENT_R;
+        $cw = $x1 - $x0;
+        $c  = self::palette();
         $currency = ['currency' => $order->get_currency()];
+        $limit    = self::content_bottom();
 
-        /* ---------- Background + outer rounded border ---------- */
-        $pdf->SetFillColor(255, 255, 255);
-        $pdf->Rect(0, 0, $W, $H, 'F');
-        $pdf->SetLineWidth(0.4);
-        $pdf->SetDrawColor(220, 220, 220);
-        $pdf->RoundedRect(10, 10, $W - 20, $H - 20, 5, '1111', 'D');
+        self::draw_page_frame($pdf, $order, false);
 
-        /* ---------- Header navy band with logo or typography ---------- */
-        $pdf->SetFillColor($navy[0], $navy[1], $navy[2]);
-        $pdf->Rect(15, 15, $W - 30, 28, 'F');
+        /* ---------- Summary strip ---------- */
+        $y = 52;
+        $pdf->SetFillColor($c['light'][0], $c['light'][1], $c['light'][2]);
+        $pdf->RoundedRect($x0, $y, $cw, 17, 2, '1111', 'F');
 
-        $logo_url  = Certificate_Settings::get('logo'); // light version intended for navy bg
-        $logo_done = false;
-        if ($logo_url) {
-            $uploads   = \wp_upload_dir();
-            $logo_path = str_replace($uploads['baseurl'], $uploads['basedir'], $logo_url);
-            if (file_exists($logo_path)) {
-                $info = @getimagesize($logo_path);
-                if ($info && !empty($info[0]) && !empty($info[1])) {
-                    $lh = 16;
-                    $lw = ($info[0] / $info[1]) * $lh;
-                    if ($lw > $W - 60) $lw = $W - 60;
-                    $lx = ($W - $lw) / 2;
-                    $pdf->Image($logo_path, $lx, 21, $lw, $lh, '', '', '', true, 300);
-                    $logo_done = true;
-                }
-            }
-        }
-        if (!$logo_done) {
-            // Typographic fallback — exact treatment from the certificate
-            $pdf->SetTextColor(255, 255, 255);
-            $pdf->SetFont('helvetica', 'B', 20);
-            $pdf->SetXY(20, 21);
-            $pdf->Cell($W - 40, 8, 'GPS DENTAL', 0, 1, 'C');
-
-            $pdf->SetTextColor($gold[0], $gold[1], $gold[2]);
-            $pdf->SetFont('helvetica', '', 11);
-            $pdf->SetXY(20, 32);
-            $pdf->Cell($W - 40, 6, 'T R A I N I N G', 0, 1, 'C');
-        }
-
-        /* ---------- RECEIPT title ---------- */
-        $y = 56;
-        $pdf->SetTextColor($navy[0], $navy[1], $navy[2]);
-        $pdf->SetFont('helvetica', 'B', 28);
-        $pdf->SetXY(20, $y);
-        $pdf->Cell($W - 40, 11, 'RECEIPT', 0, 1, 'C');
-
-        $pdf->SetFont('helvetica', '', 10);
-        $pdf->SetTextColor($muted[0], $muted[1], $muted[2]);
-        $pdf->SetXY(20, $y + 11);
-        $pdf->Cell($W - 40, 5, 'OF PURCHASE', 0, 1, 'C');
-
-        // Decorative gold rule
-        $pdf->SetDrawColor($gold[0], $gold[1], $gold[2]);
-        $pdf->SetLineWidth(0.8);
-        $pdf->Line($W / 2 - 18, $y + 19, $W / 2 + 18, $y + 19);
-
-        /* ---------- Meta strip: 3 columns ---------- */
-        $y = 86;
-        $box_x = 25;
-        $box_w = $W - 50;
-        $box_h = 16;
-        $pdf->SetFillColor($light[0], $light[1], $light[2]);
-        $pdf->RoundedRect($box_x, $y, $box_w, $box_h, 2, '1111', 'F');
-
+        $paid = $order->is_paid();
         $cols = [
-            ['ORDER #', '#' . $order->get_order_number()],
-            ['DATE',    wc_format_datetime($order->get_date_created(), get_option('date_format'))],
-            ['STATUS',  wc_get_order_status_name($order->get_status())],
+            ['ORDER NUMBER', '#' . $order->get_order_number()],
+            ['ORDER DATE',   wc_format_datetime($order->get_date_created(), get_option('date_format'))],
+            ['STATUS',       $paid ? 'Paid' : self::clean_text(wc_get_order_status_name($order->get_status()))],
+            ['ORDER TOTAL',  self::clean_text(wc_price($order->get_total(), $currency))],
         ];
-        $col_w = $box_w / 3;
-        foreach ($cols as $i => $c) {
-            $cx = $box_x + ($i * $col_w);
-            $pdf->SetTextColor($muted[0], $muted[1], $muted[2]);
+        $col_w = $cw / count($cols);
+        foreach ($cols as $i => $col) {
+            $cx = $x0 + ($i * $col_w);
+            $pdf->SetTextColor($c['muted'][0], $c['muted'][1], $c['muted'][2]);
             $pdf->SetFont('helvetica', 'B', 7);
-            $pdf->SetXY($cx, $y + 2.5);
-            $pdf->Cell($col_w, 4, $c[0], 0, 0, 'C');
+            $pdf->SetXY($cx, $y + 3);
+            $pdf->Cell($col_w, 4, $col[0], 0, 0, 'C');
 
-            $pdf->SetTextColor($navy[0], $navy[1], $navy[2]);
-            $pdf->SetFont('helvetica', 'B', 11);
-            $pdf->SetXY($cx, $y + 7.5);
-            $pdf->Cell($col_w, 6, $c[1], 0, 0, 'C');
+            $value_c = ($i === 2 && $paid) ? $c['ok'] : $c['navy'];
+            $pdf->SetTextColor($value_c[0], $value_c[1], $value_c[2]);
+            $pdf->SetFont('helvetica', 'B', 10.5);
+            $pdf->SetXY($cx, $y + 8.5);
+            $pdf->Cell($col_w, 6, $col[1], 0, 0, 'C', false, '', 1);
         }
 
-        /* ---------- Bill To ---------- */
-        $y = 112;
-        $pdf->SetTextColor($gold[0], $gold[1], $gold[2]);
-        $pdf->SetFont('helvetica', 'B', 9);
-        $pdf->SetXY(25, $y);
-        $pdf->Cell(60, 5, 'BILL TO', 0, 1, 'L');
+        /* ---------- Bill to (left) + Payment (right) ---------- */
+        $y  = 79;
+        $rx = 124;
+        $rw = $x1 - $rx;
 
-        $pdf->SetTextColor($dark[0], $dark[1], $dark[2]);
-        $pdf->SetFont('helvetica', '', 10);
+        self::section_label($pdf, 'BILL TO', $x0, $y);
+        self::section_label($pdf, 'PAYMENT', $rx, $y);
+
         // WC returns the formatted address with literal <br/> separators.
-        // Normalize to plain newlines, decode any HTML entities, then split.
         $billing = $order->get_formatted_billing_address();
         $billing = preg_replace('#<br\s*/?>#i', "\n", (string) $billing);
         $billing = html_entity_decode(wp_strip_all_tags($billing), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $lines = $billing !== '' ? array_filter(array_map('trim', explode("\n", $billing))) : [];
+        $lines   = $billing !== '' ? array_values(array_filter(array_map('trim', explode("\n", $billing)))) : [];
+        if ($order->get_billing_email()) $lines[] = $order->get_billing_email();
+        if ($order->get_billing_phone()) $lines[] = $order->get_billing_phone();
 
-        $contact = $order->get_billing_email();
-        if ($order->get_billing_phone()) {
-            $contact .= ' · ' . $order->get_billing_phone();
-        }
-        if ($contact) $lines[] = $contact;
-
-        $by = $y + 5;
-        foreach ($lines as $line) {
-            $pdf->SetXY(25, $by);
-            $pdf->Cell($W - 50, 5, $line, 0, 1, 'L');
-            $by += 5;
+        $by = $y + 6;
+        foreach ($lines as $i => $line) {
+            $pdf->SetFont('helvetica', $i === 0 ? 'B' : '', 9.5);
+            $pdf->SetTextColor($c['dark'][0], $c['dark'][1], $c['dark'][2]);
+            $pdf->SetXY($x0, $by);
+            $pdf->Cell($rx - $x0 - 6, 4.8, $line, 0, 0, 'L', false, '', 1);
+            $by += 4.8;
         }
 
-        /* ---------- Items table ---------- */
-        $y = max($by + 6, 142);
+        $pay_rows = [];
+        $method   = self::clean_text($order->get_payment_method_title());
+        if ($method) $pay_rows[] = ['Method', $method];
+        $date_paid = $order->get_date_paid();
+        if ($date_paid) $pay_rows[] = ['Paid on', wc_format_datetime($date_paid, get_option('date_format'))];
+        $txn = self::clean_text($order->get_transaction_id());
+        if ($txn) $pay_rows[] = ['Reference', $txn];
+        if (!$pay_rows) $pay_rows[] = ['Status', self::clean_text(wc_get_order_status_name($order->get_status()))];
 
-        // Header row
-        $pdf->SetFillColor($navy[0], $navy[1], $navy[2]);
-        $pdf->Rect(20, $y, $W - 40, 8, 'F');
-        $pdf->SetTextColor(255, 255, 255);
-        $pdf->SetFont('helvetica', 'B', 9);
-        $pdf->SetXY(22, $y + 2);
-        $pdf->Cell(100, 4, 'ITEM', 0, 0, 'L');
-        $pdf->SetXY(125, $y + 2);
-        $pdf->Cell(15, 4, 'QTY', 0, 0, 'C');
-        $pdf->SetXY(160, $y + 2);
-        $pdf->Cell(35, 4, 'TOTAL', 0, 0, 'R');
+        $py = $y + 6;
+        foreach ($pay_rows as $row) {
+            $is_ref = ($row[0] === 'Reference');
+            $pdf->SetFont('helvetica', '', 8.5);
+            $pdf->SetTextColor($c['muted'][0], $c['muted'][1], $c['muted'][2]);
+            $pdf->SetXY($rx, $py);
+            $pdf->Cell(20, 4.8, $row[0], 0, 0, 'L');
+            $pdf->SetFont('helvetica', $is_ref ? '' : 'B', $is_ref ? 8 : 9.5);
+            $pdf->SetTextColor($c['dark'][0], $c['dark'][1], $c['dark'][2]);
+            $pdf->SetXY($rx + 20, $py);
+            $pdf->Cell($rw - 20, 4.8, $row[1], 0, 0, 'L', false, '', 1);
+            $py += 4.8;
+        }
 
-        $y += 8;
+        /* ---------- Items ---------- */
+        $y = max($by, $py) + 9;
+        $y = self::draw_items_head($pdf, $y);
 
-        // Item rows
-        $pdf->SetTextColor($dark[0], $dark[1], $dark[2]);
+        $name_w = 104;
         foreach ($order->get_items() as $item) {
-            $product_name = self::clean_text($item->get_name());
-            $attendee   = self::clean_text($item->get_meta('Attendee') ?: $item->get_meta('attendee_name'));
-            $event_date = self::clean_text($item->get_meta('Event Date') ?: $item->get_meta('event_date'));
-
-            $row_h = 8;
-            if ($attendee)   $row_h += 4;
-            if ($event_date) $row_h += 4;
-            $row_h += 2;
+            $name    = self::clean_text($item->get_name());
+            $details = self::item_detail_lines($item);
 
             $pdf->SetFont('helvetica', 'B', 10);
-            $pdf->SetTextColor($dark[0], $dark[1], $dark[2]);
-            $pdf->SetXY(22, $y + 2);
-            $pdf->MultiCell(100, 5, $product_name, 0, 'L');
+            $name_h = max(1, $pdf->getNumLines($name, $name_w)) * 5;
+            $row_h  = 3 + $name_h + (count($details) * 4.2) + 3;
 
-            $sub_y = $pdf->GetY();
-            if ($attendee) {
-                $pdf->SetFont('helvetica', '', 8);
-                $pdf->SetTextColor($muted[0], $muted[1], $muted[2]);
-                $pdf->SetXY(22, $sub_y);
-                $pdf->Cell(100, 4, 'Attendee: ' . $attendee, 0, 0, 'L');
-                $sub_y += 4;
-            }
-            if ($event_date) {
-                $pdf->SetFont('helvetica', '', 8);
-                $pdf->SetTextColor($muted[0], $muted[1], $muted[2]);
-                $pdf->SetXY(22, $sub_y);
-                $pdf->Cell(100, 4, 'Date: ' . $event_date, 0, 0, 'L');
-                $sub_y += 4;
+            if ($y + $row_h > $limit) {
+                $y = self::new_page($pdf, $order);
+                $y = self::draw_items_head($pdf, $y);
             }
 
-            // Right-aligned values vertically centered on first line
+            $pdf->SetTextColor($c['dark'][0], $c['dark'][1], $c['dark'][2]);
+            $pdf->SetFont('helvetica', 'B', 10);
+            $pdf->MultiCell($name_w, 5, $name, 0, 'L', false, 1, $x0 + 2, $y + 3);
+
+            $sub_y = $y + 3 + $name_h;
+            $pdf->SetFont('helvetica', '', 8);
+            $pdf->SetTextColor($c['muted'][0], $c['muted'][1], $c['muted'][2]);
+            foreach ($details as $detail) {
+                $pdf->SetXY($x0 + 2, $sub_y);
+                $pdf->Cell($name_w, 4.2, $detail, 0, 0, 'L', false, '', 1);
+                $sub_y += 4.2;
+            }
+
+            // Line amount before discounts, so the rows add up to the Subtotal below.
             $pdf->SetFont('helvetica', '', 10);
-            $pdf->SetTextColor($dark[0], $dark[1], $dark[2]);
-            $pdf->SetXY(125, $y + 2);
-            $pdf->Cell(15, 5, (string) (int) $item->get_quantity(), 0, 0, 'C');
-            $pdf->SetXY(160, $y + 2);
-            $pdf->Cell(35, 5, self::clean_text(wc_price($item->get_total(), $currency)), 0, 0, 'R');
+            $pdf->SetTextColor($c['dark'][0], $c['dark'][1], $c['dark'][2]);
+            $pdf->SetXY(130, $y + 3);
+            $pdf->Cell(16, 5, (string) (int) $item->get_quantity(), 0, 0, 'C');
+            $pdf->SetXY(150, $y + 3);
+            $pdf->Cell($x1 - 152, 5, self::clean_text(wc_price($item->get_subtotal(), $currency)), 0, 0, 'R');
 
-            $row_bottom = max($sub_y, $y + 8) + 2;
-            $pdf->SetDrawColor(229, 231, 235);
+            $y += $row_h;
+            $pdf->SetDrawColor($c['line'][0], $c['line'][1], $c['line'][2]);
             $pdf->SetLineWidth(0.2);
-            $pdf->Line(20, $row_bottom, $W - 20, $row_bottom);
-            $y = $row_bottom + 2;
+            $pdf->Line($x0, $y, $x1, $y);
         }
 
-        /* ---------- Totals (right-aligned) ---------- */
-        $y += 4;
-        $tx = 110;     // totals left edge
-        $tw = $W - 20 - $tx;
-
-        $rows = [];
-        $rows[] = ['Subtotal', wc_price($order->get_subtotal(), $currency), null];
+        /* ---------- Totals ---------- */
+        $rows   = [];
+        $rows[] = ['Subtotal', wc_price($order->get_subtotal(), $currency), null, null];
 
         foreach ($order->get_items('coupon') as $coupon_item) {
-            $code = method_exists($coupon_item, 'get_code') ? $coupon_item->get_code() : $coupon_item->get_name();
-            $label = class_exists('\\GPSC\\Coupon_Labels') ? Coupon_Labels::get_label_for_code($code) : '';
+            $code    = method_exists($coupon_item, 'get_code') ? $coupon_item->get_code() : $coupon_item->get_name();
+            $label   = class_exists('\\GPSC\\Coupon_Labels') ? Coupon_Labels::get_label_for_code($code) : '';
             $display = self::clean_text($label ?: strtoupper($code));
             $note    = class_exists('\\GPSC\\Discount_Notes') ? Discount_Notes::get_note($order, $code) : '';
-            $rows[] = [
-                'Discount: ' . $display,
-                '-' . wc_price($coupon_item->get_discount(), $currency),
-                self::clean_text($note) ?: null,
-                '#059669',
-            ];
+            $rows[]  = ['Discount: ' . $display, '-' . wc_price($coupon_item->get_discount(), $currency), self::clean_text($note) ?: null, $c['ok']];
+        }
+        foreach ($order->get_fees() as $fee) {
+            $rows[] = [self::clean_text($fee->get_name()), wc_price($fee->get_total(), $currency), null, null];
         }
         if ($order->get_shipping_total() > 0) {
-            $rows[] = ['Shipping', wc_price($order->get_shipping_total(), $currency), null];
+            $rows[] = ['Shipping', wc_price($order->get_shipping_total(), $currency), null, null];
         }
         if ($order->get_total_tax() > 0) {
-            $rows[] = ['Tax', wc_price($order->get_total_tax(), $currency), null];
+            $rows[] = ['Tax', wc_price($order->get_total_tax(), $currency), null, null];
         }
 
-        foreach ($rows as $row) {
-            list($label, $value, $note) = array_pad($row, 3, null);
-            $value_color = $row[3] ?? null;
+        $refunds = [];
+        foreach ($order->get_refunds() as $refund) {
+            $reason    = self::clean_text($refund->get_reason());
+            $refunds[] = ['Refund', '-' . wc_price($refund->get_amount(), $currency), $reason ?: null, $c['err']];
+        }
+        if ($refunds) {
+            $refunds[] = ['Net paid', wc_price($order->get_total() - $order->get_total_refunded(), $currency), null, $c['navy']];
+        }
 
-            $pdf->SetFont('helvetica', '', 10);
-            $pdf->SetTextColor($muted[0], $muted[1], $muted[2]);
-            $pdf->SetXY($tx, $y);
-            $pdf->Cell($tw - 35, 5, $label, 0, 0, 'L');
+        $needed = 6 + 2 + 13; // gap, gap above the bar, TOTAL bar
+        foreach (array_merge($rows, $refunds) as $row) {
+            $needed += 5.5 + ($row[2] ? 4 : 0);
+        }
+        if ($y + $needed > $limit) {
+            $y = self::new_page($pdf, $order);
+        }
 
-            if ($value_color) {
-                $rgb = self::hex2rgb($value_color);
-                $pdf->SetTextColor($rgb[0], $rgb[1], $rgb[2]);
-            } else {
-                $pdf->SetTextColor($dark[0], $dark[1], $dark[2]);
+        $y += 6;
+        $tx = 112;
+        $tw = $x1 - $tx;
+        $y  = self::draw_total_rows($pdf, $rows, $tx, $tw, $y, $c);
+
+        // TOTAL bar
+        $y += 2;
+        $pdf->SetFillColor($c['navy'][0], $c['navy'][1], $c['navy'][2]);
+        $pdf->RoundedRect($tx, $y, $tw, 10, 1.5, '1111', 'F');
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('helvetica', 'B', 11.5);
+        $pdf->SetXY($tx + 4, $y + 2.5);
+        $pdf->Cell($tw - 48, 5, 'TOTAL', 0, 0, 'L');
+        $pdf->SetXY($tx + $tw - 44, $y + 2.5);
+        $pdf->Cell(40, 5, self::clean_text(wc_price($order->get_total(), $currency)), 0, 0, 'R');
+        $y += 13;
+
+        if ($refunds) {
+            self::draw_total_rows($pdf, $refunds, $tx, $tw, $y, $c);
+        }
+
+        self::draw_footers($pdf);
+    }
+
+    /** Colors: certificate settings first, so the receipt follows a brand tweak there. */
+    protected static function palette() {
+        return [
+            'navy'  => self::hex2rgb(Certificate_Settings::get('primary_color') ?: self::BRAND_NAVY),
+            'gold'  => self::hex2rgb(Certificate_Settings::get('secondary_color') ?: self::BRAND_GOLD),
+            'deep'  => self::hex2rgb(self::BRAND_NAVY_DEEP),
+            'dark'  => self::hex2rgb(self::TEXT_DARK),
+            'muted' => self::hex2rgb(self::TEXT_MUTED),
+            'note'  => self::hex2rgb(self::TEXT_NOTE),
+            'light' => self::hex2rgb(self::SURFACE_LIGHT),
+            'line'  => self::hex2rgb(self::BORDER_LIGHT),
+            'ok'    => self::hex2rgb(self::DISCOUNT_GREEN),
+            'err'   => self::hex2rgb('#b4322a'),
+        ];
+    }
+
+    /** Lowest y the page content may reach before the footer band. */
+    protected static function content_bottom() {
+        return self::PAGE_H - 15 - self::FOOTER_H - 6;
+    }
+
+    /**
+     * White logo for the navy band: the same PNG the GPS emails use
+     * (attachment 7626, logo-gps-light.png), then the certificate logo.
+     * '' means "use the typographic fallback".
+     */
+    protected static function logo_path() {
+        $path = '';
+        $id   = (int) apply_filters('gps_receipt_logo_id', 7626);
+        if ($id) {
+            $path = (string) get_attached_file($id);
+        }
+        if ($path === '' || !file_exists($path)) {
+            $url = (string) Certificate_Settings::get('logo');
+            if ($url !== '') {
+                $uploads = \wp_upload_dir();
+                $path    = str_replace($uploads['baseurl'], $uploads['basedir'], $url);
             }
-            $pdf->SetXY($tx + $tw - 35, $y);
-            $pdf->Cell(35, 5, self::clean_text($value), 0, 0, 'R');
-            $y += 5;
+        }
+        $path = (string) apply_filters('gps_receipt_logo_path', $path);
+        if ($path === '' || !file_exists($path) || preg_match('/\.svg$/i', $path)) {
+            return '';
+        }
+        $info = @getimagesize($path);
+        return ($info && !empty($info[0]) && !empty($info[1])) ? $path : '';
+    }
+
+    /** Background, border and the navy header band of one page. */
+    protected static function draw_page_frame($pdf, $order, $continued) {
+        $W = self::PAGE_W;
+        $c = self::palette();
+
+        $pdf->SetFillColor(255, 255, 255);
+        $pdf->Rect(0, 0, $W, self::PAGE_H, 'F');
+        $pdf->SetLineWidth(0.4);
+        $pdf->SetDrawColor(220, 220, 220);
+        $pdf->RoundedRect(10, 10, $W - 20, self::PAGE_H - 20, 5, '1111', 'D');
+
+        $band_y = 15;
+        $band_h = 26;
+        $pdf->SetFillColor($c['navy'][0], $c['navy'][1], $c['navy'][2]);
+        $pdf->Rect(15, $band_y, $W - 30, $band_h, 'F');
+
+        $logo = self::logo_path();
+        if ($logo) {
+            $info = getimagesize($logo);
+            $lh   = 10;
+            $lw   = min(($info[0] / $info[1]) * $lh, 80);
+            // $resize = false: TCPDF's own PNG parser keeps the transparency (GD would flatten it on white).
+            $pdf->Image($logo, self::CONTENT_X, $band_y + ($band_h - $lh) / 2, $lw, $lh, '', '', '', false, 300);
+        } else {
+            $pdf->SetTextColor(255, 255, 255);
+            $pdf->SetFont('helvetica', 'B', 16);
+            $pdf->SetXY(self::CONTENT_X, $band_y + 6);
+            $pdf->Cell(80, 7, 'GPS DENTAL', 0, 0, 'L');
+            $pdf->SetTextColor($c['gold'][0], $c['gold'][1], $c['gold'][2]);
+            $pdf->SetFont('helvetica', '', 8.5);
+            $pdf->SetXY(self::CONTENT_X, $band_y + 14);
+            $pdf->Cell(80, 5, 'T R A I N I N G', 0, 0, 'L');
+        }
+
+        $rw = 80;
+        $rx = self::CONTENT_R - $rw;
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('helvetica', 'B', $continued ? 13 : 17);
+        $pdf->SetXY($rx, $band_y + 5.5);
+        $pdf->Cell($rw, 8, $continued ? 'RECEIPT (CONTINUED)' : 'RECEIPT', 0, 0, 'R');
+        $pdf->SetTextColor($c['gold'][0], $c['gold'][1], $c['gold'][2]);
+        $pdf->SetFont('helvetica', 'B', 9);
+        $pdf->SetXY($rx, $band_y + 14);
+        $pdf->Cell($rw, 5, 'Order #' . $order->get_order_number(), 0, 0, 'R');
+    }
+
+    /** Starts a continuation page and returns the y where content starts. */
+    protected static function new_page($pdf, $order) {
+        $pdf->AddPage();
+        self::draw_page_frame($pdf, $order, true);
+        return 50;
+    }
+
+    protected static function section_label($pdf, $text, $x, $y) {
+        $c = self::palette();
+        $pdf->SetTextColor($c['gold'][0], $c['gold'][1], $c['gold'][2]);
+        $pdf->SetFont('helvetica', 'B', 8.5);
+        $pdf->SetXY($x, $y);
+        $pdf->Cell(60, 5, $text, 0, 0, 'L');
+    }
+
+    /** Navy header row of the items table; returns the y below it. */
+    protected static function draw_items_head($pdf, $y) {
+        $c  = self::palette();
+        $x0 = self::CONTENT_X;
+        $x1 = self::CONTENT_R;
+        $pdf->SetFillColor($c['navy'][0], $c['navy'][1], $c['navy'][2]);
+        $pdf->RoundedRect($x0, $y, $x1 - $x0, 8, 1.5, '1111', 'F');
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('helvetica', 'B', 8.5);
+        $pdf->SetXY($x0 + 2, $y + 2);
+        $pdf->Cell(100, 4, 'ITEM', 0, 0, 'L');
+        $pdf->SetXY(130, $y + 2);
+        $pdf->Cell(16, 4, 'QTY', 0, 0, 'C');
+        $pdf->SetXY(150, $y + 2);
+        $pdf->Cell($x1 - 152, 4, 'AMOUNT', 0, 0, 'R');
+        return $y + 8;
+    }
+
+    /** Label / value rows of the totals block; returns the y below them. */
+    protected static function draw_total_rows($pdf, $rows, $tx, $tw, $y, $c) {
+        foreach ($rows as $row) {
+            list($label, $value, $note, $value_c) = array_pad($row, 4, null);
+
+            $pdf->SetFont('helvetica', $label === 'Net paid' ? 'B' : '', 9.5);
+            $pdf->SetTextColor($c['muted'][0], $c['muted'][1], $c['muted'][2]);
+            $pdf->SetXY($tx, $y);
+            $pdf->Cell($tw - 42, 5, $label, 0, 0, 'L', false, '', 1);
+
+            $value_c = $value_c ?: $c['dark'];
+            $pdf->SetTextColor($value_c[0], $value_c[1], $value_c[2]);
+            $pdf->SetXY($tx + $tw - 42, $y);
+            $pdf->Cell(42, 5, self::clean_text($value), 0, 0, 'R');
+            $y += 5.5;
 
             if ($note) {
                 $pdf->SetFont('helvetica', 'I', 7.5);
-                $pdf->SetTextColor($note_c[0], $note_c[1], $note_c[2]);
-                $pdf->SetXY($tx, $y);
-                $pdf->Cell($tw, 4, $note, 0, 0, 'L');
+                $pdf->SetTextColor($c['note'][0], $c['note'][1], $c['note'][2]);
+                $pdf->SetXY($tx, $y - 1);
+                $pdf->Cell($tw, 4, $note, 0, 0, 'L', false, '', 1);
                 $y += 4;
             }
         }
+        return $y;
+    }
 
-        // TOTAL row in navy
-        $y += 2;
-        $pdf->SetFillColor($navy[0], $navy[1], $navy[2]);
-        $pdf->Rect($tx, $y, $tw, 10, 'F');
-        $pdf->SetTextColor(255, 255, 255);
-        $pdf->SetFont('helvetica', 'B', 12);
-        $pdf->SetXY($tx + 3, $y + 2.5);
-        $pdf->Cell($tw - 38, 5, 'TOTAL', 0, 0, 'L');
-        $pdf->SetXY($tx + $tw - 38, $y + 2.5);
-        $pdf->Cell(35, 5, self::clean_text(wc_price($order->get_total(), $currency)), 0, 0, 'R');
-        $y += 14;
-
-        /* ---------- Payment line ---------- */
-        $payment = self::clean_text($order->get_payment_method_title());
-        if ($payment) {
-            $pdf->SetFont('helvetica', '', 9);
-            $pdf->SetTextColor($muted[0], $muted[1], $muted[2]);
-            $pdf->SetXY(25, $y);
-            $pdf->Cell($W - 50, 5, 'Payment Method: ' . $payment, 0, 0, 'L');
-            $y += 8;
-        }
-
-        /* ---------- Footer (deep navy band at the bottom of the page) ---------- */
-        $foot_h  = 32;
-        $foot_y  = $H - 10 - $foot_h - 5; // sit inside the rounded border
-        $pdf->SetFillColor($deep[0], $deep[1], $deep[2]);
-        $pdf->Rect(15, $foot_y, $W - 30, $foot_h, 'F');
+    /** Deep navy footer on every page, plus "Page x of y" on long receipts. */
+    protected static function draw_footers($pdf) {
+        $W     = self::PAGE_W;
+        $c     = self::palette();
+        $total = $pdf->getNumPages();
 
         $company = self::clean_text(get_option('gps_company_name'))    ?: 'GPS Dental Training';
         $email   = self::clean_text(get_option('gps_company_email'))   ?: 'info@gpsdentaltraining.com';
         $phone   = self::clean_text(get_option('gps_company_phone'))   ?: '';
-        $address = self::clean_text(get_option('gps_company_address')) ?: '';
+        $address = (string) get_option('gps_company_address');
+        $address = self::clean_text(preg_replace('/\s*\R\s*/', ', ', $address));
+        $contact = array_filter([$address, $phone, $email]);
 
-        $pdf->SetTextColor(255, 255, 255);
-        $pdf->SetFont('helvetica', 'B', 10);
-        $pdf->SetXY(15, $foot_y + 4);
-        $pdf->Cell($W - 30, 5, strtoupper($company), 0, 1, 'C');
+        for ($p = 1; $p <= $total; $p++) {
+            $pdf->setPage($p);
+            $fy = self::PAGE_H - 15 - self::FOOTER_H;
 
-        $pdf->SetFont('helvetica', '', 9);
-        $pdf->SetTextColor(180, 195, 215);
-        if ($address) {
-            $pdf->SetXY(15, $foot_y + 10);
-            $pdf->Cell($W - 30, 4, str_replace("\n", ' · ', $address), 0, 1, 'C');
+            $pdf->SetFillColor($c['deep'][0], $c['deep'][1], $c['deep'][2]);
+            $pdf->Rect(15, $fy, $W - 30, self::FOOTER_H, 'F');
+
+            $pdf->SetTextColor(255, 255, 255);
+            $pdf->SetFont('helvetica', 'B', 9.5);
+            $pdf->SetXY(15, $fy + 4.5);
+            $pdf->Cell($W - 30, 5, strtoupper($company), 0, 0, 'C');
+
+            $pdf->SetFont('helvetica', '', 8.5);
+            $pdf->SetTextColor(180, 195, 215);
+            $pdf->SetXY(20, $fy + 10.5);
+            $pdf->Cell($W - 40, 4, implode('  ·  ', $contact), 0, 0, 'C', false, '', 1);
+
+            $pdf->SetTextColor($c['gold'][0], $c['gold'][1], $c['gold'][2]);
+            $pdf->SetFont('helvetica', 'I', 8.5);
+            $pdf->SetXY(15, $fy + 17);
+            $pdf->Cell($W - 30, 4, 'Thank you for choosing ' . $company, 0, 0, 'C');
+
+            if ($total > 1) {
+                $pdf->SetFont('helvetica', '', 7.5);
+                $pdf->SetTextColor(180, 195, 215);
+                $pdf->SetXY(self::CONTENT_R - 40, $fy + 17);
+                $pdf->Cell(40, 4, 'Page ' . $p . ' of ' . $total, 0, 0, 'R');
+            }
         }
-        $contact_bits = [];
-        if ($phone) $contact_bits[] = $phone;
-        $contact_bits[] = $email;
-        $pdf->SetXY(15, $foot_y + 15);
-        $pdf->Cell($W - 30, 4, implode(' · ', $contact_bits), 0, 1, 'C');
+        $pdf->lastPage();
+    }
 
-        // Gold "thanks" line
-        $pdf->SetTextColor($gold[0], $gold[1], $gold[2]);
-        $pdf->SetFont('helvetica', 'I', 9);
-        $pdf->SetXY(15, $foot_y + 23);
-        $pdf->Cell($W - 30, 4, 'Thank you for choosing GPS Dental Training', 0, 1, 'C');
+    /** Small grey lines under an item: date, place, attendee. */
+    protected static function item_detail_lines($item) {
+        $lines = [];
+        $ctx   = self::describe_item($item);
+        if ($ctx['when']) {
+            $lines[] = ($ctx['type'] === 'seminar' ? 'Program: ' : 'Date: ') . $ctx['when'];
+        }
+        if ($ctx['where']) {
+            $lines[] = 'Location: ' . $ctx['where'];
+        }
+
+        // Older orders may carry these visible meta keys.
+        $attendee   = self::clean_text($item->get_meta('Attendee') ?: $item->get_meta('attendee_name'));
+        $event_date = self::clean_text($item->get_meta('Event Date') ?: $item->get_meta('event_date'));
+        if ($attendee) {
+            $lines[] = 'Attendee: ' . $attendee;
+        }
+        if ($event_date && !$ctx['when']) {
+            $lines[] = 'Date: ' . $event_date;
+        }
+        return $lines;
+    }
+
+    /**
+     * What a GPS order line is: a course ticket, a monthly seminar
+     * enrollment or a single seminar session, with its date and place.
+     * Shared by the receipt and the thank-you page.
+     *
+     * @param \WC_Order_Item_Product $item
+     * @return array{type:string,id:int,title:string,url:string,when:string,where:string}
+     */
+    public static function describe_item($item) {
+        static $memo = [];
+        $out = ['type' => 'other', 'id' => 0, 'title' => '', 'url' => '', 'when' => '', 'where' => ''];
+        if (!is_object($item) || !method_exists($item, 'get_product_id')) {
+            return $out;
+        }
+        $key = method_exists($item, 'get_id') && $item->get_id() ? (int) $item->get_id() : 0;
+        if ($key && isset($memo[$key])) {
+            return $memo[$key];
+        }
+        $info = self::lookup_item($item, $out);
+        if ($key) {
+            $memo[$key] = $info;
+        }
+        return $info;
+    }
+
+    protected static function lookup_item($item, $out) {
+        $product_id = (int) $item->get_product_id();
+
+        // Course ticket: the event id is stored on the line at checkout.
+        $event_id = (int) $item->get_meta('_gps_event_id');
+        if (!$event_id && $product_id) {
+            $event_id = (int) get_post_meta($product_id, '_gps_event_id', true);
+        }
+        if ($event_id && get_post_type($event_id) === 'gps_event') {
+            $start = (string) get_post_meta($event_id, '_gps_start_date', true);
+            $end   = (string) get_post_meta($event_id, '_gps_end_date', true);
+            $city  = trim((string) get_post_meta($event_id, '_gps_city', true));
+            $state = trim((string) get_post_meta($event_id, '_gps_state', true));
+            $where = array_filter([
+                trim((string) get_post_meta($event_id, '_gps_venue', true)),
+                trim($city . ($state !== '' ? ', ' . $state : ''), ', '),
+            ]);
+            return [
+                'type'  => 'course',
+                'id'    => $event_id,
+                'title' => self::clean_text(get_the_title($event_id)),
+                'url'   => (string) get_permalink($event_id),
+                'when'  => self::date_range($start, $end),
+                'where' => implode(', ', array_unique($where)),
+            ];
+        }
+
+        // Monthly seminar enrollment
+        $seminar_id = $product_id ? (int) get_post_meta($product_id, '_gps_seminar_id', true) : 0;
+        if ($seminar_id) {
+            $year = (int) get_post_meta($seminar_id, '_gps_seminar_year', true);
+            return [
+                'type'  => 'seminar',
+                'id'    => $seminar_id,
+                'title' => self::clean_text(get_the_title($seminar_id)),
+                'url'   => (string) get_permalink($seminar_id),
+                'when'  => $year ? sprintf('%d · 10 monthly sessions', $year) : '10 monthly sessions',
+                'where' => '',
+            ];
+        }
+
+        // Single seminar session
+        if ($product_id && class_exists('\\GPSC\\Session_Tickets')) {
+            $session = Session_Tickets::get_session_by_product($product_id);
+            if ($session) {
+                $when = '';
+                if (!empty($session->session_date)) {
+                    $when = date_i18n('M j, Y', strtotime($session->session_date));
+                    if (!empty($session->session_time_start)) {
+                        $when .= ' · ' . date_i18n('g:i A', strtotime($session->session_date . ' ' . $session->session_time_start));
+                    }
+                }
+                return [
+                    'type'  => 'session',
+                    'id'    => (int) $session->seminar_id,
+                    'title' => self::clean_text(get_the_title((int) $session->seminar_id)) .
+                               (!empty($session->session_number) ? ' · Session ' . (int) $session->session_number : ''),
+                    'url'   => (string) get_permalink((int) $session->seminar_id),
+                    'when'  => $when,
+                    'where' => '',
+                ];
+            }
+        }
+
+        return $out;
+    }
+
+    /** "Nov 14–15, 2026": same format as the account dashboard. */
+    protected static function date_range($start, $end) {
+        if ($start === '') return '';
+        if (class_exists('\\GPSC\\Account_Dashboard') && method_exists('\\GPSC\\Account_Dashboard', 'date_range')) {
+            return (string) Account_Dashboard::date_range($start, $end);
+        }
+        $ts = strtotime($start);
+        return $ts ? date_i18n('M j, Y', $ts) : '';
     }
 
     /**
@@ -633,22 +859,12 @@ class Receipts {
      * seminar enrollment or individual session ticket). Used to decide
      * whether to show the customer-facing download button.
      */
-    protected static function has_gps_items($order) {
+    public static function has_gps_items($order) {
         foreach ($order->get_items() as $item) {
-            $product_id = $item->get_product_id();
-            if (!$product_id) continue;
-
-            // Match the same detection used elsewhere in the plugin
-            if (class_exists('\\GPSC\\Session_Tickets') && Session_Tickets::is_session_product($product_id)) {
-                return true;
-            }
-            // Linked ticket/seminar product detection: any product tied to a gps CPT
-            if (get_post_meta($product_id, '_gps_event_id', true) ||
-                get_post_meta($product_id, '_gps_seminar_product_id', true)) {
+            if (self::describe_item($item)['type'] !== 'other') {
                 return true;
             }
         }
-        // Fall back to true so admins can always download; customer button is the only stricter check.
         return false;
     }
 }
