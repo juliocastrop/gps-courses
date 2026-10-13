@@ -72,6 +72,18 @@
     overflow: hidden;
     color: #fff;
     background: var(--gps-cp-deep);
+    /* The site header is transparent and sits in the page flow: slide the hero up
+       under it (like the home page) and keep the content clear of it */
+    margin-top: calc(-1 * var(--gps-cp-header-h, 100px));
+    padding-top: var(--gps-cp-header-h, 100px);
+}
+
+@media (max-width: 1024px) {
+    .gps-cp { --gps-cp-header-h: 85px; }
+}
+
+@media (max-width: 767px) {
+    .gps-cp { --gps-cp-header-h: 65px; }
 }
 
 .gps-cp .gps-cp-hero__media {
@@ -1088,7 +1100,7 @@
 
 .gps-cp .gps-cp-countdown__unit {
     font-size: 11px;
-    color: #c9d3e6;
+    color: var(--gps-cp-gold, #DDC89D);
 }
 
 .gps-cp .gps-cp-countdown__line {

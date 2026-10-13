@@ -397,6 +397,10 @@ get_header();
                             <div class="gps-cp-map">
                                 <iframe title="<?php echo esc_attr(sprintf(__('Map: %s', 'gps-courses'), $d['venue'] ?: $d['city'])); ?>" src="<?php echo esc_url('https://www.google.com/maps/embed/v1/place?key=' . rawurlencode($d['map_key']) . '&q=' . rawurlencode($d['map_q'])); ?>" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
                             </div>
+                        <?php elseif ($d['map_q']) : ?>
+                            <div class="gps-cp-map">
+                                <iframe title="<?php echo esc_attr(sprintf(__('Map: %s', 'gps-courses'), $d['venue'] ?: $d['city'])); ?>" src="<?php echo esc_url('https://maps.google.com/maps?output=embed&z=15&q=' . rawurlencode($d['map_q'])); ?>" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+                            </div>
                         <?php else : ?>
                             <a class="gps-cp-map gps-cp-map--static" href="<?php echo esc_url('https://www.google.com/maps/search/?api=1&query=' . rawurlencode($d['map_q'])); ?>" target="_blank" rel="noopener">
                                 <?php echo $i('map', 32); ?>

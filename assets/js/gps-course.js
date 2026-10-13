@@ -18,6 +18,20 @@
 
     function $all(sel, ctx) { return Array.prototype.slice.call((ctx || document).querySelectorAll(sel)); }
 
+    /* ---------- Hero under the transparent site header ---------- */
+
+    // CSS assumes 100/85/65px; use the header's real height when it sits in the flow
+    function fitHeader() {
+        var h = document.querySelector('[data-elementor-type="header"], .elementor-location-header');
+        if (!h) { return; }
+        var pos = getComputedStyle(h).position;
+        if (pos === 'static' || pos === 'relative') {
+            root.style.setProperty('--gps-cp-header-h', Math.round(h.getBoundingClientRect().height) + 'px');
+        }
+    }
+    fitHeader();
+    window.addEventListener('resize', fitHeader);
+
     /* ---------- Sticky offsets (fixed / sticky site header) ---------- */
 
     var nav = root.querySelector('.gps-cp-nav');
