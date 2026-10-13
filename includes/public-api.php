@@ -157,9 +157,10 @@ if (!function_exists('gpsc_catalog')) {
                 ];
             }
 
-            // No ticket on sale: "soon" unless every ticket's sale already ended
+            // No ticket on sale: "soon", or "closed" when every ticket's sale ended and
+            // the course is near (an old edition's tickets don't close next year's)
             $status = $c['status'];
-            if ('soon' === $status) {
+            if ('soon' === $status && $c['start'] && strtotime($c['start']) - strtotime($today) <= 45 * DAY_IN_SECONDS) {
                 $all = get_posts([
                     'post_type'   => 'gps_ticket',
                     'post_status' => 'publish',
