@@ -652,7 +652,8 @@ class API {
         global $wpdb;
         $table = $wpdb->prefix . 'gps_waitlist';
 
-        $where = "email = %s AND status IN ('waiting', 'notified')";
+        // ticket_type_id 0 = "next dates" interest list (Interest_List), not the sold-out waitlist
+        $where = "email = %s AND status IN ('waiting', 'notified') AND w.ticket_type_id > 0";
         $params = [$email];
 
         if ($event_id) {

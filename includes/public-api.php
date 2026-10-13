@@ -10,7 +10,7 @@ if (!defined('ABSPATH')) exit;
 
 if (!function_exists('gpsc_api_version')) {
     function gpsc_api_version() {
-        return '1.1'; // 1.1: gpsc_catalog()
+        return '1.2'; // 1.1: gpsc_catalog(); 1.2: gpsc_interest_add(), catalog 'program' + 'other_editions'
     }
 }
 
@@ -114,12 +114,32 @@ if (!function_exists('gpsc_waitlist_status')) {
         }
         $row = $wpdb->get_row($wpdb->prepare(
             "SELECT position, status, ticket_type_id FROM {$wpdb->prefix}gps_waitlist
-             WHERE email = %s AND event_id = %d AND status IN ('waiting', 'notified')
+             WHERE email = %s AND event_id = %d AND status IN ('waiting', 'notified') AND ticket_type_id > 0
              ORDER BY created_at DESC LIMIT 1",
             $email,
             (int) $event_id
         ));
         return $row ? ['position' => (int) $row->position, 'status' => $row->status, 'ticket_id' => (int) $row->ticket_type_id] : null;
+    }
+}
+
+if (!function_exists('gpsc_interest_add')) {
+    /**
+     * Add someone to a course's "next dates" interest list: they get one email
+     * when the course, or a new edition of the same program, opens for
+     * registration. For courses that have taken place, are in progress or
+     * whose registration hasn't opened yet. An open course returns the
+     * 'registration_open' error; a sold-out one 'sold_out' (use gpsc_waitlist_add()).
+     *
+     * @param array $data event_id (required), email (required), first_name, last_name, user_id.
+     * @return array|WP_Error ['id', 'status' => 'waiting', 'already' (bool), 'event_id', 'event_title',
+     *                         'stage' (open|sold_out|soon|in_progress|past)]
+     */
+    function gpsc_interest_add(array $data) {
+        if (!class_exists('\GPSC\Interest_List')) {
+            return new WP_Error('unavailable', __('The interest list is not available.', 'gps-courses'));
+        }
+        return \GPSC\Interest_List::add($data);
     }
 }
 
@@ -181,6 +201,9 @@ if (!function_exists('gpsc_catalog')) {
                 }
             }
 
+            $program = class_exists('\GPSC\Course_Stage') ? \GPSC\Course_Stage::program($c['id']) : null;
+            $other   = $program ? \GPSC\Course_Stage::other_editions($c['id'], $today) : [];
+
             $description = (string) get_post_meta($c['id'], '_gps_course_description', true)
                 ?: wp_strip_all_tags((string) get_post_meta($c['id'], '_gps_description', true));
             $courses[] = [
@@ -200,6 +223,9 @@ if (!function_exists('gpsc_catalog')) {
                 'description' => html_entity_decode(wp_trim_words($description, 150), ENT_QUOTES, 'UTF-8'),
                 'objectives'  => trim((string) get_post_meta($c['id'], '_gps_objectives', true)),
                 'tickets'  => $tickets,
+                // Editions of the same course (gps_course_program); null / [] when not grouped
+                'program'  => $program ? ['id' => (int) $program->term_id, 'name' => html_entity_decode($program->name, ENT_QUOTES, 'UTF-8'), 'slug' => $program->slug] : null,
+                'other_editions' => $other, // upcoming: id, title, url, start, end, when, status (open|sold_out|soon)
             ];
         }
 

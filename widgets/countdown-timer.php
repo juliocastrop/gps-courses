@@ -29,6 +29,10 @@ class Countdown_Timer_Widget extends Base_Widget {
         return ['gps-courses-countdown'];
     }
 
+    public function get_style_depends() {
+        return ['gps-course-stage'];
+    }
+
     protected function register_controls() {
         // Content Section
         $this->start_controls_section(
@@ -223,7 +227,37 @@ class Countdown_Timer_Widget extends Base_Widget {
             [
                 'label' => __('Expired Message', 'gps-courses'),
                 'type' => Controls_Manager::TEXT,
-                'default' => __('Event has started!', 'gps-courses'),
+                'default' => __('Happening now', 'gps-courses'),
+                'description' => __('Shown if the countdown reaches zero while the page is open.', 'gps-courses'),
+            ]
+        );
+
+        $this->add_control(
+            'past_display',
+            [
+                'label' => __('When the course has ended', 'gps-courses'),
+                'type' => Controls_Manager::SELECT,
+                'default' => 'message',
+                'options' => [
+                    'message' => __('Show "Last held … · New dates to be announced"', 'gps-courses'),
+                    'hide' => __('Hide the widget', 'gps-courses'),
+                ],
+                'description' => __('While the course is in progress the widget shows "Happening now" with its dates.', 'gps-courses'),
+                'condition' => [
+                    'countdown_type' => 'event',
+                ],
+            ]
+        );
+
+        $this->add_control(
+            'hide_start_heading',
+            [
+                'label' => __('Hide "starts in" heading', 'gps-courses'),
+                'type' => Controls_Manager::SWITCHER,
+                'label_on' => __('Yes', 'gps-courses'),
+                'label_off' => __('No', 'gps-courses'),
+                'default' => 'yes',
+                'description' => __('When there is nothing to count down, hide a nearby heading such as "This event will start in:".', 'gps-courses'),
             ]
         );
 
@@ -608,15 +642,37 @@ class Countdown_Timer_Widget extends Base_Widget {
 
         // Get target date
         $target_date = '';
+        $stage_event = 0;
 
         if ($settings['countdown_type'] === 'event') {
             $event_id = !empty($settings['event_id']) ? (int) $settings['event_id'] : get_the_ID();
 
             if ($event_id && get_post_type($event_id) === 'gps_event') {
                 $target_date = get_post_meta($event_id, '_gps_start_date', true);
+                $stage_event = (int) $event_id;
             }
         } else {
             $target_date = $settings['custom_date'];
+        }
+
+        $hide_heading = (isset($settings['hide_start_heading']) ? $settings['hide_start_heading'] : 'yes') === 'yes' ? 'yes' : 'no';
+
+        // Course in progress or over: nothing to count down (Course_Stage)
+        if ($stage_event && class_exists('\\GPSC\\Course_Stage')) {
+            $stage = \GPSC\Course_Stage::get($stage_event);
+            if ('past' !== $stage && \GPSC\Course_Stage::is_running($stage_event)) {
+                $stage = 'in_progress'; // during the dates, even while tickets are still sold
+            }
+            if (in_array($stage, ['in_progress', 'past'], true)) {
+                $this->render_stage($stage_event, $stage, $settings, $hide_heading);
+                return;
+            }
+        }
+
+        // Saved widgets kept the old default text
+        $expired_message = trim((string) ($settings['expired_message'] ?? ''));
+        if ('' === $expired_message || 'Event has started!' === $expired_message) {
+            $expired_message = __('Happening now', 'gps-courses');
         }
 
         if (empty($target_date)) {
@@ -653,7 +709,8 @@ class Countdown_Timer_Widget extends Base_Widget {
         <div class="gps-countdown-wrapper <?php echo esc_attr($layout_class); ?> <?php echo esc_attr($box_style_class); ?> <?php echo esc_attr($label_position_class); ?> <?php echo esc_attr($hide_seconds_mobile_class); ?>"
              id="<?php echo esc_attr($countdown_id); ?>"
              data-date="<?php echo esc_attr($target_date); ?>"
-             data-expired="<?php echo esc_attr($settings['expired_message']); ?>"
+             data-expired="<?php echo esc_attr($expired_message); ?>"
+             data-hide-heading="<?php echo esc_attr($hide_heading); ?>"
              data-format="<?php echo esc_attr($settings['digits_format']); ?>">
             <div class="gps-countdown">
 
@@ -717,6 +774,7 @@ class Countdown_Timer_Widget extends Base_Widget {
             </div>
         </div>
 
+        <?php $this->print_heading_helper(); ?>
         <script>
         jQuery(document).ready(function($) {
             var countdownEl = $('#<?php echo esc_js($countdown_id); ?>');
@@ -733,7 +791,14 @@ class Countdown_Timer_Widget extends Base_Widget {
                 var distance = targetDate - now;
 
                 if (distance < 0) {
-                    countdownEl.find('.gps-countdown').html('<div class="gps-countdown-expired">' + expiredMessage + '</div>');
+                    clearInterval(timer);
+                    countdownEl.addClass('gps-countdown-stage');
+                    countdownEl.find('.gps-countdown').empty().append(
+                        $('<div class="gps-countdown-expired gps-countdown-stage-msg"></div>').text(expiredMessage)
+                    );
+                    if (countdownEl.data('hide-heading') === 'yes' && window.gpsHideStartHeading) {
+                        window.gpsHideStartHeading(countdownEl[0]);
+                    }
                     return;
                 }
 
@@ -748,11 +813,96 @@ class Countdown_Timer_Widget extends Base_Widget {
                 countdownEl.find('[data-seconds]').text(pad(seconds));
             }
 
+            var timer = setInterval(updateCountdown, 1000);
             updateCountdown();
-            setInterval(updateCountdown, 1000);
         });
         </script>
         <?php
+    }
+
+    /**
+     * In progress: "Happening now · Sep 17–18, 2027". Over: "Last held … ·
+     * New dates to be announced" (or the next edition's date, linked), or
+     * nothing when the widget is set to hide.
+     */
+    protected function render_stage($event_id, $stage, array $settings, $hide_heading) {
+        $countdown_id = 'gps-countdown-' . $this->get_id();
+        $layout_class = 'gps-countdown-' . (isset($settings['layout_style']) ? $settings['layout_style'] : 'block');
+        $range = \GPSC\Course_Stage::date_range($event_id);
+        $is_editor = class_exists('\\GPSC\\Elementor_Integration') && \Elementor\Plugin::$instance && \GPSC\Elementor_Integration::is_elementor_editor();
+
+        if ('past' === $stage && 'hide' === (isset($settings['past_display']) ? $settings['past_display'] : 'message')) {
+            if ($is_editor) {
+                echo '<p style="padding:12px;border:1px dashed #c3c4c7;color:#646970;font-size:13px;">'
+                    . esc_html__('This course has ended, so the countdown is hidden on the live page (Settings → When the course has ended).', 'gps-courses')
+                    . '</p>';
+                return;
+            }
+            echo '<div class="gps-countdown-wrapper gps-countdown-stage" id="' . esc_attr($countdown_id) . '" data-stage="past" data-hidden="yes" data-hide-heading="' . esc_attr($hide_heading) . '" hidden></div>';
+            $this->print_heading_helper($countdown_id, $hide_heading);
+            return;
+        }
+
+        $sep = '<span class="gps-sep" aria-hidden="true">·</span>';
+        if ('in_progress' === $stage) {
+            $msg = '<span class="gps-live-dot" aria-hidden="true"></span><span>' . esc_html__('Happening now', 'gps-courses') . '</span>';
+            if ('' !== $range) {
+                $msg .= $sep . '<span>' . esc_html($range) . '</span>';
+            }
+        } else {
+            $others = \GPSC\Course_Stage::other_editions($event_id);
+            $next = $others ? $others[0] : null;
+            $msg = '' !== $range
+                /* translators: %s: date range, e.g. Sep 17–18, 2027 */
+                ? '<span>' . esc_html(sprintf(__('Last held %s', 'gps-courses'), $range)) . '</span>' . $sep
+                : '';
+            if ($next) {
+                $msg .= '<span>' . esc_html__('Next date:', 'gps-courses') . ' <a href="' . esc_url($next['url']) . '">'
+                    . esc_html('' !== $next['when'] ? $next['when'] : __('see dates', 'gps-courses')) . '</a></span>';
+            } else {
+                $msg .= '<span>' . esc_html__('New dates to be announced', 'gps-courses') . '</span>';
+            }
+        }
+
+        echo '<div class="gps-countdown-wrapper gps-countdown-stage gps-countdown-stage--' . esc_attr($stage) . ' ' . esc_attr($layout_class) . '"'
+            . ' id="' . esc_attr($countdown_id) . '" data-stage="' . esc_attr($stage) . '" data-hide-heading="' . esc_attr($hide_heading) . '">'
+            . '<div class="gps-countdown"><div class="gps-countdown-expired gps-countdown-stage-msg">' . $msg . '</div></div></div>';
+        $this->print_heading_helper($countdown_id, $hide_heading);
+    }
+
+    /**
+     * window.gpsHideStartHeading(el): hide a "… starts in" Heading widget next
+     * to the countdown (same or parent container). Defined once per page; with
+     * $countdown_id and $hide === 'yes' it also runs for that widget now.
+     */
+    protected function print_heading_helper($countdown_id = '', $hide = 'no') {
+        static $printed = false;
+        if (!$printed) {
+            $printed = true;
+            ?>
+            <script>
+            window.gpsHideStartHeading = window.gpsHideStartHeading || function (el) {
+                var re = /\bstart(s|ing)?\s+in\b/i;
+                var widget = el.closest ? (el.closest('.elementor-widget') || el) : el;
+                var box = widget.parentElement;
+                for (var depth = 0; box && depth < 3; depth++, box = box.parentElement) {
+                    var hit = false;
+                    var heads = box.querySelectorAll('.elementor-widget-heading');
+                    for (var i = 0; i < heads.length; i++) {
+                        if (!heads[i].contains(el) && re.test(heads[i].textContent || '')) {
+                            heads[i].style.display = 'none';
+                            hit = true;
+                        }
+                    }
+                    if (hit || box === document.body) { break; }
+                }
+            };
+            </script>
+            <?php
+        }
+        if ($countdown_id && 'yes' === $hide) {
+            echo '<script>(function(){var el=document.getElementById(' . wp_json_encode($countdown_id) . ');if(el&&window.gpsHideStartHeading){window.gpsHideStartHeading(el);}})();</script>';
+        }
     }
 
     private function get_events_list() {

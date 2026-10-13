@@ -100,6 +100,8 @@ class Elementor_Integration {
             'seminar-schedule',
             // Home hero (courses + seminars from gpsc_catalog())
             'hero-slider',
+            // Upcoming editions of the same course (Course_Stage programs)
+            'other-dates',
         ];
 
         foreach ($widgets as $widget) {

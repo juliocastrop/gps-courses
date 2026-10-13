@@ -23,7 +23,11 @@ class Ticket_Selector_Widget extends Base_Widget {
     }
 
     public function get_script_depends() {
-        return ['gps-courses-ticket-selector'];
+        return ['gps-courses-ticket-selector', 'gps-interest'];
+    }
+
+    public function get_style_depends() {
+        return ['gps-course-stage'];
     }
 
     protected function register_controls() {
@@ -143,6 +147,18 @@ class Ticket_Selector_Widget extends Base_Widget {
                 'label' => __('Button Text', 'gps-courses'),
                 'type' => Controls_Manager::TEXT,
                 'default' => __('Add to Cart', 'gps-courses'),
+            ]
+        );
+
+        $this->add_control(
+            'show_other_dates',
+            [
+                'label' => __('Show "Other dates for this course"', 'gps-courses'),
+                'type' => Controls_Manager::SWITCHER,
+                'label_on' => __('Yes', 'gps-courses'),
+                'label_off' => __('No', 'gps-courses'),
+                'default' => 'yes',
+                'description' => __('Upcoming editions in the same Course program (course editor → Interest list tab).', 'gps-courses'),
             ]
         );
 
@@ -537,6 +553,14 @@ class Ticket_Selector_Widget extends Base_Widget {
             return;
         }
 
+        // Registration not open (not yet, in progress, over): say so instead of "no tickets"
+        $stage = class_exists('\\GPSC\\Course_Stage') ? \GPSC\Course_Stage::get($event_id) : 'open';
+        if (!in_array($stage, ['open', 'sold_out'], true)) {
+            $this->render_stage_state($event_id, $stage, $settings);
+            return;
+        }
+        $show_other_dates = (isset($settings['show_other_dates']) ? $settings['show_other_dates'] : 'yes') === 'yes';
+
         // Get active tickets for this event
         $tickets = \GPSC\Tickets::get_active_tickets($event_id);
 
@@ -743,6 +767,12 @@ class Ticket_Selector_Widget extends Base_Widget {
                 </tbody>
             </table>
             <?php endif; ?>
+
+            <?php
+            if ($show_other_dates && class_exists('\\GPSC\\Course_Stage')) {
+                echo \GPSC\Course_Stage::render_other_dates($event->ID); // escaped inside
+            }
+            ?>
 
             <!-- Refund Policy Pill (Subtle) -->
             <div class="gps-refund-policy-pill">
@@ -1033,6 +1063,15 @@ class Ticket_Selector_Widget extends Base_Widget {
 
         <script>
         jQuery(document).ready(function($) {
+            // The nonce printed here may be older than its lifetime on a cached
+            // page: ask for a fresh one right before joining the waitlist.
+            var gpsWaitlistNonce = '<?php echo esc_js(wp_create_nonce('gps_waitlist')); ?>';
+            function withFreshNonce(callback) {
+                $.post('<?php echo esc_url(admin_url('admin-ajax.php')); ?>', { action: 'gpsc_form_nonce', 'for': 'gps_waitlist' })
+                    .done(function(r) { callback(r && r.success && r.data && r.data.nonce ? r.data.nonce : gpsWaitlistNonce); })
+                    .fail(function() { callback(gpsWaitlistNonce); });
+            }
+
             // Add to Cart
             $('.gps-add-to-cart-btn').on('click', function(e) {
                 e.preventDefault();
@@ -1064,7 +1103,8 @@ class Ticket_Selector_Widget extends Base_Widget {
             });
 
             // Waitlist Form Submission
-            $('.gps-waitlist-form').on('submit', function(e) {
+            // Sold-out waitlist only: the "next dates" form has its own script (gps-interest.js)
+            $('.gps-waitlist-form').not('.gps-interest-form').on('submit', function(e) {
                 e.preventDefault();
                 var $form = $(this);
                 var $btn = $form.find('.gps-waitlist-submit');
@@ -1079,6 +1119,7 @@ class Ticket_Selector_Widget extends Base_Widget {
                 $btn.prop('disabled', true).text('<?php _e('Joining...', 'gps-courses'); ?>');
                 $response.hide().removeClass('success error');
 
+                withFreshNonce(function(freshNonce) {
                 $.ajax({
                     url: '<?php echo admin_url('admin-ajax.php'); ?>',
                     type: 'POST',
@@ -1090,7 +1131,7 @@ class Ticket_Selector_Widget extends Base_Widget {
                         phone: phone,
                         ticket_id: ticketId,
                         event_id: eventId,
-                        nonce: '<?php echo wp_create_nonce('gps_waitlist'); ?>'
+                        nonce: freshNonce
                     },
                     success: function(response) {
                         if (response.success) {
@@ -1107,6 +1148,7 @@ class Ticket_Selector_Widget extends Base_Widget {
                         $btn.prop('disabled', false).text('<?php _e('Join Waitlist', 'gps-courses'); ?>');
                     }
                 });
+                });
             });
 
             // Waitlist Button (Table Layout)
@@ -1120,6 +1162,7 @@ class Ticket_Selector_Widget extends Base_Widget {
                     var $btn = $(this);
                     $btn.prop('disabled', true).text('<?php _e('Joining...', 'gps-courses'); ?>');
 
+                    withFreshNonce(function(freshNonce) {
                     $.ajax({
                         url: '<?php echo admin_url('admin-ajax.php'); ?>',
                         type: 'POST',
@@ -1128,7 +1171,7 @@ class Ticket_Selector_Widget extends Base_Widget {
                             email: email,
                             ticket_id: ticketId,
                             event_id: eventId,
-                            nonce: '<?php echo wp_create_nonce('gps_waitlist'); ?>'
+                            nonce: freshNonce
                         },
                         success: function(response) {
                             if (response.success) {
@@ -1144,11 +1187,95 @@ class Ticket_Selector_Widget extends Base_Widget {
                             $btn.prop('disabled', false).text('<?php _e('Join Waitlist', 'gps-courses'); ?>');
                         }
                     });
+                    });
                 }
             });
         });
         </script>
         <?php
+    }
+
+    /**
+     * Ticket area when registration isn't open: coming soon (interest form),
+     * in progress (closed) or over (interest form for the next dates), plus
+     * the other upcoming editions of the course.
+     */
+    protected function render_stage_state($event_id, $stage, array $settings) {
+        $range   = \GPSC\Course_Stage::date_range($event_id);
+        $archive = get_post_type_archive_link('gps_event');
+        $show    = (isset($settings['show_other_dates']) ? $settings['show_other_dates'] : 'yes') === 'yes';
+        $others  = $show ? \GPSC\Course_Stage::other_editions($event_id) : [];
+        $dates   = $others ? \GPSC\Course_Stage::render_other_dates($event_id, ['editions' => $others]) : '';
+        $form    = function ($title, $intro = '') use ($event_id) {
+            return class_exists('\\GPSC\\Interest_List') ? \GPSC\Interest_List::render_form($event_id, ['title' => $title, 'intro' => $intro]) : '';
+        };
+        $more = $archive
+            ? '<a class="gps-stage-box__more" href="' . esc_url($archive) . '">' . esc_html__('See upcoming courses', 'gps-courses') . ' <span aria-hidden="true">&rarr;</span></a>'
+            : '';
+
+        echo '<div class="gps-ticket-selector gps-stage-box gps-stage-box--' . esc_attr($stage) . '">';
+        $closed = 'soon' === $stage && \GPSC\Course_Stage::sales_closed($event_id);
+        $chip   = $closed ? __('Registration closed', 'gps-courses') : \GPSC\Course_Stage::label($stage);
+        echo '<div class="gps-stage-box__head"><span class="gps-chip gps-chip--' . esc_attr($closed ? 'past' : $stage) . '">' . esc_html($chip) . '</span>';
+
+        switch ($stage) {
+            case 'soon':
+                if ($closed) {
+                    // Every ticket's sale has ended before the course starts
+                    echo '<h3 class="gps-stage-box__title">' . esc_html__('Registration is closed for this edition.', 'gps-courses') . '</h3></div>';
+                    if ('' !== $range) {
+                        /* translators: %s: course dates */
+                        echo '<p class="gps-stage-box__text">' . sprintf(esc_html__('Course dates: %s.', 'gps-courses'), '<strong>' . esc_html($range) . '</strong>') . '</p>';
+                    }
+                    echo $dates;
+                    echo $form(__('Notify me about the next dates', 'gps-courses'));
+                    echo $more;
+                    break;
+                }
+                $opens = \GPSC\Course_Stage::registration_opens($event_id);
+                echo '<h3 class="gps-stage-box__title">' . esc_html__('Registration opens soon', 'gps-courses') . '</h3></div>';
+                $text = [];
+                if ($opens) {
+                    /* translators: %s: date registration opens */
+                    $text[] = sprintf(esc_html__('Registration opens %s.', 'gps-courses'), '<strong>' . esc_html(date_i18n('F j, Y', $opens)) . '</strong>');
+                }
+                if ('' !== $range) {
+                    /* translators: %s: course dates */
+                    $text[] = sprintf(esc_html__('Course dates: %s.', 'gps-courses'), '<strong>' . esc_html($range) . '</strong>');
+                }
+                if ($text) {
+                    echo '<p class="gps-stage-box__text">' . implode(' ', $text) . '</p>';
+                }
+                echo $form(__('Get notified when registration opens', 'gps-courses'));
+                echo $dates;
+                break;
+
+            case 'in_progress':
+                echo '<h3 class="gps-stage-box__title">' . esc_html__('Registration is closed for this edition.', 'gps-courses') . '</h3></div>';
+                if ('' !== $range) {
+                    /* translators: %s: course dates */
+                    echo '<p class="gps-stage-box__text">' . sprintf(esc_html__('This course is taking place %s.', 'gps-courses'), '<strong>' . esc_html($range) . '</strong>') . '</p>';
+                }
+                echo $dates;
+                echo $more;
+                break;
+
+            default: // past
+                $title = '' !== $range
+                    /* translators: %s: course dates */
+                    ? sprintf(__('This course has taken place on %s.', 'gps-courses'), $range)
+                    : __('This course has already taken place.', 'gps-courses');
+                echo '<h3 class="gps-stage-box__title">' . esc_html($title) . '</h3></div>';
+                echo '<p class="gps-stage-box__text">' . ($others
+                    ? esc_html__("Pick one of the dates below, or leave your email and we'll tell you when more dates are added.", 'gps-courses')
+                    : esc_html__("New dates haven't been announced yet. Leave your email and we'll let you know as soon as they are.", 'gps-courses')) . '</p>';
+                echo $dates;
+                echo $form(__('Notify me about the next dates', 'gps-courses'));
+                echo $more;
+                break;
+        }
+
+        echo '</div>';
     }
 
     private function get_events_list() {

@@ -6,6 +6,9 @@ if (!defined('ABSPATH')) exit;
 /**
  * Enhanced Waitlist Management for Course Tickets
  * Handles waitlist signups, notifications, and admin management
+ *
+ * Rows with ticket_type_id = 0 are the "next dates" interest list
+ * (Interest_List): never treated as sold-out waitlist entries here.
  */
 class Waitlist {
 
@@ -94,14 +97,22 @@ class Waitlist {
     public static function ajax_join_waitlist() {
         // Verify nonce
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'gps_waitlist')) {
-            wp_send_json_error(['message' => __('Security check failed.', 'gps-courses')]);
+            wp_send_json_error(['message' => __('Security check failed. Please reload the page and try again.', 'gps-courses')]);
+        }
+
+        // Abuse guard: 20 stored sign-ups per IP per hour (counted after a successful add)
+        $ip     = isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : '';
+        $rl_key = '' !== $ip ? 'gpsc_wlf_' . md5($ip . '|' . (int) floor(time() / HOUR_IN_SECONDS)) : '';
+        $hits   = $rl_key ? (int) get_transient($rl_key) : 0;
+        if ($rl_key && $hits >= 20) {
+            wp_send_json_error(['message' => __('Too many waitlist requests. Please try again later.', 'gps-courses')]);
         }
 
         $email = sanitize_email($_POST['email'] ?? '');
         $first_name = sanitize_text_field($_POST['first_name'] ?? '');
         $last_name = sanitize_text_field($_POST['last_name'] ?? '');
         $phone = sanitize_text_field($_POST['phone'] ?? '');
-        $ticket_id = (int) ($_POST['ticket_id'] ?? 0);
+        $ticket_id = absint($_POST['ticket_id'] ?? 0);
         $event_id = (int) ($_POST['event_id'] ?? 0);
         $user_id = get_current_user_id();
 
@@ -110,7 +121,7 @@ class Waitlist {
             wp_send_json_error(['message' => __('Please enter a valid email address.', 'gps-courses')]);
         }
 
-        if (empty($ticket_id) || empty($event_id)) {
+        if (empty($ticket_id) || empty($event_id) || (int) get_post_meta($ticket_id, '_gps_event_id', true) !== (int) $event_id) {
             wp_send_json_error(['message' => __('Invalid ticket or event.', 'gps-courses')]);
         }
 
@@ -119,6 +130,10 @@ class Waitlist {
 
         if (is_wp_error($result)) {
             wp_send_json_error(['message' => $result->get_error_message()]);
+        }
+
+        if ($rl_key) {
+            set_transient($rl_key, $hits + 1, HOUR_IN_SECONDS);
         }
 
         wp_send_json_success([
@@ -133,6 +148,11 @@ class Waitlist {
     public static function add_to_waitlist($ticket_id, $event_id, $email, $first_name = '', $last_name = '', $phone = '', $user_id = 0) {
         global $wpdb;
         $table = $wpdb->prefix . 'gps_waitlist';
+
+        // ticket_type_id 0 is the "next dates" list (Interest_List::add)
+        if ((int) $ticket_id <= 0) {
+            return new \WP_Error('invalid_ticket', __('Invalid ticket or event.', 'gps-courses'));
+        }
 
         // Ensure table has required columns (run migration if needed)
         self::ensure_table_schema();
@@ -404,6 +424,10 @@ class Waitlist {
         global $wpdb;
         $table = $wpdb->prefix . 'gps_waitlist';
 
+        if ((int) $ticket_id <= 0) {
+            return; // "next dates" rows are not a queue
+        }
+
         // Get all waiting entries ordered by creation date
         $entries = $wpdb->get_results($wpdb->prepare(
             "SELECT id FROM $table
@@ -434,6 +458,10 @@ class Waitlist {
         global $wpdb;
         $table = $wpdb->prefix . 'gps_waitlist';
 
+        if ((int) $ticket_id <= 0) {
+            return false; // ticket 0 = "next dates" list (Interest_List)
+        }
+
         // Get next waiting entry
         $entry = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM $table
@@ -459,7 +487,7 @@ class Waitlist {
         $table = $wpdb->prefix . 'gps_waitlist';
 
         $entry = self::get_waitlist_entry($waitlist_id);
-        if (!$entry || $entry->status !== 'waiting') {
+        if (!$entry || $entry->status !== 'waiting' || (int) $entry->ticket_type_id <= 0) {
             return false;
         }
 
@@ -560,7 +588,7 @@ class Waitlist {
      */
     private static function send_waitlist_confirmation($waitlist_id) {
         $entry = self::get_waitlist_entry($waitlist_id);
-        if (!$entry) {
+        if (!$entry || (int) $entry->ticket_type_id <= 0) {
             return false;
         }
 
@@ -639,7 +667,7 @@ class Waitlist {
         // Find expired notifications
         $expired = $wpdb->get_results(
             "SELECT * FROM $table
-            WHERE status = 'notified' AND expires_at IS NOT NULL AND expires_at < NOW()"
+            WHERE status = 'notified' AND ticket_type_id > 0 AND expires_at IS NOT NULL AND expires_at < NOW()"
         );
 
         foreach ($expired as $entry) {
@@ -680,6 +708,8 @@ class Waitlist {
         $defaults = [
             'ticket_id' => 0,
             'event_id' => 0,
+            'event_ids' => [],   // several courses (a program)
+            'list' => '',        // '' all | 'waitlist' (sold-out) | 'interest' (next dates, ticket 0)
             'status' => '',
             'orderby' => 'position',
             'order' => 'ASC',
@@ -702,6 +732,8 @@ class Waitlist {
             $values[] = $args['event_id'];
         }
 
+        self::list_where($where, $values, $args['list'], $args['event_ids']);
+
         if ($args['status']) {
             $where[] = 'status = %s';
             $values[] = $args['status'];
@@ -720,7 +752,7 @@ class Waitlist {
     /**
      * Get waitlist count
      */
-    public static function get_waitlist_count($ticket_id = 0, $event_id = 0, $status = '') {
+    public static function get_waitlist_count($ticket_id = 0, $event_id = 0, $status = '', $list = '', $event_ids = []) {
         global $wpdb;
         $table = $wpdb->prefix . 'gps_waitlist';
 
@@ -737,6 +769,8 @@ class Waitlist {
             $values[] = $event_id;
         }
 
+        self::list_where($where, $values, $list, $event_ids);
+
         if ($status) {
             $where[] = 'status = %s';
             $values[] = $status;
@@ -752,6 +786,22 @@ class Waitlist {
             "SELECT COUNT(*) FROM $table WHERE $where_clause",
             $values
         ));
+    }
+
+    /**
+     * WHERE parts for the list type (sold-out waitlist vs "next dates") and a set of courses.
+     */
+    private static function list_where(array &$where, array &$values, $list, $event_ids) {
+        if ('waitlist' === $list) {
+            $where[] = 'ticket_type_id > 0';
+        } elseif ('interest' === $list) {
+            $where[] = 'ticket_type_id = 0';
+        }
+        $event_ids = array_filter(array_map('intval', (array) $event_ids));
+        if ($event_ids) {
+            $where[] = 'event_id IN (' . implode(',', array_fill(0, count($event_ids), '%d')) . ')';
+            $values = array_merge($values, array_values($event_ids));
+        }
     }
 
     /**
@@ -832,6 +882,15 @@ class Waitlist {
 
         $waitlist_id = (int) ($_POST['waitlist_id'] ?? 0);
 
+        $entry = self::get_waitlist_entry($waitlist_id);
+        if ($entry && (int) $entry->ticket_type_id === 0 && class_exists(__NAMESPACE__ . '\\Interest_List')) {
+            $sent = Interest_List::admin_send($waitlist_id);
+            if (is_wp_error($sent)) {
+                wp_send_json_error(['message' => $sent->get_error_message()]);
+            }
+            wp_send_json_success(['message' => __('New-dates email sent.', 'gps-courses')]);
+        }
+
         if (self::send_spot_available_notification($waitlist_id)) {
             wp_send_json_success(['message' => __('Notification sent successfully.', 'gps-courses')]);
         } else {
@@ -888,7 +947,13 @@ class Waitlist {
 
             case 'notify':
                 foreach ($ids as $id) {
-                    if (self::send_spot_available_notification($id)) {
+                    $entry = self::get_waitlist_entry($id);
+                    if ($entry && (int) $entry->ticket_type_id === 0) {
+                        // Bulk never re-sends to people already emailed
+                        if (class_exists(__NAMESPACE__ . '\\Interest_List') && true === Interest_List::admin_send($id, false)) {
+                            $count++;
+                        }
+                    } elseif (self::send_spot_available_notification($id)) {
                         $count++;
                     }
                 }
@@ -1223,6 +1288,20 @@ class Waitlist {
         // Get filter values
         $filter_event = (int) ($_GET['event_id'] ?? 0);
         $filter_status = sanitize_text_field($_GET['status'] ?? '');
+        $filter_list = sanitize_key($_GET['list'] ?? '');
+        if (!in_array($filter_list, ['', 'waitlist', 'interest'], true)) {
+            $filter_list = '';
+        }
+        $filter_program = (int) ($_GET['program'] ?? 0);
+        $program_ids = [];
+        $programs = [];
+        if (class_exists(__NAMESPACE__ . '\\Course_Stage')) {
+            $programs = get_terms(['taxonomy' => Course_Stage::TAXONOMY, 'hide_empty' => false, 'orderby' => 'name']);
+            $programs = is_wp_error($programs) ? [] : (array) $programs;
+            if ($filter_program) {
+                $program_ids = Course_Stage::program_event_ids($filter_program) ?: [-1];
+            }
+        }
 
         // Get all events that have waitlist entries
         $events_with_waitlist = $wpdb->get_results(
@@ -1234,14 +1313,16 @@ class Waitlist {
         );
 
         // Get statistics
-        $total_waiting = self::get_waitlist_count(0, $filter_event, 'waiting');
-        $total_notified = self::get_waitlist_count(0, $filter_event, 'notified');
-        $total_converted = self::get_waitlist_count(0, $filter_event, 'converted');
-        $total_expired = self::get_waitlist_count(0, $filter_event, 'expired');
+        $total_waiting = self::get_waitlist_count(0, $filter_event, 'waiting', $filter_list, $program_ids);
+        $total_notified = self::get_waitlist_count(0, $filter_event, 'notified', $filter_list, $program_ids);
+        $total_converted = self::get_waitlist_count(0, $filter_event, 'converted', $filter_list, $program_ids);
+        $total_expired = self::get_waitlist_count(0, $filter_event, 'expired', $filter_list, $program_ids);
 
         // Build query args
         $query_args = [
             'event_id' => $filter_event,
+            'event_ids' => $program_ids,
+            'list' => $filter_list,
             'status' => $filter_status,
             'orderby' => 'created_at',
             'order' => 'DESC',
@@ -1283,7 +1364,7 @@ class Waitlist {
                 </div>
                 <div class="gps-stat-card gps-stat-notified">
                     <div class="stat-value"><?php echo esc_html($total_notified); ?></div>
-                    <div class="stat-label"><?php _e('Notified (48h)', 'gps-courses'); ?></div>
+                    <div class="stat-label"><?php echo 'interest' === $filter_list ? esc_html__('Notified', 'gps-courses') : esc_html__('Notified (48h)', 'gps-courses'); ?></div>
                 </div>
                 <div class="gps-stat-card gps-stat-converted">
                     <div class="stat-value"><?php echo esc_html($total_converted); ?></div>
@@ -1299,6 +1380,23 @@ class Waitlist {
             <div class="gps-waitlist-filters">
                 <form method="get" action="">
                     <input type="hidden" name="page" value="gps-waitlist">
+
+                    <select name="list" id="gps-waitlist-list-filter">
+                        <option value=""><?php _e('All lists', 'gps-courses'); ?></option>
+                        <option value="waitlist" <?php selected($filter_list, 'waitlist'); ?>><?php _e('Sold-out waitlist', 'gps-courses'); ?></option>
+                        <option value="interest" <?php selected($filter_list, 'interest'); ?>><?php _e('Next dates', 'gps-courses'); ?></option>
+                    </select>
+
+                    <?php if ($programs): ?>
+                    <select name="program" id="gps-waitlist-program-filter">
+                        <option value=""><?php _e('All programs', 'gps-courses'); ?></option>
+                        <?php foreach ($programs as $program): ?>
+                            <option value="<?php echo (int) $program->term_id; ?>" <?php selected($filter_program, (int) $program->term_id); ?>>
+                                <?php echo esc_html($program->name); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <?php endif; ?>
 
                     <select name="event_id" id="gps-waitlist-event-filter">
                         <option value=""><?php _e('All Events', 'gps-courses'); ?></option>
@@ -1316,6 +1414,7 @@ class Waitlist {
                         <option value="converted" <?php selected($filter_status, 'converted'); ?>><?php _e('Converted', 'gps-courses'); ?></option>
                         <option value="expired" <?php selected($filter_status, 'expired'); ?>><?php _e('Expired', 'gps-courses'); ?></option>
                         <option value="removed" <?php selected($filter_status, 'removed'); ?>><?php _e('Removed', 'gps-courses'); ?></option>
+                        <option value="failed" <?php selected($filter_status, 'failed'); ?>><?php _e('Email failed', 'gps-courses'); ?></option>
                     </select>
 
                     <button type="submit" class="button"><?php _e('Filter', 'gps-courses'); ?></button>
@@ -1359,8 +1458,10 @@ class Waitlist {
                         </tr>
                     <?php else: ?>
                         <?php foreach ($entries as $entry):
-                            $ticket = get_post($entry->ticket_type_id);
-                            $event = get_post($entry->event_id);
+                            // ticket 0 = "next dates" list; get_post(0) would return the global post
+                            $is_interest = (int) $entry->ticket_type_id === 0;
+                            $ticket = $is_interest ? null : get_post($entry->ticket_type_id);
+                            $event = $entry->event_id ? get_post($entry->event_id) : null;
                             $status_class = 'gps-status-' . $entry->status;
                             $full_name = trim($entry->first_name . ' ' . $entry->last_name) ?: '—';
                         ?>
@@ -1369,7 +1470,7 @@ class Waitlist {
                                 <input type="checkbox" class="gps-waitlist-checkbox" value="<?php echo (int) $entry->id; ?>">
                             </th>
                             <td>
-                                <?php if ($entry->status === 'waiting'): ?>
+                                <?php if ($entry->status === 'waiting' && !$is_interest): ?>
                                     <span class="gps-position-badge"><?php echo (int) $entry->position; ?></span>
                                 <?php else: ?>
                                     <span style="color: #999;">—</span>
@@ -1392,16 +1493,21 @@ class Waitlist {
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <?php if ($ticket): ?>
+                                <?php if ($is_interest): ?>
+                                    <span class="gps-status-badge gps-list-next-dates" style="background:#f6efe0;color:#6b5426;"><?php _e('Next dates', 'gps-courses'); ?></span>
+                                <?php elseif ($ticket): ?>
                                     <?php echo esc_html($ticket->post_title); ?>
                                 <?php else: ?>
                                     <span style="color: #999;"><?php _e('Deleted', 'gps-courses'); ?></span>
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <span class="gps-status-badge <?php echo esc_attr($status_class); ?>">
-                                    <?php echo esc_html(ucfirst($entry->status)); ?>
+                                <span class="gps-status-badge <?php echo esc_attr($status_class); ?>" <?php echo !empty($entry->notes) ? 'title="' . esc_attr($entry->notes) . '"' : ''; ?>>
+                                    <?php echo esc_html('failed' === $entry->status ? __('Email failed', 'gps-courses') : ucfirst($entry->status)); ?>
                                 </span>
+                                <?php if ($is_interest && $entry->status === 'notified' && $entry->notified_at): ?>
+                                    <br><small style="color: #646970;"><?php echo esc_html(date_i18n(get_option('date_format'), strtotime($entry->notified_at))); ?></small>
+                                <?php endif; ?>
                                 <?php if ($entry->status === 'notified' && $entry->expires_at): ?>
                                     <br><small style="color: #856404;">
                                         <?php
@@ -1423,7 +1529,11 @@ class Waitlist {
                                 <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($entry->created_at))); ?>
                             </td>
                             <td>
-                                <?php if ($entry->status === 'waiting'): ?>
+                                <?php if ($is_interest && in_array($entry->status, ['waiting', 'notified', 'failed', 'expired'], true)): ?>
+                                    <button type="button" class="button button-small gps-waitlist-notify" data-id="<?php echo (int) $entry->id; ?>" title="<?php esc_attr_e('Email the open dates of this course (or of the next edition in its program)', 'gps-courses'); ?>">
+                                        <?php echo 'waiting' === $entry->status ? esc_html__('Send dates', 'gps-courses') : esc_html__('Resend', 'gps-courses'); ?>
+                                    </button>
+                                <?php elseif ($entry->status === 'waiting'): ?>
                                     <button type="button" class="button button-small gps-waitlist-notify" data-id="<?php echo (int) $entry->id; ?>">
                                         <?php _e('Notify', 'gps-courses'); ?>
                                     </button>

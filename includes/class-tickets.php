@@ -424,6 +424,10 @@ class Tickets {
         if (get_post_meta($ticket_id, '_gps_ticket_status', true) !== $status) {
             update_post_meta($ticket_id, '_gps_ticket_status', $status);
             Course_Catalog::bump();
+            if ('active' === $status) {
+                // A ticket went on sale: the course may now be open (Interest_List)
+                do_action('gpsc_ticket_activated', (int) $ticket_id, (int) get_post_meta($ticket_id, '_gps_event_id', true));
+            }
         }
         return $status;
     }
