@@ -223,6 +223,7 @@ class Seminars {
      */
     public static function create_session($data) {
         global $wpdb;
+        Course_Catalog::bump();
 
         $defaults = [
             'seminar_id' => 0,
@@ -252,6 +253,7 @@ class Seminars {
      */
     public static function update_session($session_id, $data) {
         global $wpdb;
+        Course_Catalog::bump();
 
         return $wpdb->update(
             $wpdb->prefix . 'gps_seminar_sessions',
@@ -267,6 +269,7 @@ class Seminars {
      */
     public static function delete_session($session_id) {
         global $wpdb;
+        Course_Catalog::bump();
 
         return $wpdb->delete(
             $wpdb->prefix . 'gps_seminar_sessions',

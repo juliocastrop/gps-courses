@@ -7,9 +7,9 @@ defined('ABSPATH') || exit;
 use GPSC\Course_Catalog;
 use GPSC\Credits;
 
-$gps_upcoming = Course_Catalog::courses('upcoming');
-$gps_past     = Course_Catalog::courses('past', 12);
 $gps_term     = is_tax(Course_Catalog::TAXONOMIES) ? get_queried_object() : null;
+$gps_upcoming = Course_Catalog::courses('upcoming', 50, $gps_term);
+$gps_past     = Course_Catalog::courses('past', 12, $gps_term);
 $gps_title    = $gps_term ? $gps_term->name : __('Courses', 'gps-courses');
 $gps_status   = [
     'open'     => __('Registration open', 'gps-courses'),

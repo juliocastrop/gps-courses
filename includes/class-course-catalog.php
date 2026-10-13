@@ -18,6 +18,27 @@ class Course_Catalog {
         add_action('pre_get_posts', [__CLASS__, 'main_query']);
         add_action('template_redirect', [__CLASS__, 'no_paging']);
         add_filter('get_the_excerpt', [__CLASS__, 'excerpt'], 9, 2);
+
+        // gpsc_catalog() cache: anything that changes what we offer refreshes it
+        foreach (['gps_event', 'gps_ticket', 'gps_seminar'] as $type) {
+            add_action('save_post_' . $type, [__CLASS__, 'bump']);
+        }
+        add_action('deleted_post', [__CLASS__, 'bump_on_delete'], 10, 2);
+        add_action('trashed_post', [__CLASS__, 'bump_on_delete']);
+        add_action('woocommerce_order_status_changed', [__CLASS__, 'bump']);
+        add_action('gps_ticket_created', [__CLASS__, 'bump']);
+    }
+
+    /** Invalidate the cached catalog (gpsc_catalog). */
+    public static function bump() {
+        update_option('gpsc_catalog_ver', (int) get_option('gpsc_catalog_ver', 0) + 1, false);
+    }
+
+    public static function bump_on_delete($post_id, $post = null) {
+        $type = $post instanceof \WP_Post ? $post->post_type : get_post_type($post_id);
+        if (in_array($type, ['gps_event', 'gps_ticket', 'gps_seminar'], true)) {
+            self::bump();
+        }
     }
 
     /**
@@ -72,9 +93,10 @@ class Course_Catalog {
     /**
      * Courses for the catalog.
      *
-     * @param string $when 'upcoming' (soonest first) or 'past' (most recent first)
+     * @param string        $when  'upcoming' (soonest first) or 'past' (most recent first)
+     * @param \WP_Term|null $term  only courses in this category/tag
      */
-    public static function courses($when = 'upcoming', $limit = 50) {
+    public static function courses($when = 'upcoming', $limit = 50, $term = null) {
         $today = current_time('Y-m-d');
         $args = [
             'post_type'      => 'gps_event',
@@ -98,8 +120,7 @@ class Course_Catalog {
             ],
         ];
 
-        $term = is_tax(self::TAXONOMIES) ? get_queried_object() : null;
-        if ($term && !empty($term->taxonomy)) {
+        if ($term instanceof \WP_Term && in_array($term->taxonomy, self::TAXONOMIES, true)) {
             $args['tax_query'] = [['taxonomy' => $term->taxonomy, 'field' => 'term_id', 'terms' => (int) $term->term_id]];
         }
 

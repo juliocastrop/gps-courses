@@ -421,7 +421,10 @@ class Tickets {
             }
         }
 
-        update_post_meta($ticket_id, '_gps_ticket_status', $status);
+        if (get_post_meta($ticket_id, '_gps_ticket_status', true) !== $status) {
+            update_post_meta($ticket_id, '_gps_ticket_status', $status);
+            Course_Catalog::bump();
+        }
         return $status;
     }
 
