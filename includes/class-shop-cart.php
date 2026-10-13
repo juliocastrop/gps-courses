@@ -31,6 +31,44 @@ class Shop_Cart {
         // Cart lines (cart page + mini-cart; checkout is left as it is)
         add_filter('woocommerce_get_item_data', [__CLASS__, 'item_data'], 10, 2);
         add_filter('woocommerce_cart_item_thumbnail', [__CLASS__, 'item_thumbnail'], 10, 2);
+
+        // Labels of the Elementor Cart widget, and WooCommerce's own after an AJAX refresh
+        add_filter('elementor/widget/render_content', [__CLASS__, 'cart_widget_labels'], 10, 2);
+        add_filter('gettext_woocommerce', [__CLASS__, 'wc_labels'], 10, 2);
+
+        // Cart, checkout and account pages: no share/search description built from
+        // Elementor's saved preview (it holds an old cart from the editor)
+        add_filter('wpseo_metadesc', [__CLASS__, 'shop_page_description']);
+        add_filter('wpseo_opengraph_desc', [__CLASS__, 'shop_page_description']);
+        add_filter('wpseo_twitter_description', [__CLASS__, 'shop_page_description']);
+    }
+
+    public static function cart_widget_labels($content, $widget) {
+        if (!is_object($widget) || !method_exists($widget, 'get_name') || 'woocommerce-cart' !== $widget->get_name()) {
+            return $content;
+        }
+        return str_replace(
+            ['<h2>Cart Totals</h2>', 'value="Apply GPS coupon">Apply GPS coupon<'],
+            ['<h2>' . esc_html__('Order summary', 'gps-courses') . '</h2>', 'value="' . esc_attr__('Apply', 'gps-courses') . '">' . esc_html__('Apply', 'gps-courses') . '<'],
+            $content
+        );
+    }
+
+    public static function wc_labels($translation, $text) {
+        if ('Cart totals' === $text) {
+            return __('Order summary', 'gps-courses');
+        }
+        return $translation;
+    }
+
+    public static function shop_page_description($description) {
+        if (!function_exists('is_cart')) {
+            return $description;
+        }
+        if (is_cart() || is_checkout() || is_account_page()) {
+            return __('Register for hands-on dental CE courses and monthly seminars at GPS Dental Training in Duluth, GA.', 'gps-courses');
+        }
+        return $description;
     }
 
     public static function enqueue_assets() {

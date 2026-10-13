@@ -1117,7 +1117,7 @@ class Seminar_Certificates {
                     $logo_height = 16;
                     $logo_width = ($img_width / $img_height) * $logo_height;
                     $logo_x = ($w - $logo_width) / 2;
-                    $pdf->Image($logo_path, $logo_x, 19, $logo_width, $logo_height, '', '', '', true, 300);
+                    $pdf->Image($logo_path, $logo_x, 19, $logo_width, $logo_height, '', '', '', false, 300);
                 }
             } else {
                 // Logo not found or is SVG - show text header instead
@@ -1213,7 +1213,7 @@ class Seminar_Certificates {
                     $sig_height = 12;
                     $sig_width = ($img_width / $img_height) * $sig_height;
                     $sig_x = ($w - $sig_width) / 2;
-                    $pdf->Image($signature_path, $sig_x, 145, $sig_width, $sig_height, '', '', '', true, 300);
+                    $pdf->Image($signature_path, $sig_x, 145, $sig_width, $sig_height, '', '', '', false, 300);
                 }
             } else {
                 $pdf->SetFont('zapfdingbats', '', 20);
@@ -1286,7 +1286,7 @@ class Seminar_Certificates {
                         $pace_logo_height = 12;
                         $pace_logo_width = ($img_width / $img_height) * $pace_logo_height;
                         $logo_y = $pace_y + ($pace_height - $pace_logo_height) / 2;
-                        $pdf->Image($pace_logo_path, $pace_x, $logo_y, $pace_logo_width, $pace_logo_height, '', '', '', true, 300);
+                        $pdf->Image($pace_logo_path, $pace_x, $logo_y, $pace_logo_width, $pace_logo_height, '', '', '', false, 300);
                         $pace_x += $pace_logo_width + 6;
                     }
                 }

@@ -1985,3 +1985,11 @@ body.gps-shop--orders.gps-shop .elementor-widget-woocommerce-my-account .e-my-ac
         transition: none !important;
     }
 }
+
+/* GIA chat bubble: smaller on phones here so it covers less of the totals and buttons */
+@media (max-width: 767px) {
+    body.gps-shop--checkout #wcrp-ai-chat .wcrp-ai-bubble {
+        transform: scale(.78);
+        transform-origin: 100% 100%;
+    }
+}

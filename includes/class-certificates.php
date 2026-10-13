@@ -606,7 +606,7 @@ class Certificates {
                     $logo_height = 16;
                     $logo_width = ($img_width / $img_height) * $logo_height;
                     $logo_x = ($w - $logo_width) / 2;
-                    $pdf->Image($logo_path, $logo_x, 19, $logo_width, $logo_height, '', '', '', true, 300);
+                    $pdf->Image($logo_path, $logo_x, 19, $logo_width, $logo_height, '', '', '', false, 300);
                 }
             }
         } else {
@@ -702,7 +702,7 @@ class Certificates {
                 if ($img_width && $img_height) {
                     $sig_width = ($img_width / $img_height) * $sig_height;
                     $sig_x = ($w - $sig_width) / 2;
-                    $pdf->Image($signature_path, $sig_x, $sig_start_y, $sig_width, $sig_height, '', '', '', true, 300);
+                    $pdf->Image($signature_path, $sig_x, $sig_start_y, $sig_width, $sig_height, '', '', '', false, 300);
                 }
             }
         } else {
@@ -756,7 +756,7 @@ class Certificates {
                         $pace_logo_height = 12;
                         $pace_logo_width = ($img_width / $img_height) * $pace_logo_height;
                         $logo_y = $bar_y + ($bar_height - $pace_logo_height) / 2;
-                        $pdf->Image($pace_logo_path, $pace_x, $logo_y, $pace_logo_width, $pace_logo_height, '', '', '', true, 300);
+                        $pdf->Image($pace_logo_path, $pace_x, $logo_y, $pace_logo_width, $pace_logo_height, '', '', '', false, 300);
                         $pace_x += $pace_logo_width + 6;
                     }
                 }
@@ -1227,7 +1227,7 @@ class Certificates {
                     $logo_height = 16;
                     $logo_width = ($img_width / $img_height) * $logo_height;
                     $logo_x = ($w - $logo_width) / 2;
-                    $pdf->Image($logo_path, $logo_x, 19, $logo_width, $logo_height, '', '', '', true, 300);
+                    $pdf->Image($logo_path, $logo_x, 19, $logo_width, $logo_height, '', '', '', false, 300);
                 }
             } else {
                 // Logo not found or is SVG - show text header instead
@@ -1333,7 +1333,7 @@ class Certificates {
                 if ($img_width && $img_height) {
                     $sig_width = ($img_width / $img_height) * $sig_height;
                     $sig_x = ($w - $sig_width) / 2;
-                    $pdf->Image($signature_path, $sig_x, $sig_start_y, $sig_width, $sig_height, '', '', '', true, 300);
+                    $pdf->Image($signature_path, $sig_x, $sig_start_y, $sig_width, $sig_height, '', '', '', false, 300);
                 }
             } else {
                 $pdf->SetFont('zapfdingbats', '', 20);
@@ -1393,7 +1393,7 @@ class Certificates {
                         $pace_logo_height = 12;
                         $pace_logo_width = ($img_width / $img_height) * $pace_logo_height;
                         $logo_y = $bar_y + ($bar_height - $pace_logo_height) / 2;
-                        $pdf->Image($pace_logo_path, $pace_x, $logo_y, $pace_logo_width, $pace_logo_height, '', '', '', true, 300);
+                        $pdf->Image($pace_logo_path, $pace_x, $logo_y, $pace_logo_width, $pace_logo_height, '', '', '', false, 300);
                         $pace_x += $pace_logo_width + 6;
                     }
                 }

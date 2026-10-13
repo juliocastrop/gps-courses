@@ -953,3 +953,11 @@
         width: 100%;
     }
 }
+
+/* GIA chat bubble: smaller on phones here so it covers less of the totals and buttons */
+@media (max-width: 767px) {
+    body.woocommerce-cart #wcrp-ai-chat .wcrp-ai-bubble {
+        transform: scale(.78);
+        transform-origin: 100% 100%;
+    }
+}
