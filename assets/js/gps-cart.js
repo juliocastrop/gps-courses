@@ -200,6 +200,12 @@
     }
 
     if (window.jQuery) {
+        // Safety net: if the emptied cart still left nothing on screen, load the page again
+        window.jQuery(document.body).on('wc_cart_emptied', function () {
+            if (document.querySelector('.woocommerce-cart') && !document.querySelector('.gps-cart-empty--page')) {
+                window.location.reload();
+            }
+        });
         window.jQuery(document.body).on('updated_wc_div updated_cart_totals wc_fragments_refreshed wc_fragments_loaded', boot);
     }
 })();

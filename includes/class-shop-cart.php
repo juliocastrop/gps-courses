@@ -144,6 +144,9 @@ class Shop_Cart {
 
     public static function cart_empty() {
         self::empty_links('page');
+        // WooCommerce's cart.js finds the empty cart by this element after removing the
+        // last item over AJAX; without it the cart area is replaced with nothing
+        echo '<div class="wc-empty-cart-message cart-empty" hidden></div>';
     }
 
     /* ============================================================
