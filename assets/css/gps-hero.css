@@ -661,7 +661,7 @@
         position: relative;
         inset: auto;
         flex: none;
-        height: max(300px, calc(200px + var(--gps-hero-top, 100px)));
+        height: max(250px, calc(160px + var(--gps-hero-top, 100px)));
     }
 
     /* Text is on the panel now; only a soft top shade under the site header */
@@ -695,8 +695,8 @@
     }
 
     .gps-hero p.gps-hero__eyebrow {
-        font-size: 12px;
-        letter-spacing: .1em;
+        font-size: 11px;
+        letter-spacing: .08em;
     }
 
     .gps-hero .gps-hero__title {
@@ -774,10 +774,50 @@
         display: none;
     }
 
+    /* Compact "next session" row on phones: the seminar slide sets the height
+       every slide shares, so keep it close to the course slide */
     .gps-hero__session {
         width: auto;
-        padding: 18px;
+        padding: 12px 14px;
+        border-radius: 12px;
         box-shadow: none;
+    }
+
+    .gps-hero p.gps-hero__session-kicker {
+        margin-bottom: 8px;
+        font-size: 11px;
+    }
+
+    .gps-hero__session-row {
+        gap: 12px;
+    }
+
+    .gps-hero__tile {
+        width: 52px;
+        height: 54px;
+        border-radius: 10px;
+    }
+
+    .gps-hero__tile-month {
+        font-size: 11px;
+    }
+
+    .gps-hero__tile-day {
+        font-size: 22px;
+    }
+
+    .gps-hero p.gps-hero__session-topic {
+        font-size: 15px;
+    }
+
+    .gps-hero p.gps-hero__session-meta {
+        margin-top: 2px;
+        font-size: 13px;
+    }
+
+    .gps-hero p.gps-hero__session-foot,
+    .gps-hero p.gps-hero__program {
+        display: none;
     }
 
     .gps-hero__nav {

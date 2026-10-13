@@ -2694,6 +2694,16 @@ class Woo {
             return;
         }
 
+        // A ticket whose sale has ended keeps its product closed (e.g. last year's
+        // ticket of a reused course), whatever the event's other tickets have left
+        if (Tickets::sale_ended($ticket_id)) {
+            $product->set_manage_stock(true);
+            $product->set_stock_quantity(0);
+            $product->set_stock_status('outofstock');
+            $product->save();
+            return;
+        }
+
         // Get total stock across ALL ticket variations for this event
         $event_stock = Tickets::get_event_total_stock($event_id);
         $total_available = $event_stock['total_available'];

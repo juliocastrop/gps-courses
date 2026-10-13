@@ -725,6 +725,22 @@ class Tickets {
      * Get combined stock for all ticket types of an event
      * This is used to sync WooCommerce product stock
      */
+    /**
+     * Has this ticket's sale end date passed? Dates are stored as datetime-local
+     * ("Y-m-d\TH:i"); a bare date counts until the end of that day.
+     */
+    public static function sale_ended($ticket_id, $now = null) {
+        $end = str_replace(' ', 'T', (string) get_post_meta($ticket_id, '_gps_ticket_end_date', true));
+        if ('' === $end) {
+            return false;
+        }
+        if (10 === strlen($end)) {
+            $end .= 'T23:59';
+        }
+        $now = $now ?: str_replace(' ', 'T', current_time('Y-m-d H:i'));
+        return substr($end, 0, 16) < $now;
+    }
+
     public static function get_event_total_stock($event_id) {
         global $wpdb;
 
@@ -745,7 +761,14 @@ class Tickets {
         $total_available = 0;
         $has_unlimited = false;
 
+        $now = str_replace(' ', 'T', current_time('Y-m-d H:i'));
         foreach ($tickets as $ticket) {
+            // A ticket whose sale has ended (e.g. last year's edition of a reused
+            // course) no longer adds seats to the product
+            if (self::sale_ended($ticket->ID, $now)) {
+                continue;
+            }
+
             $stock = self::get_ticket_stock($ticket->ID);
 
             if ($stock['unlimited']) {
