@@ -210,7 +210,9 @@ $next  = $gps['next'];
                                 ?></span>
                             <?php endif; ?>
                             <div class="gps-course__row">
-                                <?php if (null !== $c['seats'] && $c['seats'] <= 10) : ?>
+                                <?php if (!empty($c['soon'])) : ?>
+                                    <span class="gps-tag gps-tag--gold"><?php esc_html_e('Registration opens soon', 'gps-courses'); ?></span>
+                                <?php elseif (null !== $c['seats'] && $c['seats'] <= 10) : ?>
                                     <span class="gps-tag"><?php
                                         /* translators: %d: seats */
                                         printf(esc_html(_n('%d seat left', '%d seats left', $c['seats'], 'gps-courses')), (int) $c['seats']);

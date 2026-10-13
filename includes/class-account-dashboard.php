@@ -569,31 +569,41 @@ class Account_Dashboard {
             return [$b['score'], $a['order']] <=> [$a['score'], $b['order']];
         });
 
-        // Stock only for the courses we are about to show; skip ones nobody can buy
+        // Stock only for the courses we are about to show. Courses on sale come
+        // first; ones whose registration hasn't opened yet fill the remaining
+        // slots; sold-out courses are skipped.
         $courses = [];
+        $soon    = [];
         foreach ($ranked as $r) {
             if (count($courses) >= 3) {
                 break;
             }
             $post  = $r['post'];
             $seats = null;
+            $is_soon = false;
             if (class_exists(__NAMESPACE__ . '\\Tickets') && method_exists(__NAMESPACE__ . '\\Tickets', 'get_active_tickets')) {
                 $types = (array) Tickets::get_active_tickets($post->ID);
                 $open  = array_filter($types, function ($t) {
                     return !Tickets::is_sold_out(is_object($t) ? $t->ID : (int) $t);
                 });
-                if (!$open) {
-                    continue; // no ticket on sale, or all sold out (also by hand)
+                if ($types && !$open) {
+                    continue; // all sold out (also by hand)
                 }
-                $stock = Tickets::get_event_total_stock($post->ID);
-                if (is_array($stock) && empty($stock['unlimited'])) {
-                    $seats = (int) ($stock['total_available'] ?? 0);
+                $is_soon = !$types; // no ticket on sale yet
+                if (!$is_soon) {
+                    $stock = Tickets::get_event_total_stock($post->ID);
+                    if (is_array($stock) && empty($stock['unlimited'])) {
+                        $seats = (int) ($stock['total_available'] ?? 0);
+                    }
                 }
+            }
+            if ($is_soon && count($soon) >= 3) {
+                continue;
             }
 
             $start = (string) get_post_meta($post->ID, '_gps_start_date', true);
             $end   = (string) get_post_meta($post->ID, '_gps_end_date', true);
-            $courses[] = [
+            $card = [
                 'title'    => get_the_title($post),
                 'url'      => get_permalink($post),
                 'image'    => (string) get_the_post_thumbnail_url($post, 'medium_large'),
@@ -603,9 +613,15 @@ class Account_Dashboard {
                 'city'     => (string) get_post_meta($post->ID, '_gps_city', true),
                 'seats'    => $seats,
                 'match'    => $r['match'],
+                'soon'     => $is_soon,
             ];
+            if ($is_soon) {
+                $soon[] = $card;
+            } else {
+                $courses[] = $card;
+            }
         }
-        return $courses;
+        return array_slice(array_merge($courses, $soon), 0, 3);
     }
 
     /** "Nov 13–14, 2026", "Nov 30 – Dec 1, 2026", "Nov 13, 2026". */
