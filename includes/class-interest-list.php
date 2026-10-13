@@ -155,12 +155,13 @@ class Interest_List {
         if ($row) {
             // Notified before (or removed): back on the list for the next dates
             $wpdb->query($wpdb->prepare(
-                "UPDATE $table SET status = 'waiting', notified_at = NULL, expires_at = NULL,
+                // created_at restarts: editions already open when they re-join don't email them again
+                "UPDATE $table SET status = 'waiting', notified_at = NULL, expires_at = NULL, created_at = %s,
                     first_name = CASE WHEN %s = '' THEN first_name ELSE %s END,
                     last_name = CASE WHEN %s = '' THEN last_name ELSE %s END,
                     notes = CONCAT_WS(%s, NULLIF(notes, ''), %s)
                  WHERE id = %d AND ticket_type_id = 0",
-                $first, $first, $last, $last, "\n",
+                current_time('mysql'), $first, $first, $last, $last, "\n",
                 sprintf('[%s] re-joined (was %s)', current_time('mysql'), $row->status),
                 (int) $row->id
             ));

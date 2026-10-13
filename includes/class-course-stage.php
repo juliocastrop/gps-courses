@@ -56,13 +56,13 @@ class Course_Stage {
 
     const CRON_DAILY = 'gpsc_stage_daily';
 
-    /** Daily at 00:05 site time. */
+    /** Daily shortly after midnight site time (01:05, so DST drift stays after midnight). */
     public static function schedule_daily() {
         if (wp_next_scheduled(self::CRON_DAILY)) {
             return;
         }
         $local_now  = (int) current_time('timestamp');
-        $local_next = strtotime('tomorrow 00:05', $local_now);
+        $local_next = strtotime('tomorrow 01:05', $local_now);
         wp_schedule_event(time() + max(60, $local_next - $local_now), 'daily', self::CRON_DAILY);
     }
 
