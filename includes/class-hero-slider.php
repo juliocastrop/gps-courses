@@ -28,6 +28,9 @@ class Hero_Slider {
     /** On phones (26px headline) only this short a highlight is kept on one line. */
     const KEEP_TOGETHER_CHARS_PHONE = 14;
 
+    /** Headline + highlight longer than this use the smaller title size. */
+    const LONG_TITLE_CHARS = 48;
+
     public static function init() {
         add_action('init', [__CLASS__, 'register_meta']);
         add_action('save_post_gps_event', [__CLASS__, 'save_meta']);
@@ -444,7 +447,7 @@ class Hero_Slider {
 
         $line = $id ? trim((string) get_post_meta($id, self::META_LINE, true)) : '';
         if ('' === $line) {
-            $line = wp_trim_words((string) ($c['summary'] ?? ''), 22, '…');
+            $line = wp_trim_words((string) ($c['summary'] ?? ''), 18, '…');
         }
 
         // Image: hero image > course image > widget fallback
@@ -822,7 +825,9 @@ class Hero_Slider {
 
         $tag  = $h1 ? 'h1' : 'h2';
         $gold = (string) $slide['gold'];
-        echo '<' . $tag . ' class="gps-hero__title">';
+        // Long course titles get a smaller size so the slide keeps its breathing room
+        $long = self::strlen((string) $slide['headline'] . ' ' . $gold) > self::LONG_TITLE_CHARS;
+        echo '<' . $tag . ' class="gps-hero__title' . ($long ? ' gps-hero__title--long' : '') . '">';
         if ('' !== $slide['headline']) {
             echo '<span class="gps-hero__title-main">' . esc_html($slide['headline']) . '</span>';
         }
