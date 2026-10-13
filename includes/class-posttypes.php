@@ -1082,6 +1082,7 @@ class Posttypes {
                     <li><a href="#gps-tab-location"><span class="dashicons dashicons-location"></span> <?php _e('Location', 'gps-courses'); ?></a></li>
                     <li><a href="#gps-tab-content"><span class="dashicons dashicons-edit"></span> <?php _e('Description', 'gps-courses'); ?></a></li>
                     <li><a href="#gps-tab-qr"><span class="dashicons dashicons-share-alt2"></span> <?php _e('Promotional QR', 'gps-courses'); ?></a></li>
+                    <li><a href="#gps-tab-hero"><span class="dashicons dashicons-slides"></span> <?php _e('Home hero', 'gps-courses'); ?></a></li>
                 </ul>
 
                 <!-- Basic Info Tab -->
@@ -1337,6 +1338,15 @@ class Posttypes {
                         \GPSC\QR_Promotional::render_event_tab($post);
                     } else {
                         echo '<p>' . esc_html__('QR module not loaded.', 'gps-courses') . '</p>';
+                    }
+                    ?>
+                </div>
+
+                <!-- Home hero Tab (GPS Hero Slider widget) -->
+                <div id="gps-tab-hero" class="gps-tab-content">
+                    <?php
+                    if (class_exists('\GPSC\Hero_Slider')) {
+                        \GPSC\Hero_Slider::render_event_tab($post);
                     }
                     ?>
                 </div>

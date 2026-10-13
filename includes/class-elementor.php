@@ -98,6 +98,8 @@ class Elementor_Integration {
             'seminar-registration',
             'seminar-progress',
             'seminar-schedule',
+            // Home hero (courses + seminars from gpsc_catalog())
+            'hero-slider',
         ];
 
         foreach ($widgets as $widget) {
