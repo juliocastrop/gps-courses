@@ -669,7 +669,7 @@ class Share_Course_Widget extends Base_Widget {
 
         $url = $data['url'];
         $title = rawurlencode($data['title']);
-        $excerpt = rawurlencode($data['excerpt']);
+        $excerpt = rawurlencode(html_entity_decode($data['excerpt'], ENT_QUOTES, 'UTF-8'));
 
         $share_urls = [
             'facebook' => "https://www.facebook.com/sharer/sharer.php?u=" . urlencode($url),

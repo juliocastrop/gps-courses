@@ -50,6 +50,7 @@ class Plugin {
         require_once GPSC_PATH . 'includes/class-fluentform-login.php';
         require_once GPSC_PATH . 'includes/class-account-auth.php';
         require_once GPSC_PATH . 'includes/class-account-dashboard.php';
+        require_once GPSC_PATH . 'includes/class-course-catalog.php';
         require_once GPSC_PATH . 'includes/public-api.php';
 
         require_once GPSC_PATH . 'includes/helpers.php';
@@ -104,6 +105,7 @@ class Plugin {
         Fluentform_Login::init();
         Account_Auth::init();
         Account_Dashboard::init();
+        Course_Catalog::init();
 
         Woo::hooks();
 
