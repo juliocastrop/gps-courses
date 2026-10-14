@@ -114,15 +114,15 @@
 .gps-cp .gps-cp-hero__inner {
     position: relative;
     z-index: 1;
-    padding-top: 44px;
-    padding-bottom: 64px;
+    padding-top: 72px;
+    padding-bottom: 96px;
     display: flex;
     flex-direction: column;
     gap: 18px;
 }
 
 .gps-cp--past .gps-cp-hero__inner {
-    padding-bottom: 52px;
+    padding-bottom: 84px;
 }
 
 .gps-cp .gps-cp-crumbs {
@@ -1767,8 +1767,8 @@
     }
 
     .gps-cp .gps-cp-hero__inner {
-        padding-top: 18px;
-        padding-bottom: 30px;
+        padding-top: 28px;
+        padding-bottom: 40px;
         gap: 14px;
     }
 
