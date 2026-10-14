@@ -111,6 +111,17 @@
     background: rgba(18, 38, 74, .86);
 }
 
+/* No course image: corporate blue gradient with a soft light from the right */
+.gps-cp .gps-cp-hero--plain {
+    background:
+        radial-gradient(ellipse 60% 90% at 88% 20%, rgba(11, 82, 172, .55), transparent 70%),
+        linear-gradient(135deg, #12264a 0%, #193463 55%, #0B52AC 100%);
+}
+
+.gps-cp .gps-cp-hero--plain::after {
+    background: none;
+}
+
 .gps-cp .gps-cp-hero__inner {
     position: relative;
     z-index: 1;

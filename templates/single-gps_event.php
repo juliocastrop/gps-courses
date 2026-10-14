@@ -27,7 +27,7 @@ get_header();
 <script>document.documentElement.classList.add('gps-js');</script>
 
     <!-- Hero -->
-    <section class="gps-cp-hero" aria-labelledby="gps-cp-title">
+    <section class="gps-cp-hero<?php echo $d['image'] ? '' : ' gps-cp-hero--plain'; ?>" aria-labelledby="gps-cp-title">
         <?php if ($d['image']) : ?>
             <div class="gps-cp-hero__media" aria-hidden="true">
                 <?php
