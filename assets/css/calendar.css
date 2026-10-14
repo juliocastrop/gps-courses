@@ -1,825 +1,1046 @@
 /**
- * GPS Event Calendar Styles
- * Professional calendar view with responsive design
+ * GPS Event Calendar (Elementor widget "GPS Event Calendar").
+ *
+ * Markup: GPSC\Event_Calendar (server render + AJAX). Tokens follow
+ * gps-forms.css (navy #193463 / #12264a, Montserrat) and the card language of
+ * gps-catalog.css / gps-course.css (white cards, 14px radius, soft shadow).
+ * Course = blue #0B52AC, monthly seminar = gold #DDC89D (the calendar's
+ * long-standing colour meaning). Everything is scoped under .gpsc-cal and
+ * resets the theme's table / button / heading styles it inherits.
+ *
+ * Wide: month table + "Upcoming events" side panel. Narrow containers stack
+ * the panel below; phones (< 768px) get an agenda of the days with events
+ * instead of the 7-column table.
  */
 
-/* ===== CALENDAR WRAPPER ===== */
-.gps-calendar-wrapper {
+.gpsc-cal {
+    --gpsc-navy: var(--gps-navy, #193463);
+    --gpsc-navy-deep: var(--gps-navy-deep, #12264a);
+    --gpsc-course: var(--gps-blue, #0B52AC);
+    --gpsc-seminar: var(--gps-gold, #DDC89D);
+    --gpsc-seminar-ink: #5c4718;
+    --gpsc-ink: var(--gps-ink, #1b2436);
+    --gpsc-muted: var(--gps-muted, #5b6880);
+    --gpsc-line: var(--gps-line, #dde3ec);
+    --gpsc-soft: #f4f7fb;
+    --gpsc-paper: #ffffff;
+    --gpsc-past: #eef1f6;
+    --gpsc-past-ink: #5b6880;
+    --gpsc-radius: var(--gps-card-radius, 14px);
+    --gpsc-shadow: 0 1px 0 var(--gpsc-line), 0 18px 40px -24px rgba(18, 38, 74, 0.45);
+    --gpsc-focus: 0 0 0 3px rgba(11, 82, 172, 0.28);
+    --gpsc-font: var(--gps-font, "Montserrat", "Segoe UI", system-ui, -apple-system, sans-serif);
+
     position: relative;
     width: 100%;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    container-type: inline-size;
+    container-name: gpsc-cal;
+    font-family: var(--gpsc-font);
+    color: var(--gpsc-ink);
+    font-size: 15px;
+    line-height: 1.45;
+    text-align: left;
 }
 
-/* ===== CALENDAR HEADER ===== */
-.gps-calendar-header {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    margin-bottom: 20px;
+.gpsc-cal *,
+.gpsc-cal *::before,
+.gpsc-cal *::after {
+    box-sizing: border-box;
 }
 
-.gps-calendar-navigation {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
+.gpsc-cal [hidden] {
+    display: none !important;
 }
 
-.gps-calendar-title {
-    flex: 1;
-    text-align: center;
-    font-size: 24px;
-    font-weight: 600;
+.gpsc-cal .gpsc-cal__sr {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+.gpsc-cal ul,
+.gpsc-cal ol {
+    list-style: none;
     margin: 0;
+    padding: 0;
 }
 
-.gps-calendar-title-wrapper {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-}
-
-.gps-month-selector,
-.gps-year-selector {
-    padding: 6px 12px;
-    border: 1px solid #dcdcde;
-    border-radius: 6px;
-    background: #ffffff;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.gps-month-selector:hover,
-.gps-year-selector:hover {
-    border-color: #2271b1;
-}
-
-.gps-month-selector:focus,
-.gps-year-selector:focus {
-    outline: none;
-    border-color: #2271b1;
-    box-shadow: 0 0 0 1px #2271b1;
-}
-
-.gps-month-selector {
-    min-width: 120px;
-}
-
-.gps-year-selector {
-    min-width: 80px;
-}
-
-.gps-calendar-nav-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: 1px solid #dcdcde;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    flex-shrink: 0;
-}
-
-.gps-calendar-nav-btn:hover {
-    background: #f6f7f7;
-    transform: scale(1.05);
-}
-
-.gps-calendar-nav-btn:active {
-    transform: scale(0.95);
-}
-
-/* Today Button */
-.gps-today-btn {
-    padding: 8px 16px;
-    background: #2271b1;
-    color: #ffffff;
-    border: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    flex-shrink: 0;
-}
-
-.gps-today-btn:hover {
-    background: #135e96;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(34, 113, 177, 0.2);
-}
-
-.gps-today-btn:active {
-    transform: translateY(0);
-}
-
-/* ===== CATEGORY FILTER ===== */
-.gps-category-filter {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.gps-category-filter select {
-    width: 100%;
-    max-width: 300px;
-    border: 1px solid #dcdcde;
-    border-radius: 6px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.gps-category-filter select:hover {
-    border-color: #2271b1;
-}
-
-.gps-category-filter select:focus {
-    outline: none;
-    border-color: #2271b1;
-    box-shadow: 0 0 0 1px #2271b1;
-}
-
-/* ===== CALENDAR CONTENT LAYOUT ===== */
-.gps-calendar-content {
-    display: flex;
-    gap: 20px;
-    position: relative;
-}
-
-.gps-calendar-body {
-    flex: 1;
-    min-width: 0; /* Prevents flex item overflow */
-}
-
-/* ===== CALENDAR GRID ===== */
-.gps-calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    border: 1px solid #e8e8e8;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.gps-calendar-day-header {
-    padding: 12px 8px;
-    text-align: center;
-    font-weight: 600;
-    font-size: 14px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.gps-calendar-day {
-    min-height: 120px;
-    padding: 8px;
-    border: 1px solid #e8e8e8;
-    background: #ffffff;
-    position: relative;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    min-width: 0;
-    overflow: hidden;
-}
-
-.gps-calendar-day:hover {
-    background: #f9fafb;
-}
-
-.gps-calendar-day.today {
-    background: #f0f6ff;
-}
-
-.gps-calendar-day.other-month {
-    background: #fafafa;
-}
-
-.gps-calendar-day.has-events {
-    cursor: pointer;
-}
-
-.gps-day-number {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    font-weight: 600;
-    font-size: 14px;
-    margin-bottom: 8px;
-}
-
-.gps-calendar-day.today .gps-day-number {
-    font-weight: 700;
-}
-
-.gps-calendar-day.selected {
-    background: #e0f2ff;
-    border-color: #2271b1;
-}
-
-.gps-calendar-day.selected.today {
-    background: #d0e9ff;
-}
-
-/* ===== EVENT ITEMS ===== */
-.gps-day-events {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-    width: 100%;
-}
-
-.gps-calendar-event {
-    display: block;
-    padding: 4px 8px;
-    font-size: 12px;
-    line-height: 1.4;
-    text-decoration: none;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    border-radius: 4px;
-}
-
-.gps-calendar-event:hover {
-    transform: translateX(2px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* Course events - Blue */
-.gps-calendar-event.course {
-    background-color: #0B52AC;
-    color: #ffffff;
-}
-
-.gps-calendar-event.course:hover {
-    background-color: #094291;
-}
-
-.gps-calendar-event.course .gps-event-time {
-    color: rgba(255, 255, 255, 0.9);
-}
-
-/* Seminar session events - Gold */
-.gps-calendar-event.seminar-session {
-    background-color: #DDC89D;
-    color: #13326A;
-}
-
-.gps-calendar-event.seminar-session:hover {
-    background-color: #d4bc8a;
-}
-
-.gps-calendar-event.seminar-session .gps-event-time {
-    color: #13326A;
-}
-
-.gps-event-time {
-    font-weight: 600;
-    margin-right: 4px;
-}
-
-.gps-event-location {
-    font-size: 11px;
-    opacity: 0.8;
-    margin-top: 2px;
-}
-
-.gps-more-events {
-    display: inline-block;
-    padding: 4px 8px;
-    font-size: 11px;
-    color: #2271b1;
-    font-weight: 600;
-    cursor: pointer;
-    margin-top: 4px;
-}
-
-.gps-more-events:hover {
-    text-decoration: underline;
-}
-
-/* ===== EVENT DETAILS SIDEBAR ===== */
-.gps-calendar-sidebar {
-    flex-shrink: 0;
-    border: 1px solid #e8e8e8;
-    border-radius: 8px;
-    overflow-y: auto;
-    max-height: 900px;
-    min-height: 600px;
-}
-
-.gps-sidebar-header {
-    padding-bottom: 20px;
-    border-bottom: 2px solid #e8e8e8;
-    margin-bottom: 20px;
-}
-
-.gps-sidebar-header h3 {
-    margin: 0 0 10px 0;
-    font-size: 16px;
-    font-weight: 600;
-    color: #666;
-}
-
-.gps-selected-date {
+.gpsc-cal li {
     margin: 0;
-    font-size: 24px;
-    font-weight: 700;
-    color: #1a1a1a;
+    padding: 0;
 }
 
-.gps-sidebar-content {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.gps-no-events {
-    text-align: center;
-    padding: 40px 20px;
-    color: #999;
-    font-style: italic;
-}
-
-.gps-sidebar-event {
-    padding: 20px;
-    border: 1px solid #e8e8e8;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-    background: #ffffff;
-}
-
-.gps-sidebar-event:hover {
-    border-color: #2271b1;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.gps-sidebar-event-title {
-    font-size: 18px;
-    font-weight: 600;
-    margin: 0 0 10px 0;
-    color: #1a1a1a;
-}
-
-.gps-sidebar-event-title a {
-    color: inherit;
+.gpsc-cal a {
     text-decoration: none;
+    box-shadow: none;
 }
 
-.gps-sidebar-event-title a:hover {
-    color: #2271b1;
-}
-
-.gps-sidebar-event-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 12px;
-    font-size: 14px;
-    color: #666;
-}
-
-.gps-sidebar-event-meta-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.gps-sidebar-event-meta-item svg,
-.gps-sidebar-event-meta-item i {
-    flex-shrink: 0;
-    width: 16px;
-    color: #2271b1;
-}
-
-.gps-sidebar-event-excerpt {
-    font-size: 14px;
-    line-height: 1.6;
-    color: #444;
-    margin: 0 0 12px 0;
-}
-
-.gps-sidebar-event-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    background: #2271b1;
-    color: #ffffff;
-    text-decoration: none;
-    border-radius: 4px;
-    font-size: 14px;
-    font-weight: 600;
-    transition: all 0.2s ease;
-}
-
-.gps-sidebar-event-link:hover {
-    background: #135e96;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(34, 113, 177, 0.2);
-}
-
-/* Sidebar event type styling */
-.gps-sidebar-event.course {
-    border-left: 4px solid #0B52AC;
-}
-
-.gps-sidebar-event.course:hover {
-    border-color: #0B52AC;
-}
-
-.gps-sidebar-event.course .gps-sidebar-event-link {
-    background: #0B52AC;
-}
-
-.gps-sidebar-event.course .gps-sidebar-event-link:hover {
-    background: #094291;
-    box-shadow: 0 4px 8px rgba(11, 82, 172, 0.2);
-}
-
-.gps-sidebar-event.course .gps-sidebar-event-meta-item i {
-    color: #0B52AC;
-}
-
-.gps-sidebar-event.seminar-session {
-    border-left: 4px solid #DDC89D;
-}
-
-.gps-sidebar-event.seminar-session:hover {
-    border-color: #DDC89D;
-}
-
-.gps-sidebar-event.seminar-session .gps-sidebar-event-link {
-    background: #13326A;
-}
-
-.gps-sidebar-event.seminar-session .gps-sidebar-event-link:hover {
-    background: #0d2347;
-    box-shadow: 0 4px 8px rgba(19, 50, 106, 0.2);
-}
-
-.gps-sidebar-event.seminar-session .gps-sidebar-event-meta-item i {
-    color: #13326A;
-}
-
-/* ===== TOOLTIPS ===== */
-.gps-calendar-tooltip {
-    position: absolute;
-    background: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%);
-    color: #ffffff;
-    padding: 10px 16px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 500;
-    line-height: 1.5;
-    max-width: 90vw;
-    width: auto;
-    min-width: 200px;
-    z-index: 10000;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
-    pointer-events: none;
-    display: none;
-    white-space: normal;
-    word-wrap: break-word;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-}
-
-/* Limit width on larger screens */
-@media screen and (min-width: 769px) {
-    .gps-calendar-tooltip {
-        max-width: 500px;
-    }
-}
-
-.gps-calendar-tooltip::before {
-    content: '';
-    position: absolute;
-    top: -5px;
-    left: 16px;
-    width: 10px;
-    height: 10px;
-    background: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%);
-    transform: rotate(45deg);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    border-left: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Tablet tooltip adjustments */
-@media screen and (max-width: 1024px) {
-    .gps-calendar-tooltip {
-        max-width: 400px;
-    }
-}
-
-/* Mobile tooltip adjustments */
-@media screen and (max-width: 768px) {
-    .gps-calendar-tooltip {
-        font-size: 13px;
-        padding: 8px 14px;
-        max-width: calc(100vw - 40px);
-        min-width: 150px;
-    }
-}
-
-/* Extra small mobile */
-@media screen and (max-width: 480px) {
-    .gps-calendar-tooltip {
-        font-size: 12px;
-        padding: 6px 12px;
-        max-width: calc(100vw - 30px);
-    }
-}
-
-/* ===== LOADING STATE ===== */
-.gps-calendar-loading {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(255, 255, 255, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-    border-radius: 8px;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    pointer-events: none;
-}
-
-.gps-calendar-loading.visible {
-    opacity: 1;
-    pointer-events: all;
-}
-
-.gps-spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #2271b1;
-    border-radius: 50%;
-    animation: gps-spin 0.8s linear infinite;
-}
-
-@keyframes gps-spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* ===== RESPONSIVE DESIGN ===== */
-
-/* Tablet (768px - 1024px) */
-@media screen and (max-width: 1024px) {
-    .gps-calendar-sidebar {
-        width: 300px !important;
-        padding: 20px !important;
-    }
-
-    .gps-calendar-day {
-        min-height: 100px;
-    }
-
-    .gps-calendar-title {
-        font-size: 20px;
-    }
-
-    .gps-sidebar-event-title {
-        font-size: 16px;
-    }
-}
-
-/* Mobile - Stack sidebar below calendar */
-@media screen and (max-width: 768px) {
-    .gps-calendar-header {
-        gap: 12px;
-    }
-
-    .gps-calendar-navigation {
-        gap: 10px;
-    }
-
-    .gps-calendar-title {
-        font-size: 18px;
-    }
-
-    .gps-month-selector,
-    .gps-year-selector {
-        font-size: 14px;
-        padding: 5px 10px;
-    }
-
-    .gps-month-selector {
-        min-width: 100px;
-    }
-
-    .gps-year-selector {
-        min-width: 70px;
-    }
-
-    .gps-calendar-nav-btn {
-        width: 36px !important;
-        height: 36px !important;
-        font-size: 18px !important;
-    }
-
-    .gps-category-filter select {
-        max-width: 100%;
-        font-size: 14px;
-    }
-
-    .gps-today-btn {
-        padding: 6px 12px;
-        font-size: 13px;
-    }
-
-    .gps-calendar-content {
-        flex-direction: column;
-    }
-
-    .gps-calendar-sidebar {
-        width: 100% !important;
-        max-height: 400px;
-        margin-top: 20px;
-    }
-
-    .gps-calendar-day {
-        min-height: 80px;
-        padding: 6px;
-    }
-
-    .gps-day-number {
-        width: 28px;
-        height: 28px;
-        font-size: 13px;
-        margin-bottom: 4px;
-    }
-
-    .gps-calendar-event {
-        font-size: 11px;
-        padding: 3px 6px;
-    }
-
-    .gps-more-events {
-        font-size: 10px;
-        padding: 3px 6px;
-        margin-top: 2px;
-    }
-
-    .gps-sidebar-header h3 {
-        font-size: 14px;
-    }
-
-    .gps-selected-date {
-        font-size: 20px;
-    }
-
-    .gps-sidebar-event {
-        padding: 15px;
-    }
-
-    .gps-sidebar-event-title {
-        font-size: 16px;
-    }
-
-    .gps-sidebar-event-meta {
-        font-size: 13px;
-    }
-
-    .gps-sidebar-event-excerpt {
-        font-size: 13px;
-    }
-}
-
-/* Extra small mobile */
-@media screen and (max-width: 480px) {
-    .gps-calendar-title {
-        font-size: 16px;
-    }
-
-    .gps-month-selector,
-    .gps-year-selector {
-        font-size: 13px;
-        padding: 4px 8px;
-    }
-
-    .gps-month-selector {
-        min-width: 90px;
-    }
-
-    .gps-year-selector {
-        min-width: 65px;
-    }
-
-    .gps-calendar-day {
-        min-height: 70px;
-        padding: 4px;
-    }
-
-    .gps-day-number {
-        width: 24px;
-        height: 24px;
-        font-size: 12px;
-    }
-
-    .gps-calendar-event {
-        font-size: 10px;
-        padding: 2px 4px;
-    }
-
-    .gps-event-time {
-        display: none; /* Hide time on very small screens */
-    }
-
-    .gps-calendar-day-header {
-        padding: 8px 4px;
-        font-size: 11px;
-    }
-
-    .gps-sidebar-event {
-        padding: 12px;
-    }
-
-    .gps-sidebar-event-title {
-        font-size: 15px;
-    }
-}
-
-/* Very narrow screens - abbreviate day names */
-@media screen and (max-width: 360px) {
-    .gps-calendar-day-header {
-        font-size: 10px;
-        letter-spacing: 0;
-    }
-}
-
-/* ===== PRINT STYLES ===== */
-@media print {
-    .gps-calendar-header {
-        border-bottom: 2px solid #000;
-        padding-bottom: 10px;
-    }
-
-    .gps-calendar-nav-btn,
-    .gps-category-filter {
-        display: none;
-    }
-
-    .gps-calendar-content {
-        flex-direction: column;
-    }
-
-    .gps-calendar-day {
-        border: 1px solid #000;
-        page-break-inside: avoid;
-    }
-
-    .gps-calendar-event {
-        page-break-inside: avoid;
-    }
-}
-
-/* ===== ACCESSIBILITY ===== */
-.gps-calendar-nav-btn:focus,
-.gps-category-filter select:focus,
-.gps-calendar-event:focus {
-    outline: 2px solid #2271b1;
+.gpsc-cal a:focus-visible,
+.gpsc-cal button:focus-visible,
+.gpsc-cal select:focus-visible,
+.gpsc-cal [tabindex="-1"]:focus-visible {
+    outline: 3px solid rgba(11, 82, 172, 0.45);
     outline-offset: 2px;
 }
 
-/* Reduced motion for accessibility */
-@media (prefers-reduced-motion: reduce) {
-    .gps-calendar-nav-btn,
-    .gps-calendar-event,
-    .gps-sidebar-event,
-    .gps-sidebar-event-link {
-        transition: none;
-    }
+/* ---------- Buttons ---------- */
 
-    .gps-spinner {
-        animation: none;
-        border-top-color: #2271b1;
+.gpsc-cal .gpsc-cal__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 44px;
+    min-height: 44px;
+    margin: 0;
+    padding: 0 16px;
+    font-family: var(--gpsc-font);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--gpsc-navy);
+    background: var(--gpsc-paper);
+    border: 1.5px solid var(--gpsc-line);
+    border-radius: 10px;
+    box-shadow: none;
+    cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.gpsc-cal .gpsc-cal__btn:hover {
+    color: #fff;
+    background: var(--gpsc-navy);
+    border-color: var(--gpsc-navy);
+}
+
+.gpsc-cal .gpsc-cal__btn--icon {
+    width: 44px;
+    padding: 0;
+}
+
+.gpsc-cal .gpsc-cal__btn svg {
+    display: block;
+    flex: none;
+}
+
+.gpsc-cal .gpsc-cal__btn.is-disabled,
+.gpsc-cal .gpsc-cal__btn.is-disabled:hover {
+    opacity: .35;
+    color: var(--gpsc-navy);
+    background: var(--gpsc-paper);
+    border-color: var(--gpsc-line);
+    cursor: default;
+}
+
+.gpsc-cal .gpsc-cal__btn--primary {
+    color: #fff;
+    background: var(--gpsc-navy);
+    border-color: var(--gpsc-navy);
+    padding: 0 22px;
+}
+
+.gpsc-cal .gpsc-cal__btn--primary:hover {
+    background: var(--gpsc-navy-deep);
+    border-color: var(--gpsc-navy-deep);
+}
+
+/* ---------- Header ---------- */
+
+.gpsc-cal .gpsc-cal__top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 16px;
+    margin: 0 0 14px;
+}
+
+.gpsc-cal .gpsc-cal__title {
+    margin: 0;
+    padding: 0;
+    font-family: var(--gpsc-font);
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    text-transform: none;
+    color: var(--gpsc-navy);
+}
+
+.gpsc-cal .gpsc-cal__nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ---------- Toolbar: selects + filters ---------- */
+
+.gpsc-cal .gpsc-cal__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 16px;
+}
+
+.gpsc-cal .gpsc-cal__jump {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+}
+
+.gpsc-cal .gpsc-cal__select {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 44px;
+    min-height: 44px;
+    width: auto;
+    margin: 0;
+    padding: 0 38px 0 14px;
+    font-family: var(--gpsc-font);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--gpsc-ink);
+    background-color: var(--gpsc-paper);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23193463' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 12px 8px;
+    border: 1.5px solid var(--gpsc-line);
+    border-radius: 10px;
+    box-shadow: none;
+    cursor: pointer;
+}
+
+.gpsc-cal .gpsc-cal__select:hover {
+    border-color: #b9c4d6;
+}
+
+.gpsc-cal .gpsc-cal__select:focus {
+    border-color: var(--gpsc-course);
+    box-shadow: var(--gpsc-focus);
+    outline: none;
+}
+
+.gpsc-cal .gpsc-cal__filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.gpsc-cal .gpsc-cal__filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 16px;
+    font-size: 13.5px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--gpsc-navy);
+    background: var(--gpsc-paper);
+    border: 1.5px solid var(--gpsc-line);
+    border-radius: 999px;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.gpsc-cal .gpsc-cal__filter:hover {
+    border-color: var(--gpsc-navy);
+    color: var(--gpsc-navy);
+}
+
+.gpsc-cal .gpsc-cal__filter.is-active {
+    color: #fff;
+    background: var(--gpsc-navy);
+    border-color: var(--gpsc-navy);
+}
+
+.gpsc-cal .gpsc-cal__swatch {
+    display: inline-block;
+    flex: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    background: var(--gpsc-course);
+}
+
+.gpsc-cal .gpsc-cal__filter--seminars .gpsc-cal__swatch,
+.gpsc-cal .gpsc-cal__swatch--seminar {
+    background: var(--gpsc-seminar);
+}
+
+.gpsc-cal .gpsc-cal__filter.is-active .gpsc-cal__swatch {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, .85);
+}
+
+.gpsc-cal .gpsc-cal__swatch--today {
+    background: transparent;
+    border-radius: 50%;
+    border: 2.5px solid var(--gpsc-navy);
+}
+
+/* ---------- Status (AJAX error) ---------- */
+
+.gpsc-cal .gpsc-cal__status:empty {
+    display: none;
+}
+
+.gpsc-cal .gpsc-cal__status {
+    margin: 0 0 14px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gpsc-navy);
+    background: var(--gpsc-soft);
+    border-radius: 10px;
+}
+
+.gpsc-cal .gpsc-cal__status.is-error {
+    color: var(--gps-err, #b4322a);
+    background: var(--gps-err-tint, #fbecea);
+}
+
+.gpsc-cal .gpsc-cal__retry {
+    display: inline;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    font: inherit;
+    font-weight: 700;
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    cursor: pointer;
+}
+
+.gpsc-cal .gpsc-cal__retry:hover {
+    color: inherit;
+    background: none;
+}
+
+/* ---------- Layout ---------- */
+
+.gpsc-cal .gpsc-cal__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+    gap: 24px;
+    align-items: start;
+}
+
+.gpsc-cal.gpsc-cal--no-side .gpsc-cal__layout {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.gpsc-cal .gpsc-cal__main {
+    position: relative;
+    min-width: 0;
+    background: var(--gpsc-paper);
+    border-radius: var(--gpsc-radius);
+    box-shadow: var(--gpsc-shadow);
+    border: 1px solid var(--gpsc-line);
+    overflow: hidden;
+    transition: opacity .2s ease;
+}
+
+.gpsc-cal.is-loading .gpsc-cal__main {
+    opacity: .55;
+}
+
+.gpsc-cal.is-loading .gpsc-cal__main::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 3px;
+    width: 40%;
+    background: var(--gpsc-course);
+    animation: gpsc-cal-load 1s ease-in-out infinite;
+}
+
+@keyframes gpsc-cal-load {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(250%); }
+}
+
+/* ---------- Month table ---------- */
+
+.gpsc-cal .gpsc-cal__grid {
+    width: 100%;
+    margin: 0;
+    table-layout: fixed;
+    border: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: inherit;
+    background: transparent;
+}
+
+.gpsc-cal .gpsc-cal__grid th {
+    padding: 14px 4px 12px;
+    font-family: var(--gpsc-font);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    text-align: center;
+    color: var(--gpsc-muted);
+    background: var(--gpsc-paper);
+    border: 0;
+    border-bottom: 1px solid var(--gpsc-line);
+}
+
+.gpsc-cal .gpsc-cal__grid th abbr {
+    text-decoration: none;
+    border: 0;
+    cursor: default;
+}
+
+.gpsc-cal .gpsc-cal__grid tbody tr,
+.gpsc-cal .gpsc-cal__grid tbody tr:hover {
+    background: transparent;
+}
+
+.gpsc-cal .gpsc-cal__cell,
+.gpsc-cal .gpsc-cal__grid tbody tr:hover > .gpsc-cal__cell {
+    height: 112px;
+    padding: 6px;
+    vertical-align: top;
+    text-align: left;
+    background: var(--gpsc-paper);
+    border: 0;
+    border-right: 1px solid var(--gpsc-line);
+    border-bottom: 1px solid var(--gpsc-line);
+}
+
+.gpsc-cal .gpsc-cal__grid tr > .gpsc-cal__cell:last-child {
+    border-right: 0;
+}
+
+.gpsc-cal .gpsc-cal__grid tbody tr:last-child > .gpsc-cal__cell {
+    border-bottom: 0;
+}
+
+.gpsc-cal .gpsc-cal__cell.is-past,
+.gpsc-cal .gpsc-cal__grid tbody tr:hover > .gpsc-cal__cell.is-past {
+    background: #fafbfd;
+}
+
+.gpsc-cal .gpsc-cal__cell.is-other,
+.gpsc-cal .gpsc-cal__grid tbody tr:hover > .gpsc-cal__cell.is-other {
+    background: #f6f8fb;
+}
+
+.gpsc-cal .gpsc-cal__cell.is-today,
+.gpsc-cal .gpsc-cal__grid tbody tr:hover > .gpsc-cal__cell.is-today {
+    background: #eef4fc;
+}
+
+.gpsc-cal .gpsc-cal__cell.is-selected {
+    box-shadow: inset 0 0 0 2px var(--gpsc-course);
+}
+
+.gpsc-cal .gpsc-cal__cellin {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    min-height: 99px;
+}
+
+.gpsc-cal .gpsc-cal__daynum {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: flex-start;
+    width: 30px;
+    height: 30px;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    font-family: var(--gpsc-font);
+    font-size: 13.5px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0;
+    color: var(--gpsc-ink);
+    background: transparent;
+    border: 0;
+    border-radius: 50%;
+    box-shadow: none;
+    text-transform: none;
+}
+
+.gpsc-cal button.gpsc-cal__daynum {
+    color: var(--gpsc-navy);
+    cursor: pointer;
+}
+
+.gpsc-cal.is-enhanced button.gpsc-cal__daynum:hover {
+    background: var(--gpsc-soft);
+    color: var(--gpsc-navy);
+}
+
+
+.gpsc-cal .gpsc-cal__cell.is-past .gpsc-cal__daynum {
+    color: var(--gpsc-past-ink);
+}
+
+.gpsc-cal .gpsc-cal__cell.is-other .gpsc-cal__daynum {
+    /* decorative: days of the neighbouring months */
+    color: #b5bdca;
+}
+
+.gpsc-cal .gpsc-cal__cell.is-today .gpsc-cal__daynum,
+.gpsc-cal.is-enhanced .gpsc-cal__cell.is-today button.gpsc-cal__daynum:hover {
+    color: #fff;
+    background: var(--gpsc-navy);
+}
+
+/* Event pills */
+
+.gpsc-cal .gpsc-cal__pills {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.gpsc-cal .gpsc-cal__pill {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    min-width: 0;
+    padding: 4px 7px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    color: #fff;
+    background: var(--gpsc-course);
+    border-radius: 6px;
+    transition: filter .15s ease, box-shadow .15s ease;
+}
+
+.gpsc-cal .gpsc-cal__pill:hover {
+    color: #fff;
+    filter: brightness(1.08);
+    box-shadow: 0 4px 10px -4px rgba(18, 38, 74, .5);
+}
+
+.gpsc-cal .gpsc-cal__pill--seminar,
+.gpsc-cal .gpsc-cal__pill--seminar:hover {
+    color: var(--gpsc-navy-deep);
+    background: var(--gpsc-seminar);
+}
+
+.gpsc-cal .gpsc-cal__pill.is-past,
+.gpsc-cal .gpsc-cal__pill.is-past:hover {
+    color: var(--gpsc-past-ink);
+    background: var(--gpsc-past);
+}
+
+.gpsc-cal .gpsc-cal__pill.is-sold-out {
+    background-image: repeating-linear-gradient(135deg, rgba(255, 255, 255, .2) 0 5px, transparent 5px 10px);
+}
+
+/* Multi-day courses run across the week as one bar */
+.gpsc-cal .gpsc-cal__pill.is-first {
+    margin-right: -7px;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.gpsc-cal .gpsc-cal__pill.is-mid {
+    margin: 0 -7px;
+    border-radius: 0;
+}
+
+.gpsc-cal .gpsc-cal__pill.is-last {
+    margin-left: -7px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.gpsc-cal .gpsc-cal__grid tr > .gpsc-cal__cell:first-child .gpsc-cal__pill.is-mid,
+.gpsc-cal .gpsc-cal__grid tr > .gpsc-cal__cell:first-child .gpsc-cal__pill.is-last {
+    margin-left: 0;
+}
+
+.gpsc-cal .gpsc-cal__grid tr > .gpsc-cal__cell:last-child .gpsc-cal__pill.is-first,
+.gpsc-cal .gpsc-cal__grid tr > .gpsc-cal__cell:last-child .gpsc-cal__pill.is-mid {
+    margin-right: 0;
+}
+
+.gpsc-cal .gpsc-cal__pilltime {
+    flex: none;
+    font-weight: 800;
+}
+
+.gpsc-cal .gpsc-cal__pilltitle {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gpsc-cal .gpsc-cal__more {
+    align-self: flex-start;
+    min-height: 24px;
+    margin: 0;
+    padding: 2px 6px;
+    font-family: var(--gpsc-font);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-transform: none;
+    color: var(--gpsc-course);
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    box-shadow: none;
+    cursor: pointer;
+}
+
+.gpsc-cal:not(.is-enhanced) .gpsc-cal__more,
+.gpsc-cal.is-enhanced .gpsc-cal__pills > li.is-overflow {
+    display: none;
+}
+
+/* Theme / Elementor Kit button :hover and :focus colours (e.g. #c36) must not leak in */
+.gpsc-cal.is-enhanced button.gpsc-cal__more:hover,
+.gpsc-cal.is-enhanced button.gpsc-cal__more:focus {
+    color: var(--gpsc-navy);
+    background: var(--gpsc-soft);
+    border: 0;
+    box-shadow: none;
+}
+
+.gpsc-cal.is-enhanced button.gpsc-cal__daynum:focus {
+    color: var(--gpsc-navy);
+    background: var(--gpsc-soft);
+    border: 0;
+    box-shadow: none;
+}
+
+.gpsc-cal.is-enhanced .gpsc-cal__cell.is-today button.gpsc-cal__daynum:focus {
+    color: #fff;
+    background: var(--gpsc-navy);
+}
+
+.gpsc-cal.is-enhanced button.gpsc-cal__back:hover,
+.gpsc-cal.is-enhanced button.gpsc-cal__back:focus {
+    color: var(--gpsc-navy);
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+
+.gpsc-cal.is-enhanced button.gpsc-cal__retry:hover,
+.gpsc-cal.is-enhanced button.gpsc-cal__retry:focus {
+    color: inherit;
+    background: none;
+    border: 0;
+    box-shadow: none;
+}
+
+.gpsc-cal .gpsc-cal__btn:focus {
+    box-shadow: none;
+}
+
+/* Legend */
+
+.gpsc-cal .gpsc-cal__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    padding: 12px 16px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--gpsc-muted);
+    border-top: 1px solid var(--gpsc-line);
+    background: var(--gpsc-paper);
+}
+
+.gpsc-cal .gpsc-cal__legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ---------- Agenda (phones) ---------- */
+
+.gpsc-cal .gpsc-cal__agenda {
+    display: none;
+    padding: 16px;
+}
+
+.gpsc-cal .gpsc-cal__days {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.gpsc-cal .gpsc-cal__adate {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 8px;
+    padding: 0;
+    font-family: var(--gpsc-font);
+    font-size: 12.5px;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--gpsc-muted);
+}
+
+.gpsc-cal .gpsc-cal__todaytag {
+    padding: 4px 8px;
+    font-size: 10.5px;
+    letter-spacing: .08em;
+    color: #fff;
+    background: var(--gpsc-navy);
+    border-radius: 999px;
+}
+
+/* ---------- Side panel ---------- */
+
+.gpsc-cal .gpsc-cal__side,
+.gpsc-cal .gpsc-cal__dayarea {
+    min-width: 0;
+}
+
+.gpsc-cal .gpsc-cal__panel {
+    padding: 20px;
+    background: var(--gpsc-paper);
+    border: 1px solid var(--gpsc-line);
+    border-radius: var(--gpsc-radius);
+    box-shadow: var(--gpsc-shadow);
+}
+
+.gpsc-cal .gpsc-cal__panelhead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 12px;
+    margin: 0 0 14px;
+}
+
+.gpsc-cal .gpsc-cal__paneltitle {
+    margin: 0;
+    padding: 0;
+    font-family: var(--gpsc-font);
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.25;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--gpsc-navy);
+}
+
+.gpsc-cal .gpsc-cal__paneltitle:focus {
+    outline: none;
+}
+
+.gpsc-cal .gpsc-cal__all {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--gpsc-course);
+}
+
+.gpsc-cal .gpsc-cal__all:hover {
+    color: var(--gpsc-navy);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.gpsc-cal .gpsc-cal__back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    margin: 0;
+    padding: 0 2px;
+    font-family: var(--gpsc-font);
+    font-size: 13.5px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-transform: none;
+    color: var(--gpsc-course);
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    box-shadow: none;
+    cursor: pointer;
+}
+
+.gpsc-cal .gpsc-cal__back::before {
+    content: "\2190";
+    margin-right: 6px;
+}
+
+.gpsc-cal .gpsc-cal__back:hover {
+    color: var(--gpsc-navy);
+    background: transparent;
+}
+
+/* ---------- Event cards ---------- */
+
+.gpsc-cal .gpsc-cal__cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.gpsc-cal .gpsc-cal__cardlink {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 12px;
+    color: var(--gpsc-ink);
+    background: var(--gpsc-paper);
+    border: 1px solid var(--gpsc-line);
+    border-radius: 12px;
+    transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+
+.gpsc-cal .gpsc-cal__cardlink:hover {
+    color: var(--gpsc-ink);
+    border-color: #b9c4d6;
+    box-shadow: 0 12px 24px -18px rgba(18, 38, 74, .55);
+    transform: translateY(-1px);
+}
+
+.gpsc-cal .gpsc-cal__tile {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 58px;
+    min-height: 58px;
+    padding: 7px 2px;
+    text-align: center;
+    color: #fff;
+    background: var(--gpsc-course);
+    border-radius: 10px;
+}
+
+.gpsc-cal .gpsc-cal__card--seminar .gpsc-cal__tile {
+    color: var(--gpsc-navy-deep);
+    background: var(--gpsc-seminar);
+}
+
+.gpsc-cal .gpsc-cal__card.is-past .gpsc-cal__tile {
+    color: var(--gpsc-past-ink);
+    background: var(--gpsc-past);
+}
+
+.gpsc-cal .gpsc-cal__tile-m {
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+}
+
+.gpsc-cal .gpsc-cal__tile-d {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+}
+
+.gpsc-cal .gpsc-cal__tile.is-range .gpsc-cal__tile-d {
+    font-size: 15px;
+    letter-spacing: -0.03em;
+}
+
+/* Continuation days of multi-day courses: kept for the day panel, not repeated in the agenda */
+.gpsc-cal .gpsc-cal__agenda .gpsc-cal__aday.is-cont,
+.gpsc-cal .gpsc-cal__agenda .gpsc-cal__card.is-cont {
+    display: none;
+}
+
+.gpsc-cal .gpsc-cal__cardbody {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    min-width: 0;
+}
+
+.gpsc-cal .gpsc-cal__kicker {
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--gpsc-course);
+}
+
+.gpsc-cal .gpsc-cal__card--seminar .gpsc-cal__kicker {
+    color: #7a5f24;
+}
+
+.gpsc-cal .gpsc-cal__cardtitle {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--gpsc-navy);
+    overflow-wrap: anywhere;
+}
+
+.gpsc-cal .gpsc-cal__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+    font-size: 12.5px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--gpsc-muted);
+}
+
+.gpsc-cal .gpsc-cal__credits {
+    font-weight: 700;
+    color: var(--gpsc-ink);
+}
+
+.gpsc-cal .gpsc-cal__card.is-past .gpsc-cal__cardtitle,
+.gpsc-cal .gpsc-cal__card.is-past .gpsc-cal__kicker,
+.gpsc-cal .gpsc-cal__card.is-past .gpsc-cal__credits {
+    color: var(--gpsc-past-ink);
+}
+
+/* Status chips (same colours as Course_Stage chips) */
+
+.gpsc-cal .gpsc-cal__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 5px;
+    padding: 5px 9px;
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--gpsc-navy);
+    background: var(--gpsc-past);
+    border-radius: 999px;
+}
+
+.gpsc-cal .gpsc-cal__chip--open { color: var(--gps-ok, #1d7a4e); background: var(--gps-ok-tint, #e7f4ed); }
+.gpsc-cal .gpsc-cal__chip--sold_out { color: var(--gps-err, #b4322a); background: var(--gps-err-tint, #fbecea); }
+.gpsc-cal .gpsc-cal__chip--soon { color: #6b5426; background: #f6efe0; }
+.gpsc-cal .gpsc-cal__chip--seminar { color: #6b5426; background: #f6efe0; }
+.gpsc-cal .gpsc-cal__chip--in_progress { color: #fff; background: var(--gpsc-navy); }
+.gpsc-cal .gpsc-cal__chip--past { color: var(--gpsc-past-ink); background: var(--gpsc-past); }
+
+/* Empty states */
+
+.gpsc-cal .gpsc-cal__empty {
+    margin: 0;
+    padding: 8px 4px;
+    font-size: 14px;
+    color: var(--gpsc-muted);
+}
+
+.gpsc-cal .gpsc-cal__empty p {
+    margin: 0 0 14px;
+}
+
+.gpsc-cal .gpsc-cal__empty--upcoming {
+    padding: 12px 4px 4px;
+    text-align: center;
+}
+
+/* ---------- Narrow containers: panel below the month ---------- */
+
+@container gpsc-cal (max-width: 980px) {
+    .gpsc-cal .gpsc-cal__layout {
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-    .gps-calendar-day {
-        border: 2px solid;
-    }
+/* ---------- Phones / narrow columns: agenda instead of the table ---------- */
 
-    .gps-calendar-event {
-        border: 1px solid currentColor;
+@container gpsc-cal (max-width: 767px) {
+    .gpsc-cal .gpsc-cal__title { font-size: 22px; }
+    .gpsc-cal .gpsc-cal__grid { display: none; }
+    .gpsc-cal .gpsc-cal__agenda { display: block; }
+    .gpsc-cal .gpsc-cal__legend { order: 2; }
+    .gpsc-cal .gpsc-cal__main { display: flex; flex-direction: column; }
+    .gpsc-cal .gpsc-cal__bar { flex-direction: column; align-items: stretch; }
+    .gpsc-cal .gpsc-cal__jump .gpsc-cal__select { flex: 1 1 120px; }
+    .gpsc-cal .gpsc-cal__filters { justify-content: flex-start; }
+    .gpsc-cal .gpsc-cal__filter { flex: 1 1 auto; justify-content: center; }
+    .gpsc-cal .gpsc-cal__panel { padding: 16px; }
+    .gpsc-cal .gpsc-cal__layout { gap: 18px; }
+}
+
+@container gpsc-cal (max-width: 360px) {
+    .gpsc-cal .gpsc-cal__btn--today { padding: 0 12px; }
+    .gpsc-cal .gpsc-cal__cardlink { gap: 10px; padding: 10px; }
+    .gpsc-cal .gpsc-cal__tile { width: 50px; min-height: 52px; }
+}
+
+/* Browsers without container queries fall back to the viewport */
+@supports not (container-type: inline-size) {
+    @media (max-width: 980px) {
+        .gpsc-cal .gpsc-cal__layout { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 767px) {
+        .gpsc-cal .gpsc-cal__title { font-size: 22px; }
+        .gpsc-cal .gpsc-cal__grid { display: none; }
+        .gpsc-cal .gpsc-cal__agenda { display: block; }
+        .gpsc-cal .gpsc-cal__legend { order: 2; }
+        .gpsc-cal .gpsc-cal__main { display: flex; flex-direction: column; }
+        .gpsc-cal .gpsc-cal__bar { flex-direction: column; align-items: stretch; }
+        .gpsc-cal .gpsc-cal__jump .gpsc-cal__select { flex: 1 1 120px; }
+        .gpsc-cal .gpsc-cal__filters { justify-content: flex-start; }
+        .gpsc-cal .gpsc-cal__filter { flex: 1 1 auto; justify-content: center; }
+        .gpsc-cal .gpsc-cal__panel { padding: 16px; }
+        .gpsc-cal .gpsc-cal__layout { gap: 18px; }
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gpsc-cal *,
+    .gpsc-cal *::before,
+    .gpsc-cal *::after {
+        transition: none !important;
+        animation: none !important;
+    }
+}
+
+@media print {
+    .gpsc-cal .gpsc-cal__nav,
+    .gpsc-cal .gpsc-cal__bar,
+    .gpsc-cal .gpsc-cal__status {
+        display: none;
     }
 }

@@ -1,732 +1,466 @@
 /**
- * GPS Event Calendar JavaScript
- * Professional calendar functionality with AJAX-based event loading
+ * GPS Event Calendar (Elementor widget "GPS Event Calendar").
+ *
+ * The month, its agenda and the upcoming events are rendered in PHP
+ * (GPSC\Event_Calendar), so the calendar is complete without JavaScript and
+ * every control is a plain link / GET form. This script only enhances it:
+ * month navigation, filters and the month/year selects swap in the markup of
+ * the gps_get_calendar_events AJAX action (same PHP renderer, no nonce),
+ * day numbers and "+N more" become buttons that list a day's events in the
+ * day panel, and extra events per day collapse behind "+N more".
+ *
+ * Robust against late loading (FlyingPress "delay JS"): no jQuery, initialises
+ * on DOMContentLoaded or immediately, and on Elementor's element_ready hook in
+ * the editor. A page served stale from the page cache (another day, or older
+ * than 30 minutes) is refreshed quietly, unless the visitor already interacted.
+ * If a request fails the current month stays and a retry message is shown.
  */
-(function($) {
+(function () {
     'use strict';
 
-    class GPSEventCalendar {
-        constructor(selector, options = {}) {
-            this.$wrapper = $(selector);
-            if (!this.$wrapper.length) {
-                console.error('GPS Calendar: Wrapper element not found');
-                return;
+    var SEL = '[data-gpsc-cal]';
+    var PARAMS = ['gpsc_cal', 'gpsc_cal_y', 'gpsc_cal_m', 'gpsc_cal_type', 'gpsc_cal_cat'];
+    var STALE_SECONDS = 30 * 60;
+
+    if (!window.fetch || !window.FormData || !document.querySelector || !Element.prototype.matches) {
+        return; // links and the GET form keep working without the enhancement
+    }
+
+    function q(root, sel) { return root.querySelector(sel); }
+    function qa(root, sel) { return Array.prototype.slice.call(root.querySelectorAll(sel)); }
+    function closest(el, sel) {
+        while (el && el.nodeType === 1) {
+            if (el.matches(sel)) { return el; }
+            el = el.parentNode;
+        }
+        return null;
+    }
+    function fmt(str, value) { return String(str || '').replace('%s', value); }
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+    function Calendar(root) {
+        var self = this;
+        var d = root.dataset;
+
+        this.root = root;
+        this.ajax = d.ajax || '/wp-admin/admin-ajax.php';
+        this.month = d.month || '';
+        this.explicit = d.explicit === '1';
+        this.type = d.type || 'all';
+        this.baseType = d.baseType || 'all';
+        this.category = d.category || 'all';
+        this.upcoming = parseInt(d.upcoming, 10) || 0;
+        this.seq = 0;
+        this.cache = {};
+        this.touched = false;
+        this.lastTrigger = null;
+        try { this.i18n = JSON.parse(d.i18n || '{}'); } catch (e) { this.i18n = {}; }
+
+        this.main = q(root, '[data-gpsc-main]');
+        this.title = q(root, '[data-gpsc-title]');
+        this.status = q(root, '[data-gpsc-status]');
+        this.live = q(root, '[data-gpsc-live]');
+        this.monthSelect = q(root, '[data-gpsc-month-select]');
+        this.yearSelect = q(root, '[data-gpsc-year-select]');
+        this.catSelect = q(root, '[data-gpsc-cat-select]');
+        this.upcomingBox = q(root, '[data-gpsc-upcoming]');
+        this.dayPanel = q(root, '[data-gpsc-daypanel]');
+        this.dayTitle = q(root, '[data-gpsc-daytitle]');
+        this.dayList = q(root, '[data-gpsc-daylist]');
+
+        if (!this.main) {
+            return;
+        }
+        root.classList.add('is-enhanced');
+        this.enhance(this.main);
+
+        // Any interaction means a quiet refresh must not replace what the visitor sees
+        var touch = function () { self.touched = true; };
+        root.addEventListener('focusin', touch);
+        root.addEventListener('pointerdown', touch);
+        root.addEventListener('keydown', touch);
+
+        root.addEventListener('click', function (e) { self.onClick(e); });
+        root.addEventListener('change', function (e) { self.touched = true; self.onChange(e); });
+        root.addEventListener('submit', function (e) {
+            if (closest(e.target, '[data-gpsc-jump]')) {
+                e.preventDefault();
+                self.load(self.selectedMonth(), { announce: true });
             }
+        });
+        root.addEventListener('keydown', function (e) {
+            if ((e.key === 'Escape' || e.key === 'Esc') && self.dayPanel && !self.dayPanel.hidden) {
+                self.closeDay(true);
+            }
+        });
 
-            this.options = $.extend({
-                firstDay: 0, // 0 = Sunday, 1 = Monday
-                eventsPerDay: 3,
-                showEventDetails: true,
-                ajaxUrl: '',
-                nonce: '',
-                eventType: 'all' // 'all', 'courses', or 'seminars'
-            }, options);
-
-            this.currentDate = new Date();
-            this.selectedDate = null;
-            this.events = [];
-            this.selectedCategory = 'all';
-            this.selectedEventType = this.options.eventType;
-            this.eventsCache = {}; // Cache for loaded events
-            this.loadingTimeout = null; // For debouncing
-            this.currentAjaxRequest = null; // Track current AJAX request
-
-            this.init();
+        // Selects changed before this script ran (FlyingPress delay): show what was chosen
+        var chosen = this.selectedMonth();
+        var chosenCat = this.catSelect ? (this.catSelect.value || 'all') : this.category;
+        if (chosen !== this.month || chosenCat !== this.category) {
+            this.touched = true;
+            this.load(chosen, { upcoming: chosenCat !== this.category, category: chosenCat, announce: true });
+            return;
         }
 
-        init() {
-            this.cacheElements();
-            this.bindEvents();
-            this.loadEvents();
-        }
-
-        cacheElements() {
-            this.$prevBtn = this.$wrapper.find('.gps-prev-month');
-            this.$nextBtn = this.$wrapper.find('.gps-next-month');
-            this.$monthName = this.$wrapper.find('.gps-month-name');
-            this.$yearName = this.$wrapper.find('.gps-year-name');
-            this.$monthSelector = this.$wrapper.find('.gps-month-selector');
-            this.$yearSelector = this.$wrapper.find('.gps-year-selector');
-            this.$grid = this.$wrapper.find('.gps-calendar-grid');
-            this.$sidebar = this.$wrapper.find('.gps-calendar-sidebar');
-            this.$sidebarContent = this.$wrapper.find('.gps-sidebar-content');
-            this.$sidebarTitle = this.$wrapper.find('.gps-sidebar-title');
-            this.$selectedDateEl = this.$wrapper.find('.gps-selected-date');
-            this.$categorySelect = this.$wrapper.find('.gps-category-select');
-            this.$loading = this.$wrapper.find('.gps-calendar-loading');
-        }
-
-        bindEvents() {
-            // Navigation
-            this.$prevBtn.on('click', () => this.previousMonth());
-            this.$nextBtn.on('click', () => this.nextMonth());
-
-            // Today button
-            this.$wrapper.on('click', '.gps-today-btn', () => this.goToToday());
-
-            // Month/Year dropdowns
-            this.$monthSelector.on('change', (e) => {
-                const month = parseInt($(e.target).val(), 10);
-                this.currentDate.setMonth(month);
-                this.selectedDate = null; // Reset to monthly view
-                this.loadEvents();
-            });
-
-            this.$yearSelector.on('change', (e) => {
-                const year = parseInt($(e.target).val(), 10);
-                this.currentDate.setFullYear(year);
-                this.selectedDate = null; // Reset to monthly view
-                this.loadEvents();
-            });
-
-            // Category filter
-            this.$categorySelect.on('change', (e) => {
-                this.selectedCategory = $(e.target).val();
-                this.selectedDate = null; // Reset to monthly view
-                this.loadEvents();
-            });
-
-            // Day click - delegate to handle dynamically added days
-            this.$grid.on('click', '.gps-calendar-day', (e) => {
-                const $day = $(e.currentTarget);
-                if (!$day.hasClass('other-month')) {
-                    const dateStr = $day.data('date');
-                    if (dateStr) {
-                        this.selectDate(this.parseDate(dateStr));
-                    }
+        if (this.isStale()) {
+            var later = window.requestIdleCallback || function (fn) { return setTimeout(fn, 1); };
+            later(function () {
+                if (!self.touched) {
+                    self.load(self.explicit ? self.month : '', { upcoming: true, silent: true });
                 }
-            });
-
-            // Event click
-            this.$grid.on('click', '.gps-calendar-event', (e) => {
-                e.stopPropagation();
-                const eventId = $(e.currentTarget).data('event-id');
-                const event = this.events.find(ev => ev.id === eventId);
-                if (event && event.url) {
-                    window.location.href = event.url;
-                }
-            });
-
-            // More events click
-            this.$grid.on('click', '.gps-more-events', (e) => {
-                e.stopPropagation();
-                const $day = $(e.currentTarget).closest('.gps-calendar-day');
-                const dateStr = $day.data('date');
-                if (dateStr) {
-                    this.selectDate(this.parseDate(dateStr));
-                }
-            });
-
-            // Tooltip functionality
-            this.$grid.on('mouseenter', '.gps-calendar-event[data-tooltip]', (e) => {
-                this.showTooltip(e);
-            });
-
-            this.$grid.on('mouseleave', '.gps-calendar-event[data-tooltip]', () => {
-                this.hideTooltip();
-            });
-
-            this.$grid.on('mousemove', '.gps-calendar-event[data-tooltip]', (e) => {
-                this.updateTooltipPosition(e);
-            });
-        }
-
-        previousMonth() {
-            this.currentDate.setMonth(this.currentDate.getMonth() - 1);
-            this.selectedDate = null; // Reset to monthly view
-            this.loadEvents();
-        }
-
-        nextMonth() {
-            this.currentDate.setMonth(this.currentDate.getMonth() + 1);
-            this.selectedDate = null; // Reset to monthly view
-            this.loadEvents();
-        }
-
-        goToToday() {
-            this.currentDate = new Date();
-            this.selectedDate = null; // Reset to monthly view
-            this.loadEvents();
-        }
-
-        selectDate(date) {
-            this.selectedDate = date;
-
-            // Highlight selected day (instant, no render needed)
-            this.$grid.find('.gps-calendar-day').removeClass('selected');
-            const dateStr = this.formatDate(date);
-            this.$grid.find(`.gps-calendar-day[data-date="${dateStr}"]`).addClass('selected');
-
-            // Update sidebar (instant, uses existing events data)
-            this.renderSidebar();
-
-            // Scroll sidebar into view on mobile
-            if (window.innerWidth <= 768 && this.$sidebar.length) {
-                $('html, body').animate({
-                    scrollTop: this.$sidebar.offset().top - 20
-                }, 300);
-            }
-        }
-
-        clearDateSelection() {
-            this.selectedDate = null;
-            this.$grid.find('.gps-calendar-day').removeClass('selected');
-            this.renderSidebar();
-        }
-
-        parseDate(dateStr) {
-            // Parse YYYY-MM-DD format to avoid timezone issues
-            const parts = dateStr.split('-');
-            const year = parseInt(parts[0], 10);
-            const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
-            const day = parseInt(parts[2], 10);
-            return new Date(year, month, day);
-        }
-
-        loadEvents() {
-            // Cancel any pending timeout
-            if (this.loadingTimeout) {
-                clearTimeout(this.loadingTimeout);
-            }
-
-            // Debounce rapid requests
-            this.loadingTimeout = setTimeout(() => {
-                this._performLoadEvents();
-            }, 150);
-        }
-
-        _performLoadEvents() {
-            const year = this.currentDate.getFullYear();
-            const month = this.currentDate.getMonth() + 1;
-            const cacheKey = `${year}-${month}-${this.selectedCategory}-${this.selectedEventType}`;
-
-            // Check cache first
-            if (this.eventsCache[cacheKey]) {
-                this.events = this.eventsCache[cacheKey];
-                this.render();
-                // Preload adjacent months in background
-                this.preloadAdjacentMonths();
-                return;
-            }
-
-            // Cancel any ongoing request
-            if (this.currentAjaxRequest) {
-                this.currentAjaxRequest.abort();
-            }
-
-            this.showLoading();
-
-            this.currentAjaxRequest = $.ajax({
-                url: this.options.ajaxUrl,
-                type: 'POST',
-                data: {
-                    action: 'gps_get_calendar_events',
-                    nonce: this.options.nonce,
-                    year: year,
-                    month: month,
-                    category: this.selectedCategory,
-                    event_type: this.selectedEventType
-                },
-                success: (response) => {
-                    if (response.success) {
-                        this.events = response.data.events || [];
-                        // Store in cache
-                        this.eventsCache[cacheKey] = this.events;
-                        this.render();
-                        // Preload adjacent months in background
-                        this.preloadAdjacentMonths();
-                    } else {
-                        console.error('GPS Calendar: Failed to load events', response);
-                        this.events = [];
-                        this.render();
-                    }
-                    this.hideLoading();
-                    this.currentAjaxRequest = null;
-                },
-                error: (xhr, status, error) => {
-                    if (status === 'abort') {
-                        return; // Request was cancelled, do nothing
-                    }
-                    console.error('GPS Calendar: AJAX error', error);
-                    this.events = [];
-                    this.render();
-                    this.hideLoading();
-                    this.currentAjaxRequest = null;
-                }
-            });
-        }
-
-        preloadAdjacentMonths() {
-            // Preload previous and next months silently in the background
-            const currentYear = this.currentDate.getFullYear();
-            const currentMonth = this.currentDate.getMonth() + 1;
-
-            // Previous month
-            const prevDate = new Date(currentYear, currentMonth - 2, 1);
-            const prevYear = prevDate.getFullYear();
-            const prevMonth = prevDate.getMonth() + 1;
-            const prevCacheKey = `${prevYear}-${prevMonth}-${this.selectedCategory}-${this.selectedEventType}`;
-
-            // Next month
-            const nextDate = new Date(currentYear, currentMonth, 1);
-            const nextYear = nextDate.getFullYear();
-            const nextMonth = nextDate.getMonth() + 1;
-            const nextCacheKey = `${nextYear}-${nextMonth}-${this.selectedCategory}-${this.selectedEventType}`;
-
-            // Load previous month if not cached
-            if (!this.eventsCache[prevCacheKey]) {
-                this.loadMonthInBackground(prevYear, prevMonth, prevCacheKey);
-            }
-
-            // Load next month if not cached
-            if (!this.eventsCache[nextCacheKey]) {
-                this.loadMonthInBackground(nextYear, nextMonth, nextCacheKey);
-            }
-        }
-
-        loadMonthInBackground(year, month, cacheKey) {
-            $.ajax({
-                url: this.options.ajaxUrl,
-                type: 'POST',
-                data: {
-                    action: 'gps_get_calendar_events',
-                    nonce: this.options.nonce,
-                    year: year,
-                    month: month,
-                    category: this.selectedCategory,
-                    event_type: this.selectedEventType
-                },
-                success: (response) => {
-                    if (response.success) {
-                        this.eventsCache[cacheKey] = response.data.events || [];
-                    }
-                }
-                // Silent fail for background loads
-            });
-        }
-
-        render() {
-            this.renderHeader();
-            this.renderGrid();
-            this.renderSidebar();
-        }
-
-        renderHeader() {
-            const monthNames = [
-                'January', 'February', 'March', 'April', 'May', 'June',
-                'July', 'August', 'September', 'October', 'November', 'December'
-            ];
-
-            const currentMonth = this.currentDate.getMonth();
-            const currentYear = this.currentDate.getFullYear();
-
-            // Update text displays
-            this.$monthName.text(monthNames[currentMonth]);
-            this.$yearName.text(currentYear);
-
-            // Update dropdown selections
-            this.$monthSelector.val(currentMonth);
-            this.$yearSelector.val(currentYear);
-        }
-
-        renderGrid() {
-            const year = this.currentDate.getFullYear();
-            const month = this.currentDate.getMonth();
-
-            // Get first day of month
-            const firstDay = new Date(year, month, 1);
-            const lastDay = new Date(year, month + 1, 0);
-
-            // Calculate starting day (considering first day of week setting)
-            let startingDayOfWeek = firstDay.getDay() - this.options.firstDay;
-            if (startingDayOfWeek < 0) {
-                startingDayOfWeek += 7;
-            }
-
-            // Get days from previous month
-            const prevMonthLastDay = new Date(year, month, 0).getDate();
-            const prevMonthStart = prevMonthLastDay - startingDayOfWeek + 1;
-
-            // Clear existing day cells (keep headers)
-            this.$grid.find('.gps-calendar-day').remove();
-
-            // Today's date for comparison
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            let dayCount = 1;
-            let nextMonthDay = 1;
-
-            // Render 6 weeks (42 days) to ensure consistent grid
-            for (let i = 0; i < 42; i++) {
-                let currentDate, isCurrentMonth, isPrevMonth, isNextMonth;
-
-                if (i < startingDayOfWeek) {
-                    // Previous month
-                    currentDate = new Date(year, month - 1, prevMonthStart + i);
-                    isPrevMonth = true;
-                    isCurrentMonth = false;
-                    isNextMonth = false;
-                } else if (dayCount <= lastDay.getDate()) {
-                    // Current month
-                    currentDate = new Date(year, month, dayCount);
-                    isCurrentMonth = true;
-                    isPrevMonth = false;
-                    isNextMonth = false;
-                    dayCount++;
-                } else {
-                    // Next month
-                    currentDate = new Date(year, month + 1, nextMonthDay);
-                    isNextMonth = true;
-                    isCurrentMonth = false;
-                    isPrevMonth = false;
-                    nextMonthDay++;
-                }
-
-                this.renderDay(currentDate, isCurrentMonth, isPrevMonth, isNextMonth, today);
-            }
-        }
-
-        renderDay(date, isCurrentMonth, isPrevMonth, isNextMonth, today) {
-            const dateStr = this.formatDate(date);
-            const dayEvents = this.getEventsForDate(date);
-            const isToday = this.isSameDate(date, today);
-
-            let classes = ['gps-calendar-day'];
-            if (isToday) classes.push('today');
-            if (!isCurrentMonth) classes.push('other-month');
-            if (dayEvents.length > 0) classes.push('has-events');
-            if (this.selectedDate && this.isSameDate(date, this.selectedDate)) {
-                classes.push('selected');
-            }
-
-            const $day = $('<div>', {
-                class: classes.join(' '),
-                'data-date': dateStr
-            });
-
-            // Day number
-            const $dayNumber = $('<div>', {
-                class: 'gps-day-number',
-                text: date.getDate()
-            });
-            $day.append($dayNumber);
-
-            // Events
-            if (dayEvents.length > 0) {
-                const $eventsContainer = $('<div>', { class: 'gps-day-events' });
-
-                const maxEvents = this.options.eventsPerDay;
-                const visibleEvents = dayEvents.slice(0, maxEvents);
-                const remainingCount = dayEvents.length - maxEvents;
-
-                visibleEvents.forEach(event => {
-                    // Build tooltip content
-                    let tooltipContent = event.title;
-                    if (event.start_time) {
-                        tooltipContent = `${event.start_time} - ${tooltipContent}`;
-                    }
-
-                    // Add event type class for styling (course or seminar-session)
-                    const eventType = event.type || 'course';
-                    const $event = $('<div>', {
-                        class: `gps-calendar-event ${eventType}`,
-                        'data-event-id': event.id,
-                        'data-event-type': eventType,
-                        'data-tooltip': tooltipContent
-                    });
-
-                    let eventHtml = '';
-                    if (event.start_time) {
-                        eventHtml += `<span class="gps-event-time">${event.start_time}</span>`;
-                    }
-                    eventHtml += `<span class="gps-event-title">${this.truncateText(event.title, 25)}</span>`;
-
-                    $event.html(eventHtml);
-                    $eventsContainer.append($event);
-                });
-
-                if (remainingCount > 0) {
-                    const $moreEvents = $('<div>', {
-                        class: 'gps-more-events',
-                        text: `+${remainingCount} more`
-                    });
-                    $eventsContainer.append($moreEvents);
-                }
-
-                $day.append($eventsContainer);
-            }
-
-            this.$grid.append($day);
-        }
-
-        renderSidebar() {
-            if (!this.options.showEventDetails || !this.$sidebar.length) {
-                return;
-            }
-
-            // If a specific date is selected, show events for that day
-            if (this.selectedDate) {
-                // Update title for daily view
-                this.$sidebarTitle.text('Events for');
-                const dateStr = this.formatDateLong(this.selectedDate);
-                this.$selectedDateEl.text(dateStr);
-
-                const dayEvents = this.getEventsForDate(this.selectedDate);
-
-                if (dayEvents.length === 0) {
-                    this.$sidebarContent.html('<p class="gps-no-events">No events scheduled for this date.</p>');
-                    return;
-                }
-
-                let html = '';
-                dayEvents.forEach(event => {
-                    html += this.renderSidebarEvent(event);
-                });
-
-                this.$sidebarContent.html(html);
-            } else {
-                // No date selected - show all events for the current month
-                this.renderMonthlySidebar();
-            }
-        }
-
-        renderMonthlySidebar() {
-            const monthNames = [
-                'January', 'February', 'March', 'April', 'May', 'June',
-                'July', 'August', 'September', 'October', 'November', 'December'
-            ];
-
-            const currentMonth = this.currentDate.getMonth();
-            const currentYear = this.currentDate.getFullYear();
-
-            // Update title for monthly view
-            this.$sidebarTitle.text('Upcoming Events');
-            this.$selectedDateEl.text(`${monthNames[currentMonth]} ${currentYear}`);
-
-            // Get all events for the current month
-            const monthEvents = this.getEventsForMonth(currentMonth, currentYear);
-
-            if (monthEvents.length === 0) {
-                this.$sidebarContent.html('<p class="gps-no-events">No events scheduled for this month.</p>');
-                return;
-            }
-
-            // Sort events by start_date
-            monthEvents.sort((a, b) => {
-                if (a.start_date === b.start_date) {
-                    return (a.start_time || '').localeCompare(b.start_time || '');
-                }
-                return a.start_date.localeCompare(b.start_date);
-            });
-
-            let html = '';
-            monthEvents.forEach(event => {
-                html += this.renderSidebarEvent(event, true); // true = show date
-            });
-
-            this.$sidebarContent.html(html);
-        }
-
-        getEventsForMonth(month, year) {
-            const firstDay = new Date(year, month, 1);
-            const lastDay = new Date(year, month + 1, 0);
-
-            return this.events.filter(event => {
-                const eventStart = new Date(event.start_date);
-                const eventEnd = event.end_date ? new Date(event.end_date) : eventStart;
-
-                // Check if event overlaps with the month
-                return (eventStart <= lastDay && eventEnd >= firstDay);
-            });
-        }
-
-        renderSidebarEvent(event, showDate = false) {
-            const eventType = event.type || 'course';
-            let html = `<div class="gps-sidebar-event ${eventType}">`;
-
-            // Title
-            html += `<h4 class="gps-sidebar-event-title">`;
-            if (event.url) {
-                html += `<a href="${event.url}">${event.title}</a>`;
-            } else {
-                html += event.title;
-            }
-            html += `</h4>`;
-
-            // Meta information
-            html += '<div class="gps-sidebar-event-meta">';
-
-            // Show date if in monthly view
-            if (showDate && event.start_date) {
-                const eventDate = new Date(event.start_date + 'T00:00:00');
-                const dateStr = this.formatDateShort(eventDate);
-                html += `<div class="gps-sidebar-event-meta-item">
-                    <i class="dashicons dashicons-calendar-alt"></i>
-                    <span>${dateStr}</span>
-                </div>`;
-            }
-
-            if (event.start_time) {
-                html += `<div class="gps-sidebar-event-meta-item">
-                    <i class="dashicons dashicons-clock"></i>
-                    <span>${event.start_time}${event.end_time ? ' - ' + event.end_time : ''}</span>
-                </div>`;
-            }
-
-            if (event.location) {
-                html += `<div class="gps-sidebar-event-meta-item">
-                    <i class="dashicons dashicons-location"></i>
-                    <span>${this.escapeHtml(event.location)}</span>
-                </div>`;
-            }
-
-            if (event.credits) {
-                html += `<div class="gps-sidebar-event-meta-item">
-                    <i class="dashicons dashicons-awards"></i>
-                    <span>${event.credits} CE Credits</span>
-                </div>`;
-            }
-
-            html += '</div>'; // End meta
-
-            // Link - different text for seminars vs courses
-            if (event.url) {
-                const linkText = eventType === 'seminar-session' ? 'Register for Seminars' : 'View Details';
-                html += `<a href="${event.url}" class="gps-sidebar-event-link">
-                    ${linkText}
-                    <i class="dashicons dashicons-arrow-right-alt"></i>
-                </a>`;
-            }
-
-            html += '</div>';
-
-            return html;
-        }
-
-        formatDateShort(date) {
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            return `${dayNames[date.getDay()]}, ${monthNames[date.getMonth()]} ${date.getDate()}`;
-        }
-
-        getEventsForDate(date) {
-            const dateStr = this.formatDate(date);
-            return this.events.filter(event => {
-                // Check if event starts on this date
-                if (event.start_date === dateStr) {
-                    return true;
-                }
-
-                // Check if event spans multiple days and includes this date
-                if (event.end_date && event.end_date !== event.start_date) {
-                    const eventStart = new Date(event.start_date);
-                    const eventEnd = new Date(event.end_date);
-                    return date >= eventStart && date <= eventEnd;
-                }
-
-                return false;
-            });
-        }
-
-        formatDate(date) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
-
-        formatDateLong(date) {
-            const monthNames = [
-                'January', 'February', 'March', 'April', 'May', 'June',
-                'July', 'August', 'September', 'October', 'November', 'December'
-            ];
-
-            return `${monthNames[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
-        }
-
-        isSameDate(date1, date2) {
-            return date1.getFullYear() === date2.getFullYear() &&
-                   date1.getMonth() === date2.getMonth() &&
-                   date1.getDate() === date2.getDate();
-        }
-
-        truncateText(text, maxLength) {
-            if (text.length <= maxLength) {
-                return text;
-            }
-            return text.substring(0, maxLength) + '...';
-        }
-
-        escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        showLoading() {
-            // Only show loading if request takes more than 200ms
-            this.loadingShowTimeout = setTimeout(() => {
-                this.$loading.addClass('visible');
-            }, 200);
-        }
-
-        hideLoading() {
-            clearTimeout(this.loadingShowTimeout);
-            this.$loading.removeClass('visible');
-        }
-
-        showTooltip(e) {
-            const tooltipText = $(e.currentTarget).attr('data-tooltip');
-            if (!tooltipText) return;
-
-            // Create tooltip if it doesn't exist
-            if (!this.$tooltip || !this.$tooltip.length) {
-                this.$tooltip = $('<div>', {
-                    class: 'gps-calendar-tooltip'
-                });
-                $('body').append(this.$tooltip);
-            }
-
-            this.$tooltip.text(tooltipText).fadeIn(200);
-            this.updateTooltipPosition(e);
-        }
-
-        hideTooltip() {
-            if (this.$tooltip && this.$tooltip.length) {
-                this.$tooltip.fadeOut(200);
-            }
-        }
-
-        updateTooltipPosition(e) {
-            if (!this.$tooltip || !this.$tooltip.length || !this.$tooltip.is(':visible')) {
-                return;
-            }
-
-            const tooltipWidth = this.$tooltip.outerWidth();
-            const tooltipHeight = this.$tooltip.outerHeight();
-            const offset = 10;
-
-            let left = e.pageX + offset;
-            let top = e.pageY + offset;
-
-            // Keep tooltip within viewport
-            if (left + tooltipWidth > $(window).width()) {
-                left = e.pageX - tooltipWidth - offset;
-            }
-
-            if (top + tooltipHeight > $(window).scrollTop() + $(window).height()) {
-                top = e.pageY - tooltipHeight - offset;
-            }
-
-            this.$tooltip.css({
-                left: left + 'px',
-                top: top + 'px'
             });
         }
     }
 
-    // Expose to global scope
-    window.GPSEventCalendar = GPSEventCalendar;
+    /** Page rendered on another site day, or more than 30 minutes ago (page cache). */
+    Calendar.prototype.isStale = function () {
+        var d = this.root.dataset;
+        var rendered = parseInt(d.rendered, 10) || 0;
+        var offset = parseInt(d.tzOffset, 10) || 0;
+        var now = Math.floor(Date.now() / 1000);
+        var local = new Date((now + offset) * 1000);
+        var siteToday = local.getUTCFullYear() + '-' + pad(local.getUTCMonth() + 1) + '-' + pad(local.getUTCDate());
+        return !rendered || siteToday !== d.today || now - rendered > STALE_SECONDS;
+    };
 
-})(jQuery);
+    /** Day numbers and "+N more" are plain text without JS: make them buttons. */
+    Calendar.prototype.enhance = function (scope) {
+        qa(scope, 'span[data-gpsc-btn]').forEach(function (span) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = span.className;
+            btn.setAttribute('data-gpsc-day', span.getAttribute('data-gpsc-day'));
+            btn.setAttribute('aria-label', span.getAttribute('data-label') || '');
+            btn.textContent = span.getAttribute('data-num') || span.textContent;
+            span.parentNode.replaceChild(btn, span);
+        });
+    };
+
+    Calendar.prototype.onClick = function (e) {
+        var el;
+        if ((el = closest(e.target, 'a[data-gpsc-nav]'))) {
+            e.preventDefault();
+            if (el.getAttribute('aria-disabled') === 'true') { return; }
+            var dir = el.getAttribute('data-gpsc-nav');
+            if (dir === 'today') {
+                this.load('', { announce: true });
+            } else if (el.getAttribute('data-month')) {
+                this.load(el.getAttribute('data-month'), { announce: true });
+            }
+            return;
+        }
+        if ((el = closest(e.target, 'a[data-gpsc-type]'))) {
+            e.preventDefault();
+            var type = el.getAttribute('data-gpsc-type');
+            if (type !== this.type) {
+                this.load(this.month, { upcoming: true, type: type, announce: true });
+            }
+            return;
+        }
+        if ((el = closest(e.target, 'button[data-gpsc-day]'))) {
+            e.preventDefault();
+            this.showDay(el.getAttribute('data-gpsc-day'), el);
+            return;
+        }
+        if ((el = closest(e.target, '[data-gpsc-back]'))) {
+            e.preventDefault();
+            this.closeDay(true);
+            return;
+        }
+        if ((el = closest(e.target, '[data-gpsc-retry]'))) {
+            e.preventDefault();
+            if (this.retry) { this.retry(); }
+        }
+    };
+
+    Calendar.prototype.onChange = function (e) {
+        var t = e.target;
+        if (t === this.monthSelect || t === this.yearSelect) {
+            this.load(this.selectedMonth(), { announce: true });
+        } else if (t === this.catSelect) {
+            this.load(this.month, { upcoming: true, category: t.value || 'all', announce: true });
+        }
+    };
+
+    Calendar.prototype.selectedMonth = function () {
+        if (!this.monthSelect || !this.yearSelect) { return this.month; }
+        return this.yearSelect.value + '-' + pad(parseInt(this.monthSelect.value, 10));
+    };
+
+    Calendar.prototype.monthName = function (ym) {
+        if (!ym) { return this.title ? this.title.textContent : ''; }
+        var parts = ym.split('-');
+        var opt = this.monthSelect && this.monthSelect.options[parseInt(parts[1], 10) - 1];
+        return (opt ? opt.text : parts[1]) + ' ' + parts[0];
+    };
+
+    /**
+     * @param {string} month Y-m, '' = the current month (site time)
+     * @param {object} opts  upcoming (also refresh the upcoming panel), silent, announce, type, category
+     */
+    Calendar.prototype.load = function (month, opts) {
+        var self = this;
+        opts = opts || {};
+        if (!opts.silent) { this.touched = true; }
+        var type = opts.type || this.type;
+        var category = opts.category || this.category;
+        var withUpcoming = !!(opts.upcoming && this.upcoming);
+        var key = [month || 'now', type, category].join('|');
+        var seq = ++this.seq;
+
+        var cached = month && this.cache[key];
+        if (cached && !withUpcoming) {
+            this.apply(cached, type, category, opts);
+            return;
+        }
+
+        var fd = new FormData();
+        fd.append('action', 'gps_get_calendar_events');
+        fd.append('ym', month || '');
+        fd.append('event_type', type);
+        fd.append('base_type', this.baseType);
+        fd.append('category', category);
+        fd.append('first_day', this.root.dataset.firstDay || '0');
+        fd.append('per_day', this.root.dataset.perDay || '3');
+        fd.append('upcoming', String(this.upcoming || 5));
+        fd.append('with_upcoming', withUpcoming ? '1' : '0');
+        fd.append('id', this.root.dataset.id || '');
+        var upTitle = this.upcomingBox && q(this.upcomingBox, '.gpsc-cal__paneltitle');
+        if (upTitle) { fd.append('upcoming_title', upTitle.textContent); }
+
+        if (!opts.silent) { this.busy(true); }
+
+        fetch(this.ajax, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: fd
+        }).then(function (r) {
+            if (!r.ok) { throw new Error('HTTP ' + r.status); }
+            return r.json();
+        }).then(function (json) {
+            var data = json && json.success && json.data;
+            if (!data || typeof data.month_html !== 'string') { throw new Error('Bad response'); }
+            if (seq !== self.seq) { return; } // a newer request won
+            if (opts.silent && self.touched) { return; } // never replace what the visitor is using
+            self.cache[[data.month, type, category].join('|')] = data;
+            self.apply(data, type, category, opts);
+        }).catch(function () {
+            if (seq !== self.seq) { return; }
+            self.busy(false);
+            if (!opts.silent) {
+                self.fail(month, opts);
+            }
+        });
+    };
+
+    Calendar.prototype.apply = function (data, type, category, opts) {
+        var root = this.root;
+        opts = opts || {};
+        this.closeDay(false);
+
+        this.month = data.month;
+        this.type = type;
+        this.category = category;
+        root.dataset.month = data.month;
+        root.dataset.type = type;
+        root.dataset.category = category;
+        if (data.today) { root.dataset.today = data.today; }
+        if (data.rendered) { root.dataset.rendered = String(data.rendered); }
+
+        this.main.innerHTML = data.month_html;
+        this.enhance(this.main);
+        if (this.title && this.title.textContent !== data.title) { this.title.textContent = data.title; }
+        if (typeof data.upcoming_html === 'string' && this.upcomingBox) {
+            this.upcomingBox.innerHTML = data.upcoming_html;
+        }
+
+        var parts = data.month.split('-');
+        if (this.monthSelect) { this.monthSelect.value = String(parseInt(parts[1], 10)); }
+        if (this.yearSelect) { this.yearSelect.value = parts[0]; }
+        if (this.catSelect) { this.catSelect.value = category; }
+
+        this.updateNav('prev', data.prev);
+        this.updateNav('next', data.next);
+        var self = this;
+        qa(root, 'a[data-gpsc-type]').forEach(function (a) {
+            var on = a.getAttribute('data-gpsc-type') === type;
+            a.classList.toggle('is-active', on);
+            if (on) { a.setAttribute('aria-current', 'true'); } else { a.removeAttribute('aria-current'); }
+            a.href = self.viewUrl(data.month, a.getAttribute('data-gpsc-type'), category);
+        });
+        var today = q(root, 'a[data-gpsc-nav="today"]');
+        if (today) { today.href = this.viewUrl('', type, category); }
+
+        this.clearStatus();
+        if (opts.announce && this.live && data.showing) {
+            this.live.textContent = data.showing;
+        }
+        this.busy(false);
+    };
+
+    /** Prev / next stay in place; at the bounds they are disabled (no href, not focusable). */
+    Calendar.prototype.updateNav = function (dir, info) {
+        var el = q(this.root, 'a[data-gpsc-nav="' + dir + '"]');
+        if (!el) { return; }
+        var label = (dir === 'prev' ? this.i18n.prev : this.i18n.next) || '';
+        if (!info) {
+            var hadFocus = document.activeElement === el;
+            el.removeAttribute('href');
+            el.removeAttribute('data-month');
+            el.setAttribute('aria-disabled', 'true');
+            el.setAttribute('role', 'link');
+            el.setAttribute('tabindex', '-1');
+            el.setAttribute('aria-label', label);
+            el.classList.add('is-disabled');
+            if (hadFocus) {
+                var target = q(this.root, 'a[data-gpsc-nav="today"]') ||
+                    q(this.root, 'a[data-gpsc-nav="' + (dir === 'prev' ? 'next' : 'prev') + '"]:not([aria-disabled])') ||
+                    this.title;
+                if (target) { target.focus(); }
+            }
+            return;
+        }
+        el.classList.remove('is-disabled');
+        el.removeAttribute('aria-disabled');
+        el.removeAttribute('role');
+        el.removeAttribute('tabindex');
+        el.setAttribute('rel', 'nofollow');
+        el.setAttribute('data-month', info.month);
+        el.setAttribute('aria-label', label + ': ' + info.title);
+        el.href = this.viewUrl(info.month, this.type, this.category);
+    };
+
+    /** Same URL the server builds for the no-JS links. */
+    Calendar.prototype.viewUrl = function (month, type, category) {
+        try {
+            var u = new URL(window.location.href);
+            PARAMS.forEach(function (k) { u.searchParams.delete(k); });
+            if (month) { u.searchParams.set('gpsc_cal', month); }
+            if (this.baseType === 'all' && type && type !== 'all') { u.searchParams.set('gpsc_cal_type', type); }
+            if (this.catSelect && category && category !== 'all') { u.searchParams.set('gpsc_cal_cat', category); }
+            u.hash = '';
+            return u.toString();
+        } catch (e) {
+            return '#';
+        }
+    };
+
+    Calendar.prototype.busy = function (on) {
+        this.root.classList.toggle('is-loading', on);
+        this.main.setAttribute('aria-busy', on ? 'true' : 'false');
+    };
+
+    Calendar.prototype.clearStatus = function () {
+        this.retry = null;
+        if (this.status) {
+            this.status.textContent = '';
+            this.status.classList.remove('is-error');
+        }
+    };
+
+    Calendar.prototype.fail = function (month, opts) {
+        var self = this;
+        // Put the selects back on the month that is still shown
+        var parts = this.month.split('-');
+        if (this.monthSelect) { this.monthSelect.value = String(parseInt(parts[1], 10)); }
+        if (this.yearSelect) { this.yearSelect.value = parts[0]; }
+        if (this.catSelect) { this.catSelect.value = this.category; }
+        if (!this.status) { return; }
+
+        this.retry = function () { self.load(month, opts); };
+        this.status.textContent = '';
+        var msg = document.createElement('span');
+        msg.textContent = fmt(this.i18n.error || 'We couldn’t load %s.', this.monthName(month));
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'gpsc-cal__retry';
+        btn.setAttribute('data-gpsc-retry', '');
+        btn.textContent = this.i18n.retry || 'Try again';
+        this.status.appendChild(msg);
+        this.status.appendChild(document.createTextNode(' '));
+        this.status.appendChild(btn);
+        this.status.classList.add('is-error');
+    };
+
+    /** List a day's events in the day panel (cards come from the month's agenda). */
+    Calendar.prototype.showDay = function (date, trigger) {
+        if (!this.dayPanel || !this.dayList) { return; }
+        var day = q(this.main, '[data-gpsc-agenda="' + date + '"]');
+        var cards = day && q(day, '.gpsc-cal__cards');
+        if (!cards) { return; }
+
+        qa(this.main, '.gpsc-cal__cell.is-selected').forEach(function (td) { td.classList.remove('is-selected'); });
+        var cell = q(this.main, '.gpsc-cal__cell[data-date="' + date + '"]');
+        if (cell) { cell.classList.add('is-selected'); }
+
+        var heading = q(day, '.gpsc-cal__adate time');
+        this.dayTitle.textContent = heading ? heading.textContent : date;
+        this.dayList.innerHTML = '';
+        this.dayList.appendChild(cards.cloneNode(true));
+        if (this.upcomingBox) { this.upcomingBox.hidden = true; }
+        this.dayPanel.hidden = false;
+        this.lastTrigger = trigger || null;
+        this.dayTitle.focus({ preventScroll: true });
+
+        var rect = this.dayPanel.getBoundingClientRect();
+        if (rect.top < 0 || rect.top > window.innerHeight - 80) {
+            this.dayPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    };
+
+    Calendar.prototype.closeDay = function (restoreFocus) {
+        if (!this.dayPanel || this.dayPanel.hidden) { return; }
+        this.dayPanel.hidden = true;
+        if (this.upcomingBox) { this.upcomingBox.hidden = false; }
+        qa(this.main, '.gpsc-cal__cell.is-selected').forEach(function (td) { td.classList.remove('is-selected'); });
+        if (restoreFocus && this.lastTrigger && document.body.contains(this.lastTrigger)) {
+            this.lastTrigger.focus();
+        }
+        this.lastTrigger = null;
+    };
+
+    /* ---------- Boot ---------- */
+
+    function init(el) {
+        if (el && !el.gpscCalendar) {
+            el.gpscCalendar = new Calendar(el);
+        }
+        return el ? el.gpscCalendar : null;
+    }
+
+    function boot(scope) {
+        qa(scope || document, SEL).forEach(init);
+    }
+
+    // Backwards compatible entry point (old inline initialisers in cached pages)
+    window.GPSEventCalendar = function (selector) {
+        var el = typeof selector === 'string' ? document.querySelector(selector) : selector;
+        if (el && el.jquery) { el = el[0]; }
+        if (el && !el.matches(SEL)) { el = q(el, SEL); }
+        return init(el);
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { boot(); });
+    } else {
+        boot();
+    }
+
+    // Elementor editor / preview: widgets are (re)rendered after load
+    var hooked = false;
+    function hookElementor() {
+        var ef = window.elementorFrontend;
+        if (hooked || !ef || !ef.hooks) { return; }
+        hooked = true;
+        ef.hooks.addAction('frontend/element_ready/gps-event-calendar.default', function ($scope) {
+            boot($scope && $scope[0] ? $scope[0] : document);
+        });
+    }
+    hookElementor();
+    if (!hooked) {
+        if (window.jQuery) { window.jQuery(window).on('elementor/frontend/init', hookElementor); }
+        window.addEventListener('elementor/frontend/init', hookElementor);
+    }
+})();

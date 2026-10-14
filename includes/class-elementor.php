@@ -151,6 +151,12 @@ class Elementor_Integration {
         ]);
     }
 
+    /** GPSC_VERSION plus the file's modification time (cache-busts on every deploy). */
+    protected static function asset_version($rel) {
+        $mtime = @filemtime(GPSC_PATH . $rel);
+        return $mtime ? GPSC_VERSION . '.' . $mtime : GPSC_VERSION;
+    }
+
     /**
      * Enqueue frontend styles
      */
@@ -162,12 +168,12 @@ class Elementor_Integration {
             GPSC_VERSION
         );
 
-        // Register calendar styles
+        // Register calendar styles (file time as version: a new file never pairs with a cached old one)
         wp_register_style(
             'gps-courses-calendar',
             GPSC_URL . 'assets/css/calendar.css',
             [],
-            GPSC_VERSION
+            self::asset_version('assets/css/calendar.css')
         );
 
         // Register share course styles
@@ -200,12 +206,12 @@ class Elementor_Integration {
             true
         );
 
-        // Calendar script
+        // Calendar script (vanilla JS: no jQuery, so FlyingPress' deferred jQuery can't break it)
         wp_register_script(
             'gps-courses-calendar',
             GPSC_URL . 'assets/js/calendar.js',
-            ['jquery'],
-            GPSC_VERSION,
+            [],
+            self::asset_version('assets/js/calendar.js'),
             true
         );
 
