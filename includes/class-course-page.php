@@ -1255,7 +1255,11 @@ class Course_Page {
         if ('' !== $address && '' !== $city && false !== stripos($address, $city)) {
             $line2 = '';
         }
-        $map_q = implode(', ', array_filter([$venue, $address, $line2 ?: '', $country]));
+        // Street address only: a venue name Google doesn't know moves the map off the pin
+        $map_q = implode(', ', array_filter([$address, $line2 ?: '', $country]));
+        if ('' === $map_q) {
+            $map_q = $venue;
+        }
 
         $ce_num = (float) get_post_meta($event_id, '_gps_ce_credits', true);
         $ce     = $ce_num > 0 ? (class_exists(__NAMESPACE__ . '\\Credits') ? Credits::format($ce_num) : (string) $ce_num) : '';
