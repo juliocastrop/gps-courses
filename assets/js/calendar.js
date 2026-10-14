@@ -137,6 +137,13 @@
         });
     };
 
+    /** "2026-12" + 1 → "2027-01". */
+    function shiftYm(ym, delta) {
+        var p = String(ym).split('-');
+        var d = new Date(Date.UTC(parseInt(p[0], 10), parseInt(p[1], 10) - 1 + delta, 1));
+        return d.getUTCFullYear() + '-' + (d.getUTCMonth() < 9 ? '0' : '') + (d.getUTCMonth() + 1);
+    }
+
     Calendar.prototype.onClick = function (e) {
         var el;
         if ((el = closest(e.target, 'a[data-gpsc-nav]'))) {
@@ -144,9 +151,13 @@
             if (el.getAttribute('aria-disabled') === 'true') { return; }
             var dir = el.getAttribute('data-gpsc-nav');
             if (dir === 'today') {
+                this.pending = '';
                 this.load('', { announce: true });
             } else if (el.getAttribute('data-month')) {
-                this.load(el.getAttribute('data-month'), { announce: true });
+                // Quick repeated clicks build on the month already requested, not the one on screen
+                var target = this.pending ? shiftYm(this.pending, dir === 'prev' ? -1 : 1) : el.getAttribute('data-month');
+                this.pending = target;
+                this.load(target, { announce: true });
             }
             return;
         }
@@ -244,10 +255,12 @@
             if (!data || typeof data.month_html !== 'string') { throw new Error('Bad response'); }
             if (seq !== self.seq) { return; } // a newer request won
             if (opts.silent && self.touched) { return; } // never replace what the visitor is using
+            self.pending = '';
             self.cache[[data.month, type, category].join('|')] = data;
             self.apply(data, type, category, opts);
         }).catch(function () {
             if (seq !== self.seq) { return; }
+            self.pending = '';
             self.busy(false);
             if (!opts.silent) {
                 self.fail(month, opts);
@@ -257,6 +270,7 @@
 
     Calendar.prototype.apply = function (data, type, category, opts) {
         var root = this.root;
+        this.pending = ''; // the nav links now point around the month on screen
         opts = opts || {};
         this.closeDay(false);
 
