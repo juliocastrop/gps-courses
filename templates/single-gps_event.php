@@ -55,7 +55,7 @@ get_header();
             </nav>
 
             <div class="gps-cp-hero__chips">
-                <span class="gps-cp-tag"><?php echo esc_html($d['category'] ? $d['category']->name : __('Hands-on course', 'gps-courses')); ?></span>
+                <span class="gps-cp-tag"><?php echo esc_html($d['category'] ? $d['category']->name : (!empty($d['format']) ? $d['format'] : __('Hands-on course', 'gps-courses'))); ?></span>
                 <?php if ('' !== $d['chip']['label']) : ?>
                     <span class="gps-cp-chip gps-cp-chip--<?php echo esc_attr($d['chip']['tone']); ?>"><?php echo esc_html($d['chip']['label']); ?></span>
                 <?php endif; ?>
