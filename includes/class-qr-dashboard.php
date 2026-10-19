@@ -52,7 +52,7 @@ class QR_Dashboard {
 
         ?>
         <div class="wrap gps-qr-analytics">
-            <h1 style="margin-bottom: 8px;"><?php esc_html_e('QR Code Analytics', 'gps-courses'); ?></h1>
+            <h1 style="margin-bottom: 8px;"><?php esc_html_e('QR Analytics', 'gps-courses'); ?></h1>
             <p style="color:#64748b; margin-top:0;"><?php esc_html_e('Promotional QR scan metrics. Bot traffic excluded.', 'gps-courses'); ?></p>
 
             <div style="margin: 16px 0;">

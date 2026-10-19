@@ -32,7 +32,7 @@ class Attendance {
     public static function add_admin_menu() {
         add_submenu_page(
             'gps-dashboard',
-            __('Attendance Scanner', 'gps-courses'),
+            __('Course Scanner', 'gps-courses'),
             __('Attendance Scanner', 'gps-courses'),
             'manage_options',
             'gps-attendance',
@@ -133,15 +133,15 @@ class Attendance {
 
         ?>
         <div class="wrap gps-attendance-scanner">
-            <h1><?php _e('Attendance Scanner', 'gps-courses'); ?></h1>
+            <h1><?php _e('Course Scanner', 'gps-courses'); ?></h1>
 
             <div class="gps-scanner-container">
                 <!-- Event Selector -->
                 <div class="gps-scanner-header">
                     <div class="gps-event-selector">
-                        <label for="gps-select-event"><?php _e('Select Event:', 'gps-courses'); ?></label>
+                        <label for="gps-select-event"><?php _e('Select Course:', 'gps-courses'); ?></label>
                         <select id="gps-select-event" class="gps-select-event">
-                            <option value=""><?php _e('— Select Event —', 'gps-courses'); ?></option>
+                            <option value=""><?php _e('— Select Course —', 'gps-courses'); ?></option>
                             <?php foreach ($events as $event): ?>
                                 <?php
                                 $start_date = get_post_meta($event->ID, '_gps_start_date', true);
@@ -284,7 +284,7 @@ class Attendance {
 
             <div class="gps-report-filters">
                 <select id="report-event-select">
-                    <option value=""><?php _e('— Select Event —', 'gps-courses'); ?></option>
+                    <option value=""><?php _e('— Select Course —', 'gps-courses'); ?></option>
                     <?php foreach ($events as $event): ?>
                         <?php
                         $start_date = get_post_meta($event->ID, '_gps_start_date', true);

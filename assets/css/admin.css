@@ -1,6 +1,10 @@
 /**
  * GPS Courses - Admin Styles
  * Modern admin interface for Events/Courses management
+ *
+ * Scoping: list-screen rules use .edit-php.post-type-gps_event and edit-screen
+ * rules use .post-php / .post-new-php, so taxonomy screens (edit-tags.php,
+ * term.php) keep the stock WordPress look.
  */
 
 /* ============================================
@@ -8,11 +12,11 @@
    ============================================ */
 
 /* Main admin content area */
-.post-type-gps_event #wpbody-content {
+.edit-php.post-type-gps_event #wpbody-content {
     background: #f0f0f1;
 }
 
-.post-type-gps_event .wrap {
+.edit-php.post-type-gps_event .wrap {
     background: #ffffff;
     padding: 30px;
     margin: 20px 20px 20px 0;
@@ -21,38 +25,33 @@
 }
 
 /* Page title styling */
-.post-type-gps_event .wrap h1.wp-heading-inline {
+.edit-php.post-type-gps_event .wrap h1.wp-heading-inline {
     font-size: 28px;
     font-weight: 600;
     color: #1d2327;
     margin-bottom: 0;
 }
 
-/* Add New button */
-.post-type-gps_event .page-title-action {
-    background: #6200ea !important;
-    border-color: #6200ea !important;
-    color: #ffffff !important;
-    padding: 8px 20px !important;
-    font-weight: 600 !important;
-    border-radius: 6px !important;
-    text-decoration: none !important;
-    transition: all 0.2s ease !important;
-    box-shadow: 0 2px 4px rgba(98, 0, 234, 0.2) !important;
+/* Add New button (brand blue) */
+body.post-type-gps_event .wrap .page-title-action {
+    background: #0B52AC;
+    border-color: #0B52AC;
+    color: #ffffff;
 }
 
-.post-type-gps_event .page-title-action:hover {
-    background: #5200c6 !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 4px 8px rgba(98, 0, 234, 0.3) !important;
+body.post-type-gps_event .wrap .page-title-action:hover,
+body.post-type-gps_event .wrap .page-title-action:focus {
+    background: #0a4693;
+    border-color: #0a4693;
+    color: #ffffff;
 }
 
 /* Search box */
-.post-type-gps_event #posts-filter .search-box {
+.edit-php.post-type-gps_event #posts-filter .search-box {
     margin: 20px 0;
 }
 
-.post-type-gps_event #posts-filter .search-box input[type="search"] {
+.edit-php.post-type-gps_event #posts-filter .search-box input[type="search"] {
     border-radius: 6px;
     border: 1px solid #dcdcde;
     padding: 8px 12px;
@@ -60,9 +59,9 @@
     min-width: 300px;
 }
 
-.post-type-gps_event #posts-filter .search-box input[type="submit"] {
-    background: #2271b1;
-    border-color: #2271b1;
+.edit-php.post-type-gps_event #posts-filter .search-box input[type="submit"] {
+    background: #0B52AC;
+    border-color: #0B52AC;
     color: #ffffff;
     border-radius: 6px;
     padding: 8px 16px;
@@ -71,71 +70,68 @@
     transition: all 0.2s ease;
 }
 
-.post-type-gps_event #posts-filter .search-box input[type="submit"]:hover {
-    background: #135e96;
+.edit-php.post-type-gps_event #posts-filter .search-box input[type="submit"]:hover {
+    background: #0a4693;
 }
 
 /* Table styles */
-.post-type-gps_event .wp-list-table {
+.edit-php.post-type-gps_event .wp-list-table {
     border: 1px solid #e5e5e5;
     border-radius: 8px;
-    overflow: hidden;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.post-type-gps_event .wp-list-table thead th,
-.post-type-gps_event .wp-list-table tfoot th {
+.edit-php.post-type-gps_event .wp-list-table thead th,
+.edit-php.post-type-gps_event .wp-list-table tfoot th {
     background: #f6f7f7;
     border-bottom: 2px solid #e5e5e5;
     font-weight: 600;
     color: #50575e;
     font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
     padding: 12px 10px;
 }
 
-.post-type-gps_event .wp-list-table tbody tr {
+.edit-php.post-type-gps_event .wp-list-table tbody tr {
     transition: background 0.2s ease;
 }
 
-.post-type-gps_event .wp-list-table tbody tr:hover {
+.edit-php.post-type-gps_event .wp-list-table tbody tr:hover {
     background: #f9f9f9;
 }
 
-.post-type-gps_event .wp-list-table tbody td {
+.edit-php.post-type-gps_event .wp-list-table tbody td {
     padding: 16px 10px;
     font-size: 14px;
     border-bottom: 1px solid #f0f0f1;
 }
 
 /* Event title in table */
-.post-type-gps_event .wp-list-table .row-title {
+.edit-php.post-type-gps_event .wp-list-table .row-title {
     font-size: 15px;
     font-weight: 600;
-    color: #2271b1;
+    color: #0B52AC;
 }
 
-.post-type-gps_event .wp-list-table .row-title:hover {
-    color: #135e96;
+.edit-php.post-type-gps_event .wp-list-table .row-title:hover {
+    color: #0a4693;
 }
 
 /* Row actions */
-.post-type-gps_event .wp-list-table .row-actions {
+.edit-php.post-type-gps_event .wp-list-table .row-actions {
     color: #646970;
 }
 
-.post-type-gps_event .wp-list-table .row-actions a {
-    color: #2271b1;
+.edit-php.post-type-gps_event .wp-list-table .row-actions a {
+    color: #0B52AC;
     text-decoration: none;
 }
 
-.post-type-gps_event .wp-list-table .row-actions a:hover {
-    color: #135e96;
+.edit-php.post-type-gps_event .wp-list-table .row-actions a:hover {
+    color: #0a4693;
 }
 
 /* Status badges */
-.post-type-gps_event .wp-list-table .post-state {
+.edit-php.post-type-gps_event .wp-list-table .post-state {
     font-weight: 600;
     color: #646970;
     background: #f0f0f1;
@@ -146,29 +142,29 @@
 }
 
 /* Tablenav (bulk actions, filters) */
-.post-type-gps_event .tablenav {
+.edit-php.post-type-gps_event .tablenav {
     padding: 15px 0;
 }
 
-.post-type-gps_event .tablenav .bulkactions select,
-.post-type-gps_event .tablenav .actions select {
+.edit-php.post-type-gps_event .tablenav .bulkactions select,
+.edit-php.post-type-gps_event .tablenav .actions select {
     border-radius: 6px;
     border: 1px solid #dcdcde;
     padding: 6px 10px;
 }
 
-.post-type-gps_event .tablenav .button {
+.edit-php.post-type-gps_event .tablenav .button {
     border-radius: 6px;
     padding: 6px 14px;
 }
 
 /* Pagination */
-.post-type-gps_event .tablenav-pages {
+.edit-php.post-type-gps_event .tablenav-pages {
     margin: 0;
 }
 
-.post-type-gps_event .tablenav-pages .pagination-links a,
-.post-type-gps_event .tablenav-pages .pagination-links .current {
+.edit-php.post-type-gps_event .tablenav-pages .pagination-links a,
+.edit-php.post-type-gps_event .tablenav-pages .pagination-links .current {
     border-radius: 4px;
     min-width: 32px;
     height: 32px;
@@ -178,10 +174,10 @@
     display: inline-block;
 }
 
-.post-type-gps_event .tablenav-pages .pagination-links .current {
-    background: #6200ea;
+.edit-php.post-type-gps_event .tablenav-pages .pagination-links .current {
+    background: #0B52AC;
     color: #ffffff;
-    border-color: #6200ea;
+    border-color: #0B52AC;
 }
 
 /* ============================================
@@ -202,11 +198,13 @@
 }
 
 /* Main editing area */
-.post-type-gps_event #poststuff {
+.post-php.post-type-gps_event #poststuff,
+.post-new-php.post-type-gps_event #poststuff {
     padding: 20px;
 }
 
-.post-type-gps_event #post-body-content {
+.post-php.post-type-gps_event #post-body-content,
+.post-new-php.post-type-gps_event #post-body-content {
     background: #ffffff;
     padding: 25px;
     border-radius: 8px;
@@ -214,8 +212,8 @@
     margin-bottom: 20px;
 }
 
-/* Title input */
-.post-type-gps_event #title {
+/* Title input (edit screen only; #title is also the list table's title <th>) */
+.post-type-gps_event #titlediv #title {
     font-size: 24px;
     font-weight: 600;
     padding: 15px;
@@ -224,56 +222,70 @@
     transition: border-color 0.2s ease;
 }
 
-.post-type-gps_event #title:focus {
-    border-color: #6200ea;
+.post-type-gps_event #titlediv #title:focus {
+    border-color: #0B52AC;
     outline: none;
-    box-shadow: 0 0 0 1px #6200ea;
+    box-shadow: 0 0 0 1px #0B52AC;
 }
 
 /* Editor */
-.post-type-gps_event #postdivrich {
+.post-php.post-type-gps_event #postdivrich,
+.post-new-php.post-type-gps_event #postdivrich {
     margin-top: 20px;
 }
 
-.post-type-gps_event .wp-editor-container {
+.post-php.post-type-gps_event .wp-editor-container,
+.post-new-php.post-type-gps_event .wp-editor-container {
     border: 2px solid #e5e5e5;
     border-radius: 8px;
     overflow: hidden;
 }
 
 /* Metaboxes */
-.post-type-gps_event .postbox {
+.post-php.post-type-gps_event .postbox,
+.post-new-php.post-type-gps_event .postbox {
     border: none;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     border-radius: 8px;
     margin-bottom: 20px;
 }
 
-.post-type-gps_event .postbox .postbox-header {
+.post-php.post-type-gps_event .postbox .postbox-header,
+.post-new-php.post-type-gps_event .postbox .postbox-header {
     background: #f6f7f7;
     border-bottom: 1px solid #e5e5e5;
     padding: 15px 20px;
 }
 
-.post-type-gps_event .postbox .postbox-header h2 {
+.post-php.post-type-gps_event .postbox .postbox-header h2,
+.post-new-php.post-type-gps_event .postbox .postbox-header h2 {
     font-size: 16px;
     font-weight: 600;
     color: #1d2327;
 }
 
-.post-type-gps_event .postbox .inside {
+.post-php.post-type-gps_event .postbox .inside,
+.post-new-php.post-type-gps_event .postbox .inside {
     padding: 20px;
 }
 
 /* Form fields in metaboxes */
-.post-type-gps_event .postbox input[type="text"],
-.post-type-gps_event .postbox input[type="email"],
-.post-type-gps_event .postbox input[type="url"],
-.post-type-gps_event .postbox input[type="number"],
-.post-type-gps_event .postbox input[type="date"],
-.post-type-gps_event .postbox input[type="time"],
-.post-type-gps_event .postbox select,
-.post-type-gps_event .postbox textarea {
+.post-php.post-type-gps_event .postbox input[type="text"],
+.post-php.post-type-gps_event .postbox input[type="email"],
+.post-php.post-type-gps_event .postbox input[type="url"],
+.post-php.post-type-gps_event .postbox input[type="number"],
+.post-php.post-type-gps_event .postbox input[type="date"],
+.post-php.post-type-gps_event .postbox input[type="time"],
+.post-php.post-type-gps_event .postbox select,
+.post-php.post-type-gps_event .postbox textarea,
+.post-new-php.post-type-gps_event .postbox input[type="text"],
+.post-new-php.post-type-gps_event .postbox input[type="email"],
+.post-new-php.post-type-gps_event .postbox input[type="url"],
+.post-new-php.post-type-gps_event .postbox input[type="number"],
+.post-new-php.post-type-gps_event .postbox input[type="date"],
+.post-new-php.post-type-gps_event .postbox input[type="time"],
+.post-new-php.post-type-gps_event .postbox select,
+.post-new-php.post-type-gps_event .postbox textarea {
     border-radius: 6px;
     border: 1px solid #dcdcde;
     padding: 8px 12px;
@@ -290,12 +302,13 @@
 .post-type-gps_event .postbox input[type="time"]:focus,
 .post-type-gps_event .postbox select:focus,
 .post-type-gps_event .postbox textarea:focus {
-    border-color: #6200ea;
+    border-color: #0B52AC;
     outline: none;
-    box-shadow: 0 0 0 1px #6200ea;
+    box-shadow: 0 0 0 1px #0B52AC;
 }
 
-.post-type-gps_event .postbox label {
+.post-php.post-type-gps_event .postbox label,
+.post-new-php.post-type-gps_event .postbox label {
     font-weight: 600;
     color: #1d2327;
     margin-bottom: 8px;
@@ -303,7 +316,8 @@
     font-size: 14px;
 }
 
-.post-type-gps_event .postbox .description {
+.post-php.post-type-gps_event .postbox .description,
+.post-new-php.post-type-gps_event .postbox .description {
     color: #646970;
     font-size: 13px;
     font-style: italic;
@@ -319,28 +333,42 @@
     padding: 15px 20px;
 }
 
-.post-type-gps_event #publish,
-.post-type-gps_event #save-post {
-    background: #6200ea;
-    border-color: #6200ea;
+/* Publish: brand blue primary button */
+.post-type-gps_event #publish {
+    background: #0B52AC;
+    border-color: #0B52AC;
     color: #ffffff;
     font-weight: 600;
     border-radius: 6px;
     padding: 10px 20px;
     font-size: 14px;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 4px rgba(98, 0, 234, 0.2);
+    box-shadow: 0 2px 4px rgba(11, 82, 172, 0.2);
 }
 
 .post-type-gps_event #publish:hover,
-.post-type-gps_event #save-post:hover {
-    background: #5200c6;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(98, 0, 234, 0.3);
+.post-type-gps_event #publish:focus {
+    background: #0a4693;
+    border-color: #0a4693;
+    box-shadow: 0 4px 8px rgba(11, 82, 172, 0.3);
+}
+
+/* Save Draft: WordPress secondary button in brand blue */
+.post-type-gps_event #save-post {
+    color: #0B52AC;
+    border-color: #0B52AC;
+    border-radius: 6px;
+}
+
+.post-type-gps_event #save-post:hover,
+.post-type-gps_event #save-post:focus {
+    color: #0a4693;
+    border-color: #0a4693;
 }
 
 /* Sidebar metaboxes */
-.post-type-gps_event #side-sortables .postbox {
+.post-php.post-type-gps_event #side-sortables .postbox,
+.post-new-php.post-type-gps_event #side-sortables .postbox {
     background: #ffffff;
 }
 
@@ -356,34 +384,48 @@
 }
 
 /* ============================================
-   Notice Improvements
+   Notice Improvements (list and edit screens only)
    ============================================ */
 
-.post-type-gps_event .notice,
-.post-type-gps_event .updated,
-.post-type-gps_event .error {
+.edit-php.post-type-gps_event .notice,
+.edit-php.post-type-gps_event .updated,
+.edit-php.post-type-gps_event .error,
+.post-php.post-type-gps_event .notice,
+.post-php.post-type-gps_event .updated,
+.post-php.post-type-gps_event .error,
+.post-new-php.post-type-gps_event .notice,
+.post-new-php.post-type-gps_event .updated,
+.post-new-php.post-type-gps_event .error {
     border-left-width: 4px;
     border-radius: 0 6px 6px 0;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     margin: 20px 20px 20px 0;
 }
 
-.post-type-gps_event .notice-success {
+.edit-php.post-type-gps_event .notice-success,
+.post-php.post-type-gps_event .notice-success,
+.post-new-php.post-type-gps_event .notice-success {
     border-left-color: #46b450;
     background: #ecf7ed;
 }
 
-.post-type-gps_event .notice-error {
+.edit-php.post-type-gps_event .notice-error,
+.post-php.post-type-gps_event .notice-error,
+.post-new-php.post-type-gps_event .notice-error {
     border-left-color: #d63638;
     background: #fce8e8;
 }
 
-.post-type-gps_event .notice-warning {
+.edit-php.post-type-gps_event .notice-warning,
+.post-php.post-type-gps_event .notice-warning,
+.post-new-php.post-type-gps_event .notice-warning {
     border-left-color: #dba617;
     background: #fcf3e0;
 }
 
-.post-type-gps_event .notice-info {
+.edit-php.post-type-gps_event .notice-info,
+.post-php.post-type-gps_event .notice-info,
+.post-new-php.post-type-gps_event .notice-info {
     border-left-color: #2271b1;
     background: #e5f5fa;
 }
@@ -446,14 +488,14 @@
 
 .gps-event-tabs li a:hover {
     background: #ffffff;
-    color: #6200ea;
+    color: #0B52AC;
 }
 
 .gps-event-tabs li.ui-tabs-active a,
 .gps-event-tabs li.ui-state-active a {
     background: #ffffff;
-    color: #6200ea;
-    border-bottom: 3px solid #6200ea;
+    color: #0B52AC;
+    border-bottom: 3px solid #0B52AC;
     margin-bottom: -2px;
 }
 
@@ -526,9 +568,9 @@
 .gps-form-field input[type="time"]:focus,
 .gps-form-field select:focus,
 .gps-form-field textarea:focus {
-    border-color: #6200ea;
+    border-color: #0B52AC;
     outline: none;
-    box-shadow: 0 0 0 1px #6200ea;
+    box-shadow: 0 0 0 1px #0B52AC;
 }
 
 .gps-form-field .description {
@@ -574,10 +616,10 @@
 }
 
 .gps-publish-box #publishing-action #publish {
-    background: #6200ea !important;
-    border-color: #6200ea !important;
+    background: #0B52AC !important;
+    border-color: #0B52AC !important;
     text-shadow: none !important;
-    box-shadow: 0 2px 4px rgba(98, 0, 234, 0.2) !important;
+    box-shadow: 0 2px 4px rgba(11, 82, 172, 0.2) !important;
     font-weight: 600 !important;
     padding: 8px 24px !important;
     height: auto !important;
@@ -585,9 +627,9 @@
 }
 
 .gps-publish-box #publishing-action #publish:hover {
-    background: #5200c6 !important;
-    border-color: #5200c6 !important;
-    box-shadow: 0 4px 8px rgba(98, 0, 234, 0.3) !important;
+    background: #0a4693 !important;
+    border-color: #0a4693 !important;
+    box-shadow: 0 4px 8px rgba(11, 82, 172, 0.3) !important;
 }
 
 /* Hide default metabox containers */
@@ -641,7 +683,7 @@
 }
 
 .gps-faq-handle:hover {
-    color: #6200ea;
+    color: #0B52AC;
 }
 
 .gps-faq-title-preview {
@@ -667,7 +709,7 @@
 
 .gps-faq-toggle:hover {
     background: #e0e0e1;
-    color: #6200ea;
+    color: #0B52AC;
 }
 
 .gps-faq-remove:hover {
@@ -719,9 +761,9 @@
 
 .gps-faq-content input[type="text"]:focus,
 .gps-faq-content textarea:focus {
-    border-color: #6200ea;
+    border-color: #0B52AC;
     outline: none;
-    box-shadow: 0 0 0 1px #6200ea;
+    box-shadow: 0 0 0 1px #0B52AC;
 }
 
 .gps-faq-placeholder {
@@ -743,8 +785,8 @@
 }
 
 #gps-add-faq:hover {
-    background: #6200ea;
-    border-color: #6200ea;
+    background: #0B52AC;
+    border-color: #0B52AC;
     color: #ffffff;
 }
 

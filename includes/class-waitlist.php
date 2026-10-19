@@ -47,7 +47,7 @@ class Waitlist {
     public static function add_admin_menu() {
         add_submenu_page(
             'gps-dashboard',
-            __('Waitlist Management', 'gps-courses'),
+            __('Waitlist & Interest', 'gps-courses'),
             __('Waitlist', 'gps-courses'),
             'manage_options',
             'gps-waitlist',
@@ -1333,7 +1333,7 @@ class Waitlist {
 
         ?>
         <div class="wrap gps-waitlist-page">
-            <h1><?php _e('Waitlist Management', 'gps-courses'); ?></h1>
+            <h1><?php _e('Waitlist & Interest', 'gps-courses'); ?></h1>
 
             <!-- Test Email Section -->
             <div class="gps-test-email-section" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">

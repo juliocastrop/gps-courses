@@ -46,6 +46,49 @@ function resolve_widget_event_id($saved, $widget_id = '') {
 }
 
 /**
+ * Courses for an admin "Course" dropdown (Ticket Type and Agenda edit screens).
+ *
+ * Lists published, draft, scheduled, pending and private courses so a ticket or
+ * agenda of an unpublished course keeps its link, and always includes the
+ * currently linked course (even when trashed). Non-published courses are
+ * labelled "Title (Draft)", "Title (Private)", etc.
+ *
+ * @param int $current_id the course currently linked (0 = none)
+ * @return array<int,string> course ID => label, ordered by title
+ */
+function course_select_options($current_id = 0) {
+    $current_id = (int) $current_id;
+    $courses = get_posts([
+        'post_type'   => 'gps_event',
+        'numberposts' => -1,
+        'post_status' => ['publish', 'draft', 'future', 'pending', 'private'],
+        'orderby'     => 'title',
+        'order'       => 'ASC',
+    ]);
+
+    $ids = wp_list_pluck($courses, 'ID');
+    if ($current_id && !in_array($current_id, array_map('intval', $ids), true)) {
+        $linked = get_post($current_id);
+        if ($linked && 'gps_event' === $linked->post_type) {
+            $courses[] = $linked;
+        }
+    }
+
+    $options = [];
+    foreach ($courses as $course) {
+        $title = '' !== $course->post_title ? $course->post_title : __('(no title)', 'gps-courses');
+        if ('publish' !== $course->post_status) {
+            $status_obj = get_post_status_object($course->post_status);
+            $status     = $status_obj ? $status_obj->label : $course->post_status;
+            /* translators: 1: course title, 2: post status label (Draft, Private...) */
+            $title = sprintf(__('%1$s (%2$s)', 'gps-courses'), $title, $status);
+        }
+        $options[(int) $course->ID] = $title;
+    }
+    return $options;
+}
+
+/**
  * Nov 21, 2025  |  Nov 21 – 22, 2025  |  Nov 30 – Dec 1, 2025  |  Dec 31, 2025 – Jan 1, 2026
  */
 function format_date_range($start, $end, $tz = null) {

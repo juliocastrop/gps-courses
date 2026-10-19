@@ -48,7 +48,7 @@ class Admin_Menu {
         $debug = (defined('WP_DEBUG') && WP_DEBUG) || get_option(self::OPT_DEBUG);
         $hubs = [
             'courses' => ['label' => __('Courses', 'gps-courses'), 'tabs' => [
-                ['label' => __('All Courses', 'gps-courses'), 'url' => 'edit.php?post_type=gps_event', 'cap' => 'edit_posts', 'post_type' => 'gps_event'],
+                ['label' => __('Courses', 'gps-courses'), 'url' => 'edit.php?post_type=gps_event', 'cap' => 'edit_posts', 'post_type' => 'gps_event'],
                 ['label' => __('Ticket Types', 'gps-courses'), 'url' => 'edit.php?post_type=gps_ticket', 'cap' => 'edit_posts', 'post_type' => 'gps_ticket'],
                 ['label' => __('Agendas', 'gps-courses'), 'url' => 'edit.php?post_type=gps_schedule', 'cap' => 'edit_posts', 'post_type' => 'gps_schedule'],
                 ['label' => __('Speakers', 'gps-courses'), 'url' => 'edit.php?post_type=gps_speaker', 'cap' => 'edit_posts', 'post_type' => 'gps_speaker'],
@@ -59,7 +59,7 @@ class Admin_Menu {
             ]],
             'seminars' => ['label' => __('Seminars', 'gps-courses'), 'tabs' => [
                 ['label' => __('Overview', 'gps-courses'), 'url' => 'admin.php?page=gps-seminars', 'cap' => 'manage_options', 'page' => 'gps-seminars'],
-                ['label' => __('All Seminars', 'gps-courses'), 'url' => 'edit.php?post_type=gps_seminar', 'cap' => 'edit_posts', 'post_type' => 'gps_seminar'],
+                ['label' => __('Seminars', 'gps-courses'), 'url' => 'edit.php?post_type=gps_seminar', 'cap' => 'edit_posts', 'post_type' => 'gps_seminar'],
                 ['label' => __('Registrants', 'gps-courses'), 'url' => 'admin.php?page=gps-seminar-registrants', 'cap' => 'manage_options', 'page' => 'gps-seminar-registrants'],
                 ['label' => __('Waitlist', 'gps-courses'), 'url' => 'admin.php?page=gps-seminar-waitlist', 'cap' => 'manage_options', 'page' => 'gps-seminar-waitlist'],
                 ['label' => __('Reports', 'gps-courses'), 'url' => 'admin.php?page=gps-seminar-reports', 'cap' => 'manage_options', 'page' => 'gps-seminar-reports'],
@@ -74,17 +74,17 @@ class Admin_Menu {
                 ['label' => __('Attendance Report', 'gps-courses'), 'url' => 'admin.php?page=gps-attendance-report', 'cap' => 'manage_options', 'page' => 'gps-attendance-report'],
             ]],
             'certificates' => ['label' => __('Certificates', 'gps-courses'), 'tabs' => [
-                ['label' => __('Courses', 'gps-courses'), 'url' => 'admin.php?page=gps-certificates', 'cap' => 'manage_options', 'page' => 'gps-certificates'],
-                ['label' => __('Seminars', 'gps-courses'), 'url' => 'admin.php?page=gps-seminar-certificates', 'cap' => 'manage_options', 'page' => 'gps-seminar-certificates'],
-                ['label' => __('Design', 'gps-courses'), 'url' => 'admin.php?page=gps-certificate-settings', 'cap' => 'manage_options', 'page' => 'gps-certificate-settings'],
+                ['label' => __('Course Certificates', 'gps-courses'), 'url' => 'admin.php?page=gps-certificates', 'cap' => 'manage_options', 'page' => 'gps-certificates'],
+                ['label' => __('Seminar Certificates', 'gps-courses'), 'url' => 'admin.php?page=gps-seminar-certificates', 'cap' => 'manage_options', 'page' => 'gps-seminar-certificates'],
+                ['label' => __('Certificate Design', 'gps-courses'), 'url' => 'admin.php?page=gps-certificate-settings', 'cap' => 'manage_options', 'page' => 'gps-certificate-settings'],
             ]],
             'emails' => ['label' => __('Emails', 'gps-courses'), 'tabs' => [
-                ['label' => __('Branding & Messages', 'gps-courses'), 'url' => 'admin.php?page=gps-email-settings', 'cap' => 'manage_options', 'page' => 'gps-email-settings'],
-                ['label' => __('Templates', 'gps-courses'), 'url' => 'admin.php?page=gps-email-templates', 'cap' => 'manage_options', 'page' => 'gps-email-templates'],
+                ['label' => __('Email Branding', 'gps-courses'), 'url' => 'admin.php?page=gps-email-settings', 'cap' => 'manage_options', 'page' => 'gps-email-settings'],
+                ['label' => __('Email Templates', 'gps-courses'), 'url' => 'admin.php?page=gps-email-templates', 'cap' => 'manage_options', 'page' => 'gps-email-templates'],
                 ['label' => __('Seminar Notifications', 'gps-courses'), 'url' => 'admin.php?page=gps-seminar-notifications', 'cap' => 'manage_options', 'page' => 'gps-seminar-notifications'],
             ]],
             'reports' => ['label' => __('Reports', 'gps-courses'), 'tabs' => [
-                ['label' => __('Courses', 'gps-courses'), 'url' => 'admin.php?page=gps-reports', 'cap' => 'manage_options', 'page' => 'gps-reports'],
+                ['label' => __('Course Reports', 'gps-courses'), 'url' => 'admin.php?page=gps-reports', 'cap' => 'manage_options', 'page' => 'gps-reports'],
                 ['label' => __('QR Analytics', 'gps-courses'), 'url' => 'admin.php?page=gps-qr-analytics', 'cap' => 'manage_options', 'page' => 'gps-qr-analytics'],
                 ['label' => __('AI Search', 'gps-courses'), 'url' => 'admin.php?page=gps-ai-search', 'cap' => 'edit_pages', 'page' => 'gps-ai-search'],
             ]],

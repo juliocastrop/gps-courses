@@ -32,7 +32,7 @@ class Seminars {
     public static function add_admin_menu() {
         add_submenu_page(
             'gps-dashboard',
-            __('Monthly Seminars', 'gps-courses'),
+            __('Seminars Overview', 'gps-courses'),
             __('Monthly Seminars', 'gps-courses'),
             'manage_options',
             'gps-seminars',
@@ -41,7 +41,7 @@ class Seminars {
 
         add_submenu_page(
             'gps-dashboard',
-            __('Seminar Registrants', 'gps-courses'),
+            __('Registrants', 'gps-courses'),
             __('Seminar Registrants', 'gps-courses'),
             'manage_options',
             'gps-seminar-registrants',
@@ -50,7 +50,7 @@ class Seminars {
 
         add_submenu_page(
             'gps-dashboard',
-            __('Session Attendance', 'gps-courses'),
+            __('Seminar Sessions', 'gps-courses'),
             __('Session Attendance', 'gps-courses'),
             'manage_options',
             'gps-seminar-attendance',
@@ -59,7 +59,7 @@ class Seminars {
 
         add_submenu_page(
             'gps-dashboard',
-            __('Seminar Waitlist', 'gps-courses'),
+            __('Waitlist', 'gps-courses'),
             __('Seminar Waitlist', 'gps-courses'),
             'manage_options',
             'gps-seminar-waitlist',
@@ -77,7 +77,7 @@ class Seminars {
 
         add_submenu_page(
             'gps-dashboard',
-            __('Email Notifications', 'gps-courses'),
+            __('Seminar Notifications', 'gps-courses'),
             __('Email Notifications', 'gps-courses'),
             'manage_options',
             'gps-seminar-notifications',
@@ -468,7 +468,7 @@ class Seminars {
 
         ?>
         <div class="wrap gps-seminars-wrap">
-            <h1><?php _e('Monthly Seminars Dashboard', 'gps-courses'); ?></h1>
+            <h1><?php _e('Seminars Overview', 'gps-courses'); ?></h1>
 
             <!-- Quick Actions -->
             <div style="margin: 20px 0;">
@@ -695,7 +695,7 @@ class Seminars {
         }
         ?>
         <div class="wrap">
-            <h1><?php _e('Seminar Registrants', 'gps-courses'); ?></h1>
+            <h1><?php _e('Registrants', 'gps-courses'); ?></h1>
 
             <div class="tablenav top">
                 <div class="alignleft actions">
@@ -841,7 +841,7 @@ class Seminars {
         }
         ?>
         <div class="wrap">
-            <h1><?php _e('Session Attendance & Check-in', 'gps-courses'); ?></h1>
+            <h1><?php _e('Seminar Sessions', 'gps-courses'); ?></h1>
 
             <!-- Filters -->
             <div class="tablenav top">
@@ -1444,7 +1444,7 @@ class Seminars {
 
         ?>
         <div class="wrap gps-seminars-wrap">
-            <h1><?php _e('Seminar Reports & Analytics', 'gps-courses'); ?></h1>
+            <h1><?php _e('Seminar Reports', 'gps-courses'); ?></h1>
 
             <!-- Filter -->
             <div class="tablenav top">
@@ -1731,7 +1731,7 @@ class Seminars {
 
         ?>
         <div class="wrap">
-            <h1><?php _e('Email Notifications', 'gps-courses'); ?></h1>
+            <h1><?php _e('Seminar Notifications', 'gps-courses'); ?></h1>
 
             <style>
                 .notification-card {
@@ -1966,7 +1966,7 @@ class Seminars {
 
         ?>
         <div class="wrap">
-            <h1><?php _e('Seminar Waitlist Management', 'gps-courses'); ?></h1>
+            <h1><?php _e('Waitlist', 'gps-courses'); ?></h1>
 
             <!-- Seminar Filter -->
             <div class="gps-filter-bar">

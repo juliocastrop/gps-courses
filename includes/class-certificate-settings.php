@@ -24,7 +24,7 @@ class Certificate_Settings {
     public static function add_settings_page() {
         add_submenu_page(
             'gps-dashboard',
-            __('Certificate Settings', 'gps-courses'),
+            __('Certificate Design', 'gps-courses'),
             __('Certificate Settings', 'gps-courses'),
             'manage_options',
             'gps-certificate-settings',
@@ -794,7 +794,7 @@ class Certificate_Settings {
         $active_tab = isset($_GET['tab']) ? $_GET['tab'] : 'course';
         ?>
         <div class="wrap">
-            <h1><?php _e('Certificate Settings', 'gps-courses'); ?></h1>
+            <h1><?php _e('Certificate Design', 'gps-courses'); ?></h1>
             <p><?php _e('Customize the appearance and content of course completion certificates.', 'gps-courses'); ?></p>
 
             <!-- Tab Navigation -->

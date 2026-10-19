@@ -169,12 +169,12 @@ class Registration_Guard {
 
             <div style="display:flex;gap:16px;flex-wrap:wrap;margin:20px 0;">
                 <div style="background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:16px 24px;min-width:180px;">
-                    <div style="font-size:32px;font-weight:700;color:#0B52AC;"><?php echo esc_html(number_format_i18n($total)); ?></div>
+                    <div style="font-size:32px;font-weight:700;line-height:1.1;color:#0B52AC;"><?php echo esc_html(number_format_i18n($total)); ?></div>
                     <div style="color:#666;"><?php _e('Total bots blocked', 'gps-courses'); ?></div>
                 </div>
                 <?php foreach ($reason_counts as $reason => $count): ?>
                     <div style="background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:16px 24px;min-width:150px;">
-                        <div style="font-size:24px;font-weight:700;color:#333;"><?php echo esc_html(number_format_i18n($count)); ?></div>
+                        <div style="font-size:24px;font-weight:700;line-height:1.1;color:#333;"><?php echo esc_html(number_format_i18n($count)); ?></div>
                         <div style="color:#666;"><?php echo esc_html($reason_labels[$reason] ?? $reason); ?></div>
                     </div>
                 <?php endforeach; ?>

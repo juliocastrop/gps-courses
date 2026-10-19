@@ -30,7 +30,7 @@ class Email_Settings {
     public static function add_settings_page() {
         add_submenu_page(
             'gps-dashboard',
-            __('Email Settings', 'gps-courses'),
+            __('Email Branding', 'gps-courses'),
             __('Email Settings', 'gps-courses'),
             'manage_options',
             'gps-email-settings',
@@ -881,7 +881,7 @@ class Email_Settings {
 
         <div class="wrap gps-email-settings-wrap">
             <div class="gps-settings-header">
-                <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
+                <h1><?php esc_html_e('Email Branding', 'gps-courses'); ?></h1>
                 <p><?php _e('Customize every aspect of your ticket confirmation emails with live preview', 'gps-courses'); ?></p>
             </div>
 

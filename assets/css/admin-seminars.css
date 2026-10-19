@@ -8,10 +8,6 @@
    General Layout
    ========================================================================== */
 
-.gps-seminars-wrap {
-    margin: 20px 0;
-}
-
 .gps-seminars-wrap .wrap {
     max-width: 1400px;
 }
@@ -467,7 +463,7 @@
    ========================================================================== */
 
 .gps-qr-scanner-box {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #193463;
     color: #fff;
     border-radius: 8px;
     padding: 30px;
@@ -505,7 +501,7 @@
     font-size: 16px;
     font-weight: 600;
     background: #fff;
-    color: #667eea;
+    color: #193463;
     border: none;
     border-radius: 6px;
     cursor: pointer;

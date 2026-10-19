@@ -570,7 +570,7 @@ class Woo {
 
         ?>
         <div class="wrap">
-            <h1>🔍 GPS Orders Diagnostic</h1>
+            <h1><?php esc_html_e('Orders Diagnostic', 'gps-courses'); ?></h1>
             <p>This page shows all orders containing GPS products and their status.</p>
 
             <style>

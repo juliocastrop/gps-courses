@@ -25,7 +25,26 @@ class Schedules {
      */
     public static function register_cpt() {
         register_post_type('gps_schedule', [
-            'label'         => __('Schedules', 'gps-courses'),
+            'label'         => __('Agendas', 'gps-courses'),
+            'labels'        => [
+                'name'               => __('Agendas', 'gps-courses'),
+                'singular_name'      => __('Agenda', 'gps-courses'),
+                'menu_name'          => __('Agendas', 'gps-courses'),
+                'all_items'          => __('Agendas', 'gps-courses'),
+                'add_new'            => __('Add Agenda', 'gps-courses'),
+                'add_new_item'       => __('Add Agenda', 'gps-courses'),
+                'edit_item'          => __('Edit Agenda', 'gps-courses'),
+                'new_item'           => __('New Agenda', 'gps-courses'),
+                'view_item'          => __('View Agenda', 'gps-courses'),
+                'view_items'         => __('View Agendas', 'gps-courses'),
+                'search_items'       => __('Search Agendas', 'gps-courses'),
+                'not_found'          => __('No agendas found.', 'gps-courses'),
+                'not_found_in_trash' => __('No agendas found in Trash.', 'gps-courses'),
+                'item_published'     => __('Agenda published.', 'gps-courses'),
+                'item_updated'       => __('Agenda updated.', 'gps-courses'),
+                'filter_items_list'  => __('Filter agendas list', 'gps-courses'),
+                'items_list'         => __('Agendas list', 'gps-courses'),
+            ],
             'description'   => __('Event schedules with topics and time slots', 'gps-courses'),
             'public'        => false,
             'show_ui'       => true,
@@ -115,14 +134,8 @@ class Schedules {
         $topics_json = get_post_meta($post->ID, '_gps_schedule_topics', true);
         $topics = !empty($topics_json) ? json_decode($topics_json, true) : [];
 
-        // Get all events
-        $events = get_posts([
-            'post_type'   => 'gps_event',
-            'numberposts' => -1,
-            'post_status' => 'publish',
-            'orderby'     => 'title',
-            'order'       => 'ASC'
-        ]);
+        // All courses (any non-trashed status) plus the linked one
+        $course_options = course_select_options($event_id);
 
         // Get all speakers
         $speakers = get_posts([
@@ -138,14 +151,14 @@ class Schedules {
             <div class="gps-schedule-header">
                 <div class="gps-schedule-field">
                     <label for="gps_event_id">
-                        <span class="required">*</span> <?php _e('Course/Event', 'gps-courses'); ?>
-                        <span class="tooltip" title="<?php esc_attr_e('Select the event this schedule belongs to', 'gps-courses'); ?>">?</span>
+                        <span class="required">*</span> <?php _e('Course', 'gps-courses'); ?>
+                        <span class="tooltip" title="<?php esc_attr_e('Select the course this agenda belongs to', 'gps-courses'); ?>">?</span>
                     </label>
                     <select name="gps_event_id" id="gps_event_id" required>
-                        <option value=""><?php _e('— Select Event —', 'gps-courses'); ?></option>
-                        <?php foreach ($events as $event): ?>
-                            <option value="<?php echo (int) $event->ID; ?>" <?php selected($event_id, $event->ID); ?>>
-                                <?php echo esc_html($event->post_title); ?>
+                        <option value=""><?php _e('— Select Course —', 'gps-courses'); ?></option>
+                        <?php foreach ($course_options as $course_id => $course_label): ?>
+                            <option value="<?php echo (int) $course_id; ?>" <?php selected($event_id, $course_id); ?>>
+                                <?php echo esc_html($course_label); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>

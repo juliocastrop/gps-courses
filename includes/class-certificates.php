@@ -37,7 +37,7 @@ class Certificates {
     public static function add_admin_menu() {
         add_submenu_page(
             'gps-dashboard',
-            __('Certificates', 'gps-courses'),
+            __('Course Certificates', 'gps-courses'),
             __('Certificates', 'gps-courses'),
             'manage_options',
             'gps-certificates',
@@ -99,13 +99,13 @@ class Certificates {
 
         ?>
         <div class="wrap" id="gps-certificates-page">
-            <h1><?php _e('Certificate Management', 'gps-courses'); ?></h1>
+            <h1><?php _e('Course Certificates', 'gps-courses'); ?></h1>
 
             <!-- Event Selector Section -->
             <div class="event-selector-section">
-                <label for="event-selector"><?php _e('Select Event:', 'gps-courses'); ?></label>
+                <label for="event-selector"><?php _e('Select Course:', 'gps-courses'); ?></label>
                 <select id="event-selector">
-                    <option value=""><?php _e('— Select Event —', 'gps-courses'); ?></option>
+                    <option value=""><?php _e('— Select Course —', 'gps-courses'); ?></option>
                     <?php foreach ($events as $event): ?>
                         <?php
                         $start_date = get_post_meta($event->ID, '_gps_start_date', true);

@@ -56,7 +56,26 @@ class Posttypes {
 
         // Register taxonomies first
         register_taxonomy('gps_event_category', 'gps_event', [
-            'label'              => __('Course Categories', 'gps-courses'),
+            'labels'             => [
+                'name'                       => __('Categories', 'gps-courses'),
+                'singular_name'              => __('Category', 'gps-courses'),
+                'menu_name'                  => __('Categories', 'gps-courses'),
+                'all_items'                  => __('All Categories', 'gps-courses'),
+                'edit_item'                  => __('Edit Category', 'gps-courses'),
+                'view_item'                  => __('View Category', 'gps-courses'),
+                'update_item'                => __('Update Category', 'gps-courses'),
+                'add_new_item'               => __('Add Category', 'gps-courses'),
+                'new_item_name'              => __('New Category Name', 'gps-courses'),
+                'search_items'               => __('Search Categories', 'gps-courses'),
+                'popular_items'              => __('Popular Categories', 'gps-courses'),
+                'not_found'                  => __('No categories found.', 'gps-courses'),
+                'back_to_items'              => __('&larr; Go to Categories', 'gps-courses'),
+                'separate_items_with_commas' => __('Separate categories with commas', 'gps-courses'),
+                'add_or_remove_items'        => __('Add or remove categories', 'gps-courses'),
+                'choose_from_most_used'      => __('Choose from the most used categories', 'gps-courses'),
+                'parent_item'                => __('Parent Category', 'gps-courses'),
+                'parent_item_colon'          => __('Parent Category:', 'gps-courses'),
+            ],
             'public'             => true,
             'hierarchical'       => true,
             'show_ui'            => true,
@@ -67,7 +86,26 @@ class Posttypes {
         ]);
 
         register_taxonomy('gps_event_tag', 'gps_event', [
-            'label'              => __('Course Tags', 'gps-courses'),
+            'labels'             => [
+                'name'                       => __('Tags', 'gps-courses'),
+                'singular_name'              => __('Tag', 'gps-courses'),
+                'menu_name'                  => __('Tags', 'gps-courses'),
+                'all_items'                  => __('All Tags', 'gps-courses'),
+                'edit_item'                  => __('Edit Tag', 'gps-courses'),
+                'view_item'                  => __('View Tag', 'gps-courses'),
+                'update_item'                => __('Update Tag', 'gps-courses'),
+                'add_new_item'               => __('Add Tag', 'gps-courses'),
+                'new_item_name'              => __('New Tag Name', 'gps-courses'),
+                'search_items'               => __('Search Tags', 'gps-courses'),
+                'popular_items'              => __('Popular Tags', 'gps-courses'),
+                'not_found'                  => __('No tags found.', 'gps-courses'),
+                'back_to_items'              => __('&larr; Go to Tags', 'gps-courses'),
+                'separate_items_with_commas' => __('Separate tags with commas', 'gps-courses'),
+                'add_or_remove_items'        => __('Add or remove tags', 'gps-courses'),
+                'choose_from_most_used'      => __('Choose from the most used tags', 'gps-courses'),
+                'parent_item'                => __('Parent Tag', 'gps-courses'),
+                'parent_item_colon'          => __('Parent Tag:', 'gps-courses'),
+            ],
             'public'             => true,
             'hierarchical'       => false,
             'show_ui'            => true,
@@ -83,8 +121,8 @@ class Posttypes {
             'labels'        => [
                 'name'               => __('Courses', 'gps-courses'),
                 'singular_name'      => __('Course', 'gps-courses'),
-                'add_new'            => __('Create a Course', 'gps-courses'),
-                'add_new_item'       => __('Create a New Course', 'gps-courses'),
+                'add_new'            => __('Add Course', 'gps-courses'),
+                'add_new_item'       => __('Add Course', 'gps-courses'),
                 'edit_item'          => __('Edit Course', 'gps-courses'),
                 'new_item'           => __('New Course', 'gps-courses'),
                 'view_item'          => __('View Course', 'gps-courses'),
@@ -129,6 +167,25 @@ class Posttypes {
         // CPT: Sponsors
         register_post_type('gps_sponsor', [
             'label'         => __('Sponsors', 'gps-courses'),
+            'labels'        => [
+                'name'               => __('Sponsors', 'gps-courses'),
+                'singular_name'      => __('Sponsor', 'gps-courses'),
+                'menu_name'          => __('Sponsors', 'gps-courses'),
+                'all_items'          => __('Sponsors', 'gps-courses'),
+                'add_new'            => __('Add Sponsor', 'gps-courses'),
+                'add_new_item'       => __('Add Sponsor', 'gps-courses'),
+                'edit_item'          => __('Edit Sponsor', 'gps-courses'),
+                'new_item'           => __('New Sponsor', 'gps-courses'),
+                'view_item'          => __('View Sponsor', 'gps-courses'),
+                'view_items'         => __('View Sponsors', 'gps-courses'),
+                'search_items'       => __('Search Sponsors', 'gps-courses'),
+                'not_found'          => __('No sponsors found.', 'gps-courses'),
+                'not_found_in_trash' => __('No sponsors found in Trash.', 'gps-courses'),
+                'item_published'     => __('Sponsor published.', 'gps-courses'),
+                'item_updated'       => __('Sponsor updated.', 'gps-courses'),
+                'filter_items_list'  => __('Filter sponsors list', 'gps-courses'),
+                'items_list'         => __('Sponsors list', 'gps-courses'),
+            ],
             'public'        => false,
             'show_ui'       => true,
             'show_in_menu'  => 'gps-dashboard',
@@ -140,6 +197,25 @@ class Posttypes {
         // CPT: Speakers
         register_post_type('gps_speaker', [
             'label'         => __('Speakers', 'gps-courses'),
+            'labels'        => [
+                'name'               => __('Speakers', 'gps-courses'),
+                'singular_name'      => __('Speaker', 'gps-courses'),
+                'menu_name'          => __('Speakers', 'gps-courses'),
+                'all_items'          => __('Speakers', 'gps-courses'),
+                'add_new'            => __('Add Speaker', 'gps-courses'),
+                'add_new_item'       => __('Add Speaker', 'gps-courses'),
+                'edit_item'          => __('Edit Speaker', 'gps-courses'),
+                'new_item'           => __('New Speaker', 'gps-courses'),
+                'view_item'          => __('View Speaker', 'gps-courses'),
+                'view_items'         => __('View Speakers', 'gps-courses'),
+                'search_items'       => __('Search Speakers', 'gps-courses'),
+                'not_found'          => __('No speakers found.', 'gps-courses'),
+                'not_found_in_trash' => __('No speakers found in Trash.', 'gps-courses'),
+                'item_published'     => __('Speaker published.', 'gps-courses'),
+                'item_updated'       => __('Speaker updated.', 'gps-courses'),
+                'filter_items_list'  => __('Filter speakers list', 'gps-courses'),
+                'items_list'         => __('Speakers list', 'gps-courses'),
+            ],
             'description'   => __('Speakers and instructors for courses', 'gps-courses'),
             'public'        => false,
             'show_ui'       => true,
@@ -151,12 +227,12 @@ class Posttypes {
 
         // CPT: Monthly Seminars
         register_post_type('gps_seminar', [
-            'label'         => __('Monthly Seminars', 'gps-courses'),
+            'label'         => __('Seminars', 'gps-courses'),
             'labels'        => [
-                'name'               => __('Monthly Seminars', 'gps-courses'),
-                'singular_name'      => __('Monthly Seminar', 'gps-courses'),
-                'add_new'            => __('Create Seminar', 'gps-courses'),
-                'add_new_item'       => __('Create New Seminar', 'gps-courses'),
+                'name'               => __('Seminars', 'gps-courses'),
+                'singular_name'      => __('Seminar', 'gps-courses'),
+                'add_new'            => __('Add Seminar', 'gps-courses'),
+                'add_new_item'       => __('Add Seminar', 'gps-courses'),
                 'edit_item'          => __('Edit Seminar', 'gps-courses'),
                 'new_item'           => __('New Seminar', 'gps-courses'),
                 'view_item'          => __('View Seminar', 'gps-courses'),
@@ -164,7 +240,7 @@ class Posttypes {
                 'not_found'          => __('No seminars found', 'gps-courses'),
                 'not_found_in_trash' => __('No seminars found in trash', 'gps-courses'),
                 'all_items'          => __('All Seminars', 'gps-courses'),
-                'menu_name'          => __('Monthly Seminars', 'gps-courses'),
+                'menu_name'          => __('Seminars', 'gps-courses'),
             ],
             'description'   => __('GPS Monthly Seminars - 10-session program', 'gps-courses'),
             'public'        => true,
@@ -1612,7 +1688,7 @@ class Posttypes {
      */
     public static function disable_block_editor($use_block_editor, $post_type) {
         // Force classic editor for GPS post types
-        if (in_array($post_type, ['gps_event', 'gps_seminar'])) {
+        if (in_array($post_type, ['gps_event', 'gps_seminar', 'gps_speaker', 'gps_sponsor', 'gps_ticket', 'gps_schedule'], true)) {
             return false;
         }
         return $use_block_editor;

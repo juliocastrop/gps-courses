@@ -106,7 +106,7 @@ class Seminar_Certificates {
 
         ?>
         <div class="wrap" id="gps-seminar-certificates-page">
-            <h1>📜 <?php _e('Monthly Seminar Certificates', 'gps-courses'); ?></h1>
+            <h1><?php _e('Seminar Certificates', 'gps-courses'); ?></h1>
             <p class="description">
                 <?php _e('Manage CE credit certificates for GPS Monthly Seminars. Certificates are issued bi-annually (June 30 & December 31) but can be generated manually here.', 'gps-courses'); ?>
             </p>

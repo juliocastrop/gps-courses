@@ -5,7 +5,6 @@
 /* Container */
 .gps-attendance-scanner {
     max-width: 1400px;
-    margin: 20px 0;
 }
 
 /* Header */
@@ -457,7 +456,6 @@ body.gps-scan-success-flash {
 /* Attendance Report Page */
 .gps-attendance-report {
     max-width: 1400px;
-    margin: 20px 0;
 }
 
 .gps-report-filters {

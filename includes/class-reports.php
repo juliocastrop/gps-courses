@@ -30,7 +30,7 @@ class Reports {
     public static function add_admin_menu() {
         add_submenu_page(
             'gps-dashboard',
-            __('Reports & Analytics', 'gps-courses'),
+            __('Course Reports', 'gps-courses'),
             __('Reports', 'gps-courses'),
             'manage_options',
             'gps-reports',
@@ -109,7 +109,7 @@ class Reports {
 
         ?>
         <div class="wrap gps-reports-page">
-            <h1><?php _e('Reports & Analytics', 'gps-courses'); ?></h1>
+            <h1><?php _e('Course Reports', 'gps-courses'); ?></h1>
 
             <!-- Overview Stats -->
             <div class="gps-stats-grid">

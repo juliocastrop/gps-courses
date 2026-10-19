@@ -28,7 +28,26 @@ class Tickets {
      */
     public static function register_cpt() {
         register_post_type('gps_ticket', [
-            'label'         => __('Tickets', 'gps-courses'),
+            'label'         => __('Ticket Types', 'gps-courses'),
+            'labels'        => [
+                'name'               => __('Ticket Types', 'gps-courses'),
+                'singular_name'      => __('Ticket Type', 'gps-courses'),
+                'menu_name'          => __('Ticket Types', 'gps-courses'),
+                'all_items'          => __('Ticket Types', 'gps-courses'),
+                'add_new'            => __('Add Ticket Type', 'gps-courses'),
+                'add_new_item'       => __('Add Ticket Type', 'gps-courses'),
+                'edit_item'          => __('Edit Ticket Type', 'gps-courses'),
+                'new_item'           => __('New Ticket Type', 'gps-courses'),
+                'view_item'          => __('View Ticket Type', 'gps-courses'),
+                'view_items'         => __('View Ticket Types', 'gps-courses'),
+                'search_items'       => __('Search Ticket Types', 'gps-courses'),
+                'not_found'          => __('No ticket types found.', 'gps-courses'),
+                'not_found_in_trash' => __('No ticket types found in Trash.', 'gps-courses'),
+                'item_published'     => __('Ticket Type published.', 'gps-courses'),
+                'item_updated'       => __('Ticket Type updated.', 'gps-courses'),
+                'filter_items_list'  => __('Filter ticket types list', 'gps-courses'),
+                'items_list'         => __('Ticket Types list', 'gps-courses'),
+            ],
             'description'   => __('Ticket types for courses', 'gps-courses'),
             'public'        => false,
             'show_ui'       => true,
@@ -151,14 +170,8 @@ class Tickets {
         $internal_label = get_post_meta($post->ID, '_gps_ticket_internal_label', true);
         $manual_sold_out = get_post_meta($post->ID, '_gps_manual_sold_out', true);
 
-        // Get all events
-        $events = get_posts([
-            'post_type'   => 'gps_event',
-            'numberposts' => -1,
-            'post_status' => 'publish',
-            'orderby'     => 'title',
-            'order'       => 'ASC'
-        ]);
+        // All courses (any non-trashed status) plus the linked one
+        $course_options = course_select_options($event_id);
 
         ?>
         <style>
@@ -172,12 +185,12 @@ class Tickets {
 
         <div class="gps-ticket-meta">
             <div class="gps-ticket-field full-width">
-                <label for="gps_event_id"><?php _e('Course/Event', 'gps-courses'); ?> *</label>
+                <label for="gps_event_id"><?php _e('Course', 'gps-courses'); ?> *</label>
                 <select name="gps_event_id" id="gps_event_id" required>
                     <option value=""><?php _e('— Select Course —', 'gps-courses'); ?></option>
-                    <?php foreach ($events as $event): ?>
-                        <option value="<?php echo (int) $event->ID; ?>" <?php selected($event_id, $event->ID); ?>>
-                            <?php echo esc_html($event->post_title); ?>
+                    <?php foreach ($course_options as $course_id => $course_label): ?>
+                        <option value="<?php echo (int) $course_id; ?>" <?php selected($event_id, $course_id); ?>>
+                            <?php echo esc_html($course_label); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>

@@ -116,7 +116,7 @@ class Settings {
         $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'general';
         ?>
         <div class="wrap gps-settings-page">
-            <h1><?php _e('GPS Courses Settings', 'gps-courses'); ?></h1>
+            <h1><?php _e('Settings', 'gps-courses'); ?></h1>
 
             <?php settings_errors(); ?>
 

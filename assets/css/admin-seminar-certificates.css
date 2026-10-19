@@ -381,13 +381,13 @@
     }
 }
 
-/* WordPress Admin Compatibility */
-.wrap h1 {
+/* WordPress Admin Compatibility (scoped to the Seminar Certificates page) */
+#gps-seminar-certificates-page h1 {
     display: inline-block;
     margin-right: 10px;
 }
 
-.notice {
+#gps-seminar-certificates-page .notice {
     margin-top: 15px;
     margin-bottom: 15px;
 }
