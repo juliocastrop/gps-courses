@@ -209,17 +209,17 @@ class AI_Search_Score {
         }
         // Content images: an empty alt counts as missing (AI reads no description),
         // except icons (≤ 48 px) and tracking pixels
-        foreach ($xp->query('//body//img[not(' . $chrome . ')]') as $img) {
+        foreach ($xp->query('//body//img[not(' . $chrome . ') and not(ancestor::noscript)]') as $img) {
             $src = (string) $img->getAttribute('src');
             if (0 === strpos($src, 'data:')) {
                 $src = (string) ($img->getAttribute('data-src') ?: $img->getAttribute('data-lazy-src')); // lazy-loaded
             }
-            if ('' === $src || preg_match('#/pixel|wp-emoji|\.gif(\?|$)#i', $src)) {
+            if ('' === $src || preg_match('#/pixel|wp-emoji|facebook\.com/tr|\.gif(\?|$)#i', $src)) {
                 continue;
             }
             $w = (int) $img->getAttribute('width');
             $h = (int) $img->getAttribute('height');
-            if (($w && $w <= 48) || ($h && $h <= 48)) {
+            if (($w && $w <= 48) || ($h && $h <= 48) || false !== stripos((string) $img->getAttribute('style'), 'display:none')) {
                 continue;
             }
             $out['img']++;
