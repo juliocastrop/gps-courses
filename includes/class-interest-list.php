@@ -258,7 +258,7 @@ class Interest_List {
     public static function ajax_nonce() {
         nocache_headers();
         $for = isset($_POST['for']) ? sanitize_key(wp_unslash($_POST['for'])) : '';
-        if (!in_array($for, [self::NONCE, 'gps_waitlist'], true)) {
+        if (!in_array($for, [self::NONCE, 'gps_waitlist', 'gps_waitlist_nonce'], true)) {
             wp_send_json_error(['message' => 'unknown form'], 400);
         }
         wp_send_json_success(['nonce' => wp_create_nonce($for)]);

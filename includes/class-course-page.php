@@ -1080,29 +1080,37 @@ class Course_Page {
     public static function speakers($event_id) {
         $out = [];
         foreach (self::speaker_ids($event_id) as $sid) {
-            if ('gps_speaker' !== get_post_type($sid) || 'publish' !== get_post_status($sid)) {
-                continue;
+            if ($s = self::speaker($sid)) {
+                $out[] = $s;
             }
-            $speaker = get_post($sid);
-            $name    = trim(html_entity_decode(get_the_title($sid), ENT_QUOTES, 'UTF-8'));
-            $cred    = trim((string) get_post_meta($sid, '_gps_designation', true));
-            $bio     = (string) $speaker->post_content;
-            $plain   = trim(preg_replace('/\s+/', ' ', wp_strip_all_tags(strip_shortcodes($bio))));
-            $short   = wp_trim_words($plain, 48, '…');
-            $out[] = [
-                'id'       => (int) $sid,
-                'name'     => $name,
-                'full'     => ('' !== $cred && false === stripos($name, $cred)) ? $name . ', ' . $cred : $name,
-                'cred'     => $cred,
-                'title'    => trim((string) get_post_meta($sid, '_gps_company', true)),
-                'photo'    => (int) get_post_thumbnail_id($sid),
-                'short'    => $short,
-                'bio'      => $short !== $plain ? wpautop(wp_kses_post($bio)) : '',
-                'url'      => (string) get_post_meta($sid, self::META_SPEAKER_URL, true),
-                'linkedin' => (string) get_post_meta($sid, '_gps_social_linkedin', true),
-            ];
         }
         return $out;
+    }
+
+    /** One published Speaker profile for a person card, or null. */
+    public static function speaker($sid) {
+        $sid = (int) $sid;
+        if ('gps_speaker' !== get_post_type($sid) || 'publish' !== get_post_status($sid)) {
+            return null;
+        }
+        $speaker = get_post($sid);
+        $name    = trim(html_entity_decode(get_the_title($sid), ENT_QUOTES, 'UTF-8'));
+        $cred    = trim((string) get_post_meta($sid, '_gps_designation', true));
+        $bio     = (string) $speaker->post_content;
+        $plain   = trim(preg_replace('/\s+/', ' ', wp_strip_all_tags(strip_shortcodes($bio))));
+        $short   = wp_trim_words($plain, 48, '…');
+        return [
+            'id'       => (int) $sid,
+            'name'     => $name,
+            'full'     => ('' !== $cred && false === stripos($name, $cred)) ? $name . ', ' . $cred : $name,
+            'cred'     => $cred,
+            'title'    => trim((string) get_post_meta($sid, '_gps_company', true)),
+            'photo'    => (int) get_post_thumbnail_id($sid),
+            'short'    => $short,
+            'bio'      => $short !== $plain ? wpautop(wp_kses_post($bio)) : '',
+            'url'      => (string) get_post_meta($sid, self::META_SPEAKER_URL, true),
+            'linkedin' => (string) get_post_meta($sid, '_gps_social_linkedin', true),
+        ];
     }
 
     /** Sponsors for the strip: default list, the course's own, or none. */

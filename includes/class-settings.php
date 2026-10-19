@@ -142,6 +142,10 @@ class Settings {
                     <span class="dashicons dashicons-layout"></span>
                     <?php _e('Course page', 'gps-courses'); ?>
                 </a>
+                <a href="?page=gps-settings&tab=seminar_page" class="nav-tab <?php echo $active_tab === 'seminar_page' ? 'nav-tab-active' : ''; ?>">
+                    <span class="dashicons dashicons-groups"></span>
+                    <?php _e('Seminar page', 'gps-courses'); ?>
+                </a>
             </nav>
 
             <div class="gps-settings-content">
@@ -165,6 +169,11 @@ class Settings {
                     case 'course_page':
                         if (class_exists(__NAMESPACE__ . '\\Course_Page')) {
                             Course_Page::render_settings_tab();
+                        }
+                        break;
+                    case 'seminar_page':
+                        if (class_exists(__NAMESPACE__ . '\Seminar_Page')) {
+                            Seminar_Page::render_settings_tab();
                         }
                         break;
                 }

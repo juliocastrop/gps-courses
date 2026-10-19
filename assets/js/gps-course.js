@@ -223,7 +223,11 @@
         });
     });
 
-    /* ---------- Sold-out waitlist (gps_join_waitlist, as the Ticket Selector) ---------- */
+    /*
+     * ---------- Sold-out waitlist (gps_join_waitlist, as the Ticket Selector) ----------
+     * The seminar page reuses it with data-action / data-nonce-for / data-fields
+     * (gps_join_seminar_waitlist).
+     */
 
     function post(data) {
         return fetch(cfg.ajaxUrl || '/wp-admin/admin-ajax.php', {
@@ -256,14 +260,20 @@
             btn.disabled = true;
             btn.textContent = i18n.joining || 'Joining…';
             var getNonce = typeof window.gpsFreshNonce === 'function'
-                ? window.gpsFreshNonce('gps_waitlist', cfg.ajaxUrl)
+                ? window.gpsFreshNonce(form.getAttribute('data-nonce-for') || 'gps_waitlist', cfg.ajaxUrl)
                 : Promise.resolve(null);
             getNonce.then(function (nonce) {
                 var data = new FormData();
-                data.append('action', 'gps_join_waitlist');
+                data.append('action', form.getAttribute('data-action') || 'gps_join_waitlist');
                 data.append('nonce', nonce || form.getAttribute('data-nonce'));
-                data.append('ticket_id', form.getAttribute('data-ticket-id'));
-                data.append('event_id', form.getAttribute('data-event-id'));
+                var extra = null;
+                try { extra = JSON.parse(form.getAttribute('data-fields') || 'null'); } catch (err) { extra = null; }
+                if (extra) {
+                    Object.keys(extra).forEach(function (k) { data.append(k, extra[k]); });
+                } else {
+                    data.append('ticket_id', form.getAttribute('data-ticket-id'));
+                    data.append('event_id', form.getAttribute('data-event-id'));
+                }
                 ['first_name', 'last_name', 'email', 'phone'].forEach(function (n) {
                     var f = form.querySelector('[name="' + n + '"]');
                     data.append(n, f ? f.value : '');

@@ -1,0 +1,455 @@
+/**
+ * GPS Courses - monthly seminars product page (templates/single-seminar-product.php).
+ * Builds on gps-course.css (tokens, hero, cards, booking card, FAQ, map, band, bar);
+ * this file only adds what the seminar page has on its own.
+ */
+
+/* Gold part of the title on its own line */
+.gps-sp .gps-sp-hl {
+    display: block;
+}
+
+/* ---------- Booking card ---------- */
+
+.gps-sp .gps-sp-price {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.gps-sp .gps-sp-price__label,
+.gps-sp .gps-sp-first__label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--gps-cp-muted);
+}
+
+.gps-sp .gps-sp-price__amount {
+    font-size: 38px;
+    line-height: 1.15;
+    font-weight: 800;
+    color: var(--gps-cp-navy);
+}
+
+.gps-sp .gps-sp-price__amount .woocommerce-Price-amount {
+    color: inherit;
+}
+
+.gps-sp .gps-sp-price__sub {
+    font-size: 14px;
+    color: var(--gps-cp-soft);
+}
+
+.gps-sp .gps-sp-first {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: #f3efe4;
+}
+
+.gps-sp .gps-sp-first__label {
+    color: #6f5822;
+}
+
+.gps-sp .gps-sp-first__date {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--gps-cp-deep);
+}
+
+.gps-sp .gps-sp-first__topic {
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--gps-cp-text);
+}
+
+.gps-sp .gps-sp-buy {
+    margin: 0;
+}
+
+.gps-sp .gps-sp-buy .gps-cp-btn {
+    width: 100%;
+}
+
+.gps-sp .gps-sp-single {
+    min-height: 46px;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.3;
+}
+
+.gps-sp .gps-sp-closed {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--gps-cp-text);
+}
+
+.gps-sp .gps-sp-perks {
+    margin: 0;
+    padding: 14px 0 0;
+    border-top: 1px solid var(--gps-cp-line);
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.gps-sp .gps-sp-perks li {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--gps-cp-text);
+}
+
+.gps-sp .gps-sp-perks .gps-cp-icon {
+    flex: none;
+    margin-top: 1px;
+    color: var(--gps-cp-green);
+}
+
+.gps-sp .gps-sp-notices:empty {
+    display: none;
+}
+
+/* ---------- How it works ---------- */
+
+.gps-sp .gps-sp-lead {
+    margin: -6px 0 24px;
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--gps-cp-text);
+}
+
+.gps-sp .gps-sp-steps {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.gps-sp .gps-sp-step {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+}
+
+.gps-sp .gps-sp-step__n {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--gps-cp-navy);
+    color: #fff;
+    font-weight: 800;
+}
+
+.gps-sp .gps-sp-step--gold .gps-sp-step__n {
+    background: var(--gps-cp-gold);
+    color: var(--gps-cp-deep);
+}
+
+.gps-sp .gps-sp-step__title {
+    font-size: 15px;
+    line-height: 1.3;
+    color: var(--gps-cp-navy);
+}
+
+.gps-sp .gps-sp-step__text {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--gps-cp-soft);
+}
+
+/* ---------- Sessions ---------- */
+
+.gps-sp .gps-sp-cycle + .gps-sp-cycle {
+    margin-top: 32px;
+}
+
+.gps-sp .gps-sp-cycle__head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 6px 16px;
+}
+
+.gps-sp .gps-sp-cycle__title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--gps-cp-navy);
+}
+
+.gps-sp .gps-sp-cycle__count {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gps-cp-soft);
+}
+
+.gps-sp .gps-sp-progress {
+    height: 8px;
+    margin: 14px 0 8px;
+    border-radius: 999px;
+    background: #e8eef8;
+    overflow: hidden;
+}
+
+.gps-sp .gps-sp-progress span {
+    display: block;
+    height: 100%;
+    background: var(--gps-cp-blue);
+}
+
+.gps-sp .gps-sp-sessions {
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.gps-sp .gps-sp-session {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 0;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--gps-cp-hair);
+}
+
+.gps-sp .gps-sp-session--next {
+    margin: 6px -16px;
+    padding: 16px;
+    border: 2px solid var(--gps-cp-blue);
+    border-radius: 12px;
+    background: #eef3fb;
+}
+
+.gps-sp .gps-sp-session__date {
+    width: 56px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1;
+}
+
+.gps-sp .gps-sp-session__mon {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--gps-cp-muted);
+}
+
+.gps-sp .gps-sp-session__day {
+    margin-top: 4px;
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--gps-cp-navy);
+}
+
+.gps-sp .gps-sp-session--done .gps-sp-session__day {
+    color: #8c96a8;
+}
+
+.gps-sp .gps-sp-session--next .gps-sp-session__day {
+    color: var(--gps-cp-blue);
+}
+
+.gps-sp .gps-sp-session__body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.gps-sp .gps-sp-session__meta {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--gps-cp-muted);
+}
+
+.gps-sp .gps-sp-session__topic {
+    font-size: 16px;
+    line-height: 1.35;
+    font-weight: 700;
+    color: var(--gps-cp-ink);
+}
+
+.gps-sp .gps-sp-session--done .gps-sp-session__topic {
+    color: var(--gps-cp-muted);
+}
+
+.gps-sp .gps-sp-session__side {
+    flex: none;
+}
+
+.gps-sp .gps-sp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: #e8eef8;
+    color: var(--gps-cp-navy);
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.gps-sp .gps-sp-badge--done {
+    background: var(--gps-cp-hair);
+    color: var(--gps-cp-soft);
+    font-weight: 600;
+}
+
+.gps-sp .gps-sp-badge--next {
+    background: var(--gps-cp-blue);
+    color: #fff;
+}
+
+.gps-sp .gps-sp-note {
+    margin: 20px 0 0;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: var(--gps-cp-bg);
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--gps-cp-text);
+}
+
+/* ---------- Topics ---------- */
+
+.gps-sp .gps-sp-topics {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.gps-sp .gps-sp-topic {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 20px;
+    border: 1px solid var(--gps-cp-line);
+    border-radius: 12px;
+}
+
+.gps-sp .gps-sp-topic__title {
+    font-size: 16px;
+    color: var(--gps-cp-navy);
+}
+
+.gps-sp .gps-sp-topic__text {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--gps-cp-soft);
+}
+
+/* ---------- Tablet / phone ---------- */
+
+@media (max-width: 1023px) {
+    .gps-sp .gps-sp-steps {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 767px) {
+    .gps-sp .gps-sp-price__amount {
+        font-size: 32px;
+    }
+
+    .gps-sp .gps-sp-steps {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 16px;
+    }
+
+    .gps-sp .gps-sp-step {
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr);
+        column-gap: 14px;
+        row-gap: 2px;
+    }
+
+    .gps-sp .gps-sp-step__n {
+        grid-row: span 2;
+        width: 34px;
+        height: 34px;
+    }
+
+    .gps-sp .gps-sp-session {
+        gap: 12px;
+        padding: 12px 0;
+    }
+
+    .gps-sp .gps-sp-session--next {
+        margin: 6px -10px;
+        padding: 12px 10px;
+    }
+
+    .gps-sp .gps-sp-session__date {
+        width: 44px;
+    }
+
+    .gps-sp .gps-sp-session__day {
+        font-size: 20px;
+    }
+
+    .gps-sp .gps-sp-session__topic {
+        font-size: 15px;
+    }
+
+    .gps-sp .gps-sp-session__side {
+        align-self: flex-start;
+    }
+
+    .gps-sp .gps-sp-badge {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+
+    /* Completed: just the check (the word stays for screen readers) */
+    .gps-sp .gps-sp-badge--done {
+        padding: 5px;
+        border-radius: 50%;
+        color: var(--gps-cp-green);
+        background: #e7f4ed;
+    }
+
+    .gps-sp .gps-sp-badge--done .gps-sp-badge__text {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .gps-sp .gps-sp-topics {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+    }
+
+    .gps-sp .gps-sp-topic {
+        padding: 16px;
+    }
+}
