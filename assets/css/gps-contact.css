@@ -1,0 +1,206 @@
+/**
+ * GPS Courses - contact page (templates/page-contact.php).
+ * Builds on gps-course.css (hero, cards, map, band) and gps-forms.css (form).
+ */
+
+.gps-ct .gps-ct-hl {
+    display: block;
+}
+
+.gps-ct .gps-ct-facts {
+    max-width: 1040px;
+    grid-auto-columns: max-content; /* the email address never breaks mid-word */
+}
+
+.gps-ct .gps-ct-mail {
+    color: #fff;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.gps-ct .gps-ct-mail:hover,
+.gps-ct .gps-ct-mail:focus {
+    color: var(--gps-cp-gold);
+    text-decoration: underline;
+}
+
+/* Body: form + side column */
+.gps-ct .gps-ct-aside {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+}
+
+.gps-ct .gps-ct-form {
+    border-top: 4px solid var(--gps-cp-gold);
+    box-shadow: 0 1px 0 var(--gps-cp-line), 0 24px 48px -28px rgba(18, 38, 74, .45);
+}
+
+.gps-ct .gps-ct-form .gps-cp-h2 {
+    margin-bottom: 6px;
+}
+
+.gps-ct .gps-ct-lead {
+    margin: 0 0 22px;
+    font-size: 15px;
+    color: var(--gps-cp-soft);
+}
+
+.gps-ct .gps-ct-card {
+    padding: 26px;
+}
+
+.gps-ct .gps-ct-h3 {
+    margin: 0 0 16px;
+    font-family: var(--gps-cp-font);
+    font-size: 20px;
+    line-height: 1.3;
+    font-weight: 800;
+    color: var(--gps-cp-navy);
+}
+
+.gps-ct .gps-ct-links .gps-ct-h3 {
+    margin-bottom: 6px;
+}
+
+.gps-ct .gps-ct-links .gps-ct-lead {
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.gps-ct .gps-ct-lines {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--gps-cp-text);
+}
+
+.gps-ct .gps-ct-lines li {
+    display: flex;
+    gap: 12px;
+    margin: 0;
+}
+
+.gps-ct .gps-ct-lines .gps-cp-icon {
+    flex: none;
+    margin-top: 2px;
+    color: var(--gps-cp-blue);
+}
+
+.gps-ct .gps-ct-lines a {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.gps-ct .gps-ct-lines address {
+    font-style: normal;
+}
+
+.gps-ct .gps-ct-lines strong {
+    color: var(--gps-cp-ink);
+}
+
+.gps-ct .gps-ct-map {
+    margin-top: 18px;
+}
+
+.gps-ct .gps-ct-map iframe {
+    height: 200px;
+}
+
+.gps-ct .gps-ct-directions {
+    width: 100%;
+    margin-top: 14px;
+}
+
+.gps-ct .gps-ct-links ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.gps-ct .gps-ct-links li {
+    margin: 0;
+    border-top: 1px solid var(--gps-cp-hair);
+}
+
+.gps-ct .gps-ct-links a {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    min-height: 48px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--gps-cp-navy);
+    text-decoration: none;
+}
+
+.gps-ct .gps-ct-links a:hover,
+.gps-ct .gps-ct-links a:focus {
+    color: var(--gps-cp-blue);
+    text-decoration: underline;
+}
+
+/* Tablet / phone: one column; form, then quick links, then details */
+@media (max-width: 1023px) {
+    .gps-ct .gps-ct-aside {
+        grid-column: 1;
+        grid-row: auto;
+    }
+
+    .gps-ct .gps-ct-links {
+        order: -1;
+    }
+}
+
+@media (max-width: 767px) {
+    .gps-ct .gps-cp-hero__tagline {
+        display: block;
+        font-size: 16px;
+    }
+
+    .gps-ct .gps-ct-mail {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    /* Hero: every fact visible, one per line (the course page shows two tiles) */
+    .gps-ct .gps-ct-facts {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+    }
+
+    .gps-ct .gps-ct-facts .gps-cp-fact,
+    .gps-ct .gps-ct-facts .gps-cp-fact:first-child,
+    .gps-ct .gps-ct-facts .gps-cp-fact:nth-child(odd) {
+        display: flex;
+        padding: 10px 12px;
+    }
+
+    .gps-ct .gps-ct-facts .gps-cp-fact .gps-cp-icon,
+    .gps-ct .gps-ct-facts .gps-cp-fact__detail {
+        display: block;
+    }
+
+    .gps-ct .gps-ct-facts .gps-cp-fact.gps-ct-fact--gia {
+        display: none; /* the band below covers it on phones */
+    }
+
+    .gps-ct .gps-ct-card {
+        padding: 20px;
+    }
+
+    .gps-ct .gps-ct-lead {
+        margin-bottom: 18px;
+        font-size: 14px;
+    }
+}

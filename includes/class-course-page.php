@@ -389,6 +389,7 @@ class Course_Page {
                         <p class="description"><?php esc_html_e('"Questions?" address in the Location section.', 'gps-courses'); ?></p>
                     </td>
                 </tr>
+                <?php do_action('gpsc_course_page_settings_rows'); // Contact_Page adds its rows ?>
                 <tr>
                     <th scope="row"><?php esc_html_e('Map', 'gps-courses'); ?></th>
                     <td>

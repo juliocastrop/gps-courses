@@ -652,6 +652,13 @@ class AI_Search {
         if (empty($data['description'])) {
             $data['description'] = apply_filters('gpsc_llms_description', 'Hands-on continuing education (CE) courses and monthly study-club seminars for dentists in implant, restorative and digital dentistry, in Duluth, Georgia (USA). Founded by Dr. Carlos Castro, DDS, FACP, board-certified prosthodontist.');
         }
+        if (empty($data['contactPoint']) && class_exists(__NAMESPACE__ . '\\Course_Page')) {
+            $point = ['@type' => 'ContactPoint', 'contactType' => 'customer service', 'email' => Course_Page::contact_email()];
+            if (class_exists(__NAMESPACE__ . '\\Contact_Page') && ($cid = Contact_Page::page_id())) {
+                $point['url'] = get_permalink($cid);
+            }
+            $data['contactPoint'] = $point;
+        }
         if (empty($data['knowsAbout'])) {
             $data['knowsAbout'] = ['Dental implants', 'Prosthodontics', 'Restorative dentistry', 'Digital dentistry', 'Continuing dental education'];
         }
@@ -666,6 +673,15 @@ class AI_Search {
         $id = (int) get_queried_object_id();
         if ((class_exists(__NAMESPACE__ . '\\Course_Page') && Course_Page::is_active()) || (class_exists(__NAMESPACE__ . '\\Seminar_Page') && Seminar_Page::is_active())) {
             $data['mainEntity'] = ['@id' => get_permalink($id) . '#course'];
+        }
+        // The contact page is a ContactPage about the organization
+        if (class_exists(__NAMESPACE__ . '\\Contact_Page') && $id && $id === Contact_Page::page_id()) {
+            $types = isset($data['@type']) ? (array) $data['@type'] : ['WebPage'];
+            if (!in_array('ContactPage', $types, true)) {
+                $types[] = 'ContactPage';
+            }
+            $data['@type'] = $types;
+            $data['about'] = ['@id' => self::org_id()];
         }
         return $data;
     }
