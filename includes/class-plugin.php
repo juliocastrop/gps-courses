@@ -57,6 +57,7 @@ class Plugin {
         require_once GPSC_PATH . 'includes/class-hero-slider.php';
         require_once GPSC_PATH . 'includes/class-course-page.php';
         require_once GPSC_PATH . 'includes/class-seminar-page.php';
+        require_once GPSC_PATH . 'includes/class-ai-search.php';
         require_once GPSC_PATH . 'includes/class-shop-cart.php';
         require_once GPSC_PATH . 'includes/class-shop-checkout.php';
         require_once GPSC_PATH . 'includes/public-api.php';
@@ -120,6 +121,7 @@ class Plugin {
         Hero_Slider::init();
         Course_Page::init();
         Seminar_Page::init();
+        AI_Search::init();
         Shop_Cart::init();
         Shop_Checkout::init();
 

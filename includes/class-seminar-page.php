@@ -631,8 +631,13 @@ class Seminar_Page {
         return wp_trim_words($d['tagline'], 30, '…');
     }
 
-    /** Course (with its Offer) + FAQPage structured data. */
-    public static function json_ld(array $d) {
+    /**
+     * Course (with its Offer and one CourseInstance per coming session),
+     * Product (WooCommerce's own schema isn't printed by this template),
+     * moderator and FAQPage nodes, without @context. AI_Search puts them in
+     * Yoast's @graph; json_ld() prints them on their own otherwise.
+     */
+    public static function schema_nodes(array $d) {
         $text = function ($s) {
             return trim(preg_replace('/\s+/', ' ', html_entity_decode(wp_strip_all_tags((string) $s), ENT_QUOTES, 'UTF-8')));
         };
@@ -646,13 +651,16 @@ class Seminar_Page {
             }
         };
         $course = [
-            '@context'    => 'https://schema.org',
             '@type'       => 'Course',
             '@id'         => $d['url'] . '#course',
             'name'        => $text($d['title']),
             'description' => $text($d['tagline']),
             'url'         => $d['url'],
-            'provider'    => ['@type' => 'Organization', 'name' => $site, 'url' => home_url('/')],
+            'mainEntityOfPage' => ['@id' => $d['url']],
+            'provider'    => AI_Search::org_ref(),
+            'inLanguage'  => 'en',
+            'isAccessibleForFree' => false,
+            'numberOfCredits' => ['@type' => 'StructuredValue', 'value' => $d['ce_total'], 'unitText' => 'CE credits'],
             /* translators: %d: number of CE credits */
             'educationalCredentialAwarded' => sprintf(__('%d CE credits', 'gps-courses'), $d['ce_total']),
             'offers'      => [
@@ -689,7 +697,7 @@ class Seminar_Page {
                     ],
                 ];
                 if ($d['moderator']) {
-                    $inst['instructor'] = ['@type' => 'Person', 'name' => $text($d['moderator']['full'])];
+                    $inst['instructor'] = ['@id' => AI_Search::person_id($d['moderator']['id'])];
                 }
                 $instances[] = $inst;
             }
@@ -698,9 +706,31 @@ class Seminar_Page {
             $course['hasCourseInstance'] = $instances;
         }
         $graph = [apply_filters('gpsc_seminar_json_ld', $course, $d)];
+
+        // Product: what WooCommerce would describe on a normal product page
+        $product = [
+            '@type'       => 'Product',
+            '@id'         => $d['url'] . '#product',
+            'name'        => $text($d['title']),
+            'description' => $text($d['tagline']),
+            'url'         => $d['url'],
+            'brand'       => AI_Search::org_ref(),
+            'offers'      => $course['offers'] + ['seller' => AI_Search::org_ref()],
+        ];
+        if (!empty($course['image'])) {
+            $product['image'] = $course['image'];
+        }
+        $wc = function_exists('wc_get_product') ? wc_get_product($d['id']) : null;
+        if ($wc && $wc->get_sku()) {
+            $product['sku'] = $wc->get_sku();
+        }
+        $graph[] = $product;
+        if ($d['moderator']) {
+            $graph[] = AI_Search::person_node($d['moderator']);
+        }
+
         if ($d['faqs']) {
             $graph[] = [
-                '@context'   => 'https://schema.org',
                 '@type'      => 'FAQPage',
                 '@id'        => $d['url'] . '#faq',
                 'mainEntity' => array_map(function ($f) use ($text) {
@@ -712,16 +742,17 @@ class Seminar_Page {
                 }, $d['faqs']),
             ];
         }
-        $out = '';
-        foreach ($graph as $node) {
-            $out .= '<script type="application/ld+json">' . wp_json_encode($node, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) . '</script>' . "\n";
-        }
-        return $out;
+        return $graph;
+    }
+
+    /** The schema nodes as standalone scripts (no Yoast). */
+    public static function json_ld(array $d) {
+        return AI_Search::scripts(self::schema_nodes($d));
     }
 
     public static function print_json_ld() {
-        if (!self::is_active()) {
-            return;
+        if (!self::is_active() || AI_Search::merged()) {
+            return; // inside Yoast's graph already
         }
         echo self::json_ld(self::data((int) get_queried_object_id())); // JSON encoded with JSON_HEX_TAG
     }

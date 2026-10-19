@@ -1628,8 +1628,12 @@ class Course_Page {
         return '' !== $text ? wp_trim_words(wp_strip_all_tags($text), 30, '…') : $desc;
     }
 
-    /** Course (+ FAQPage) structured data. Yoast already outputs the BreadcrumbList. */
-    public static function json_ld(array $d) {
+    /**
+     * Course (+ instructors, FAQPage) schema nodes, without @context. AI_Search
+     * puts them in Yoast's @graph (Yoast already outputs WebPage, BreadcrumbList
+     * and the Organization); json_ld() prints them on their own otherwise.
+     */
+    public static function schema_nodes(array $d) {
         $text = function ($s) {
             return trim(preg_replace('/\s+/', ' ', html_entity_decode(wp_strip_all_tags((string) $s), ENT_QUOTES, 'UTF-8')));
         };
@@ -1651,13 +1655,15 @@ class Course_Page {
 
         $description = $d['tagline'] ?: (class_exists(__NAMESPACE__ . '\\Course_Catalog') ? Course_Catalog::summary(get_post($d['id'])) : '');
         $course = [
-            '@context'    => 'https://schema.org',
             '@type'       => 'Course',
             '@id'         => $d['url'] . '#course',
             'name'        => $text($d['title']),
             'description' => $text($description ?: $d['title']),
             'url'         => $d['url'],
-            'provider'    => ['@type' => 'Organization', 'name' => $site, 'url' => home_url('/')],
+            'mainEntityOfPage' => ['@id' => $d['url']],
+            'provider'    => AI_Search::org_ref(),
+            'inLanguage'  => 'en',
+            'isAccessibleForFree' => false,
         ];
         if ($d['image']) {
             $img = wp_get_attachment_image_url($d['image'], 'full');
@@ -1668,6 +1674,9 @@ class Course_Page {
         if ('' !== $d['ce']) {
             /* translators: %s: number of CE credits */
             $course['educationalCredentialAwarded'] = sprintf(__('%s CE credits', 'gps-courses'), $d['ce']);
+            if (is_numeric($d['ce'])) {
+                $course['numberOfCredits'] = ['@type' => 'StructuredValue', 'value' => (float) $d['ce'], 'unitText' => 'CE credits'];
+            }
         }
         if ($d['objectives']) {
             $course['teaches'] = array_map($text, $d['objectives']);
@@ -1695,25 +1704,12 @@ class Course_Page {
             ]);
             $instance['location'] = ['@type' => 'Place', 'name' => $text($d['venue'] ?: $site), 'address' => $postal];
         }
-        $people = [];
+        // Instructors: their own Person nodes, referenced by @id
+        $people  = [];
+        $persons = [];
         foreach ($d['speakers'] as $s) {
-            $p = ['@type' => 'Person', 'name' => $text($s['full'])];
-            if ('' !== $s['title']) {
-                $p['jobTitle'] = $text($s['title']);
-            }
-            if ($s['photo']) {
-                $u = wp_get_attachment_image_url($s['photo'], 'medium');
-                if ($u) {
-                    $p['image'] = $u;
-                }
-            }
-            if ('' !== $s['short']) {
-                $p['description'] = $text($s['short']);
-            }
-            if ('' !== $s['url']) {
-                $p['url'] = $s['url'];
-            }
-            $people[] = $p;
+            $persons[] = AI_Search::person_node($s);
+            $people[]  = ['@id' => AI_Search::person_id($s['id'])];
         }
         if (!$people && $d['instructor']) {
             $people[] = ['@type' => 'Person', 'name' => $text($d['instructor']['full'])];
@@ -1759,7 +1755,6 @@ class Course_Page {
         $graph = [apply_filters('gpsc_course_json_ld', $course, $d)];
         if ($d['faqs']) {
             $graph[] = [
-                '@context'   => 'https://schema.org',
                 '@type'      => 'FAQPage',
                 '@id'        => $d['url'] . '#faq',
                 'mainEntity' => array_map(function ($f) use ($text) {
@@ -1771,16 +1766,17 @@ class Course_Page {
                 }, $d['faqs']),
             ];
         }
-        $out = '';
-        foreach ($graph as $node) {
-            $out .= '<script type="application/ld+json">' . wp_json_encode($node, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) . '</script>' . "\n";
-        }
-        return $out;
+        return array_merge($graph, $persons);
+    }
+
+    /** The schema nodes as standalone scripts (no Yoast). */
+    public static function json_ld(array $d) {
+        return AI_Search::scripts(self::schema_nodes($d));
     }
 
     public static function print_json_ld() {
-        if (!self::is_active()) {
-            return;
+        if (!self::is_active() || AI_Search::merged()) {
+            return; // inside Yoast's graph already
         }
         echo self::json_ld(self::data((int) get_queried_object_id())); // JSON encoded with JSON_HEX_TAG
     }
