@@ -2139,9 +2139,11 @@ class Woo {
 
                     <?php
                     // Check if user can request makeup
-                    $can_request_makeup = !$registration->makeup_used;
+                    // The make-up request module isn't loaded (no class, no table yet): never fatal here
+                    $makeup_ready = class_exists(__NAMESPACE__ . '\Seminar_Makeup_Requests');
+                    $can_request_makeup = $makeup_ready && !$registration->makeup_used;
                     $missed_sessions = [];
-                    $pending_makeup_request = Seminar_Makeup_Requests::get_pending_request($registration->id);
+                    $pending_makeup_request = $makeup_ready ? Seminar_Makeup_Requests::get_pending_request($registration->id) : null;
 
                     if ($can_request_makeup && !$pending_makeup_request) {
                         // Find missed sessions (past sessions not attended)
