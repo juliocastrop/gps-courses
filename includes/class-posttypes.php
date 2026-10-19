@@ -130,6 +130,7 @@ class Posttypes {
                 'not_found'          => __('No courses found', 'gps-courses'),
                 'not_found_in_trash' => __('No courses found in trash', 'gps-courses'),
                 'all_items'          => __('All Courses', 'gps-courses'),
+                'view_items'         => __('View Courses', 'gps-courses'),
                 'menu_name'          => __('Courses', 'gps-courses'),
             ],
             'description'   => __('GPS Dental Training courses', 'gps-courses'),
@@ -229,7 +230,8 @@ class Posttypes {
         register_post_type('gps_seminar', [
             'label'         => __('Seminars', 'gps-courses'),
             'labels'        => [
-                'name'               => __('Seminars', 'gps-courses'),
+                // Public name: the /monthly-seminars/ archive title and Yoast breadcrumb use it
+                'name'               => __('Monthly Seminars', 'gps-courses'),
                 'singular_name'      => __('Seminar', 'gps-courses'),
                 'add_new'            => __('Add Seminar', 'gps-courses'),
                 'add_new_item'       => __('Add Seminar', 'gps-courses'),
@@ -239,8 +241,9 @@ class Posttypes {
                 'search_items'       => __('Search Seminars', 'gps-courses'),
                 'not_found'          => __('No seminars found', 'gps-courses'),
                 'not_found_in_trash' => __('No seminars found in trash', 'gps-courses'),
-                'all_items'          => __('All Seminars', 'gps-courses'),
-                'menu_name'          => __('Seminars', 'gps-courses'),
+                'all_items'          => __('Monthly Seminars', 'gps-courses'),
+                'menu_name'          => __('Monthly Seminars', 'gps-courses'),
+                'view_items'         => __('View Monthly Seminars', 'gps-courses'),
             ],
             'description'   => __('GPS Monthly Seminars - 10-session program', 'gps-courses'),
             'public'        => true,
@@ -488,7 +491,7 @@ class Posttypes {
         echo '<li>📅 <a href="'.admin_url('edit.php?post_type=gps_event').'">'.esc_html__('Manage Courses','gps-courses').'</a></li>';
         echo '<li>🎫 <a href="'.admin_url('edit.php?post_type=gps_ticket').'">'.esc_html__('Manage Tickets','gps-courses').'</a></li>';
         echo '<li>🎟️ <a href="'.admin_url('admin.php?page=gps-purchased-tickets').'">'.esc_html__('Purchased Tickets','gps-courses').'</a></li>';
-        echo '<li>📱 <a href="'.admin_url('admin.php?page=gps-attendance').'">'.esc_html__('Attendance Scanner','gps-courses').'</a></li>';
+        echo '<li>📱 <a href="'.admin_url('admin.php?page=gps-attendance').'">'.esc_html__('Course Scanner','gps-courses').'</a></li>';
         echo '<li>📊 <a href="'.admin_url('admin.php?page=gps-attendance-report').'">'.esc_html__('Attendance Report','gps-courses').'</a></li>';
         echo '<li>🎤 <a href="'.admin_url('edit.php?post_type=gps_speaker').'">'.esc_html__('Manage Speakers','gps-courses').'</a></li>';
         echo '<li>💼 <a href="'.admin_url('edit.php?post_type=gps_sponsor').'">'.esc_html__('Manage Sponsors','gps-courses').'</a></li>';

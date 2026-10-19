@@ -59,7 +59,7 @@ class Admin_Menu {
             ]],
             'seminars' => ['label' => __('Seminars', 'gps-courses'), 'tabs' => [
                 ['label' => __('Overview', 'gps-courses'), 'url' => 'admin.php?page=gps-seminars', 'cap' => 'manage_options', 'page' => 'gps-seminars'],
-                ['label' => __('Seminars', 'gps-courses'), 'url' => 'edit.php?post_type=gps_seminar', 'cap' => 'edit_posts', 'post_type' => 'gps_seminar'],
+                ['label' => __('Monthly Seminars', 'gps-courses'), 'url' => 'edit.php?post_type=gps_seminar', 'cap' => 'edit_posts', 'post_type' => 'gps_seminar'],
                 ['label' => __('Registrants', 'gps-courses'), 'url' => 'admin.php?page=gps-seminar-registrants', 'cap' => 'manage_options', 'page' => 'gps-seminar-registrants'],
                 ['label' => __('Waitlist', 'gps-courses'), 'url' => 'admin.php?page=gps-seminar-waitlist', 'cap' => 'manage_options', 'page' => 'gps-seminar-waitlist'],
                 ['label' => __('Reports', 'gps-courses'), 'url' => 'admin.php?page=gps-seminar-reports', 'cap' => 'manage_options', 'page' => 'gps-seminar-reports'],
