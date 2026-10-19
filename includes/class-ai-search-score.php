@@ -81,7 +81,8 @@ class AI_Search_Score {
         }
         // A page that already tells crawlers "noindex" (a plugin or the theme) is hidden on purpose
         $crawl = get_post_meta($post->ID, self::META_CRAWL, true);
-        if (is_array($crawl) && !empty($crawl['html']['noindex'])) {
+        if (is_array($crawl) && (!empty($crawl['html']['noindex'])
+            || (!empty($crawl['bots']) && !array_filter($crawl['bots'], function ($b) { return empty($b['noindex']); })))) {
             return true;
         }
         return self::noindex($post->ID);
