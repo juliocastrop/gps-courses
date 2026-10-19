@@ -33,7 +33,11 @@ class Contact_Page {
         add_filter('body_class', [__CLASS__, 'body_class']);
         add_action('admin_init', [__CLASS__, 'register_settings']);
         add_action('gpsc_course_page_settings_rows', [__CLASS__, 'settings_rows']);
-        foreach ([self::OPT_TEMPLATE, self::OPT_FORM] as $opt) {
+        // Fluent Forms prints its styles in <head> only when it sees the form in the
+        // post content (Elementor's widget did that before): ask for them here
+        add_filter('fluentform/load_styles', function ($load) { return $load || self::is_active(); });
+        // The page shows the contact email and the location: refresh it when they change
+        foreach ([self::OPT_TEMPLATE, self::OPT_FORM, 'gps_contact_email', 'gps_seminar_location'] as $opt) {
             add_action('update_option_' . $opt, [__CLASS__, 'purge']);
             add_action('add_option_' . $opt, [__CLASS__, 'purge']);
         }
@@ -48,8 +52,8 @@ class Contact_Page {
         if ($id && 'page' === get_post_type($id)) {
             return $id;
         }
-        $page = get_page_by_path('contact');
-        return $page ? (int) $page->ID : 0;
+        $page = get_page_by_path('contact', OBJECT, 'page');
+        return ($page && 'publish' === $page->post_status) ? (int) $page->ID : 0;
     }
 
     public static function site_mode() {
@@ -131,6 +135,11 @@ class Contact_Page {
         wp_enqueue_style('gps-course', GPSC_URL . 'assets/css/gps-course.css', $deps, file_exists($course) ? (string) filemtime($course) : GPSC_VERSION);
         wp_enqueue_style('gps-contact', GPSC_URL . 'assets/css/gps-contact.css', ['gps-course'], file_exists($css) ? (string) filemtime($css) : GPSC_VERSION);
         wp_enqueue_script('gps-contact', GPSC_URL . 'assets/js/gps-contact.js', [], file_exists($js) ? (string) filemtime($js) : GPSC_VERSION, ['in_footer' => true, 'strategy' => 'defer']);
+        foreach (['fluent-form-styles', 'fluentform-public-default'] as $handle) {
+            if (wp_style_is($handle, 'registered')) {
+                wp_enqueue_style($handle);
+            }
+        }
     }
 
     public static function purge() {
@@ -138,9 +147,6 @@ class Contact_Page {
         $url = $id ? get_permalink($id) : '';
         if ($url && is_callable(['\\FlyingPress\\Purge', 'purge_url'])) {
             call_user_func(['\\FlyingPress\\Purge', 'purge_url'], $url);
-        }
-        if ($url) {
-            do_action('gpsc_purge_course_urls', [$url], 0);
         }
     }
 
@@ -155,7 +161,7 @@ class Contact_Page {
         ]);
         register_setting('gps_course_page_settings', self::OPT_FORM, [
             'type' => 'integer', 'default' => self::DEFAULT_FORM,
-            'sanitize_callback' => 'absint',
+            'sanitize_callback' => function ($v) { $v = absint($v); return $v ?: self::DEFAULT_FORM; },
         ]);
     }
 

@@ -17,7 +17,13 @@
         // Delayed scripts may bind the bubble only after this first interaction
         window.setTimeout(function () {
             var chat = document.getElementById('wcrp-ai-chat');
-            if (chat && !chat.classList.contains('open')) { bubble.click(); }
+            if (chat && !chat.classList.contains('open')) {
+                bubble.click();
+                // Still closed: send people to the form instead of doing nothing
+                window.setTimeout(function () {
+                    if (!chat.classList.contains('open')) { window.location.hash = 'message'; }
+                }, 1200);
+            }
         }, 1200);
     });
 })();

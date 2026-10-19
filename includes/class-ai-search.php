@@ -675,7 +675,7 @@ class AI_Search {
             $data['mainEntity'] = ['@id' => get_permalink($id) . '#course'];
         }
         // The contact page is a ContactPage about the organization
-        if (class_exists(__NAMESPACE__ . '\\Contact_Page') && $id && $id === Contact_Page::page_id()) {
+        if (class_exists(__NAMESPACE__ . '\\Contact_Page') && $id && is_page($id) && $id === Contact_Page::page_id()) {
             $types = isset($data['@type']) ? (array) $data['@type'] : ['WebPage'];
             if (!in_array('ContactPage', $types, true)) {
                 $types[] = 'ContactPage';
