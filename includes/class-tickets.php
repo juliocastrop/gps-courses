@@ -547,7 +547,7 @@ class Tickets {
         $date_column = $new_columns['date'] ?? null;
         unset($new_columns['date']);
 
-        $new_columns['event'] = __('Event', 'gps-courses');
+        $new_columns['event'] = __('Course', 'gps-courses');
         $new_columns['ticket_type'] = __('Type', 'gps-courses');
         $new_columns['price'] = __('Price', 'gps-courses');
         $new_columns['stock'] = __('Stock', 'gps-courses');

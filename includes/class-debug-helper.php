@@ -151,7 +151,7 @@ class Debug_Helper {
 
         ?>
         <div class="wrap">
-            <h1><?php _e('GPS Courses Debug Information', 'gps-courses'); ?></h1>
+            <h1><?php _e('Debug Info', 'gps-courses'); ?></h1>
 
             <!-- Recreate Database Tables -->
             <div class="card" style="border-left: 4px solid #d63638;">

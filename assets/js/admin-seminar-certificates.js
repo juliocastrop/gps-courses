@@ -134,8 +134,8 @@
             registrations.forEach(function(reg) {
                 const statusClass = reg.has_certificate ? 'has-certificate' : (reg.eligible_for_certificate ? 'eligible' : 'not-eligible');
                 const statusText = reg.has_certificate
-                    ? '✅ Generated'
-                    : (reg.eligible_for_certificate ? '⚠️ Eligible' : '❌ Not Eligible');
+                    ? 'Generated'
+                    : (reg.eligible_for_certificate ? 'Eligible' : 'Not Eligible');
 
                 if (reg.eligible_for_certificate && !reg.has_certificate) {
                     hasEligibleWithoutCertificate = true;
@@ -152,12 +152,12 @@
 
                 if (reg.eligible_for_certificate) {
                     if (!reg.has_certificate) {
-                        html += '<button type="button" class="button button-primary button-small generate-certificate-btn" data-registration-id="' + reg.registration_id + '">📜 Generate</button> ';
+                        html += '<button type="button" class="button button-primary button-small generate-certificate-btn" data-registration-id="' + reg.registration_id + '">Generate</button> ';
                     } else {
-                        html += '<button type="button" class="button button-small regenerate-certificate-btn" data-registration-id="' + reg.registration_id + '">🔄 Regenerate</button> ';
-                        html += '<button type="button" class="button button-small download-certificate-btn" data-certificate-url="' + reg.certificate_url + '">⬇️ Download</button> ';
+                        html += '<button type="button" class="button button-small regenerate-certificate-btn" data-registration-id="' + reg.registration_id + '">Regenerate</button> ';
+                        html += '<button type="button" class="button button-small download-certificate-btn" data-certificate-url="' + reg.certificate_url + '">Download</button> ';
                     }
-                    html += '<button type="button" class="button button-primary button-small send-certificate-btn" data-registration-id="' + reg.registration_id + '">📧 Send</button>';
+                    html += '<button type="button" class="button button-primary button-small send-certificate-btn" data-registration-id="' + reg.registration_id + '">Send</button>';
                 } else {
                     html += '<span class="description">No credits earned in this period</span>';
                 }

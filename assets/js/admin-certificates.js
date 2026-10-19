@@ -120,7 +120,7 @@
 
             if (attendees.length === 0) {
                 $tbody.append(
-                    '<tr><td colspan="6" class="no-attendees">No checked-in attendees found for this event.</td></tr>'
+                    '<tr><td colspan="6" class="no-attendees">No checked-in attendees found for this course.</td></tr>'
                 );
                 $('#bulk-actions').hide();
                 return;

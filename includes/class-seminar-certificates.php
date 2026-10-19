@@ -137,22 +137,18 @@ class Seminar_Certificates {
             <!-- Statistics Section -->
             <div class="certificate-stats">
                 <div class="stat-card total">
-                    <span class="stat-icon">👥</span>
                     <span class="stat-value" id="stat-total">0</span>
                     <span class="stat-label"><?php _e('Total Registrations', 'gps-courses'); ?></span>
                 </div>
                 <div class="stat-card eligible">
-                    <span class="stat-icon">✅</span>
                     <span class="stat-value" id="stat-eligible">0</span>
                     <span class="stat-label"><?php _e('Eligible for Certificate', 'gps-courses'); ?></span>
                 </div>
                 <div class="stat-card generated">
-                    <span class="stat-icon">📜</span>
                     <span class="stat-value" id="stat-generated">0</span>
                     <span class="stat-label"><?php _e('Certificates Generated', 'gps-courses'); ?></span>
                 </div>
                 <div class="stat-card sent">
-                    <span class="stat-icon">📧</span>
                     <span class="stat-value" id="stat-sent">0</span>
                     <span class="stat-label"><?php _e('Certificates Sent', 'gps-courses'); ?></span>
                 </div>
@@ -170,7 +166,7 @@ class Seminar_Certificates {
                     <h2><?php _e('Participant Registrations', 'gps-courses'); ?></h2>
                     <div class="header-actions">
                         <button type="button" id="generate-all-certificates" class="button button-primary" style="display: none;">
-                            📜 <?php _e('Generate All Missing Certificates', 'gps-courses'); ?>
+                            <?php _e('Generate All Missing Certificates', 'gps-courses'); ?>
                         </button>
                     </div>
                 </div>
@@ -181,10 +177,10 @@ class Seminar_Certificates {
                         <?php _e('Select All', 'gps-courses'); ?>
                     </label>
                     <button type="button" id="bulk-regenerate-certificates" class="button" disabled>
-                        🔄 <?php _e('Regenerate Selected', 'gps-courses'); ?>
+                        <?php _e('Regenerate Selected', 'gps-courses'); ?>
                     </button>
                     <button type="button" id="bulk-send-certificates" class="button button-primary" disabled>
-                        📧 <?php _e('Send Selected Certificates', 'gps-courses'); ?>
+                        <?php _e('Send Selected Certificates', 'gps-courses'); ?>
                     </button>
                 </div>
 

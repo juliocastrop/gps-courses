@@ -473,7 +473,7 @@ class Seminars {
             <!-- Quick Actions -->
             <div style="margin: 20px 0;">
                 <a href="<?php echo admin_url('post-new.php?post_type=gps_seminar'); ?>" class="button button-primary">
-                    <?php _e('Create New Seminar', 'gps-courses'); ?>
+                    <?php _e('Add Seminar', 'gps-courses'); ?>
                 </a>
                 <a href="<?php echo admin_url('edit.php?post_type=gps_seminar'); ?>" class="button">
                     <?php _e('Manage Seminars', 'gps-courses'); ?>

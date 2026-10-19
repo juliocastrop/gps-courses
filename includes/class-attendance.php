@@ -96,7 +96,7 @@ class Attendance {
                 'processing' => __('Processing...', 'gps-courses'),
                 'check_in_success' => __('Check-in Successful!', 'gps-courses'),
                 'attendee' => __('Attendee', 'gps-courses'),
-                'event' => __('Event', 'gps-courses'),
+                'event' => __('Course', 'gps-courses'),
                 'ticket' => __('Ticket', 'gps-courses'),
                 'time' => __('Time', 'gps-courses'),
                 'credits_awarded' => __('CE Credits Awarded', 'gps-courses'),
@@ -302,7 +302,7 @@ class Attendance {
             </div>
 
             <div id="attendance-report-content">
-                <p><?php _e('Select an event to view attendance report.', 'gps-courses'); ?></p>
+                <p><?php _e('Select a course to view the attendance report.', 'gps-courses'); ?></p>
             </div>
         </div>
         <?php
@@ -342,7 +342,7 @@ class Attendance {
 
         // Check if ticket is for this event
         if ((int) $ticket->event_id !== $event_id) {
-            wp_send_json_error(['message' => __('Ticket is not for this event', 'gps-courses')]);
+            wp_send_json_error(['message' => __('Ticket is not for this course', 'gps-courses')]);
         }
 
         // Perform check-in
@@ -426,7 +426,7 @@ class Attendance {
         }
 
         if (empty($event_id)) {
-            wp_send_json_error(['message' => __('Please select an event', 'gps-courses')]);
+            wp_send_json_error(['message' => __('Please select a course', 'gps-courses')]);
         }
 
         global $wpdb;
@@ -480,7 +480,7 @@ class Attendance {
         $event_id = isset($_POST['event_id']) ? (int) $_POST['event_id'] : 0;
 
         if (empty($event_id)) {
-            wp_send_json_error(['message' => __('Invalid event', 'gps-courses')]);
+            wp_send_json_error(['message' => __('Invalid course', 'gps-courses')]);
         }
 
         $stats = self::get_event_stats($event_id);
@@ -501,7 +501,7 @@ class Attendance {
         $event_id = isset($_POST['event_id']) ? (int) $_POST['event_id'] : 0;
 
         if (empty($event_id)) {
-            wp_send_json_error(['message' => __('Invalid event', 'gps-courses')]);
+            wp_send_json_error(['message' => __('Invalid course', 'gps-courses')]);
         }
 
         global $wpdb;

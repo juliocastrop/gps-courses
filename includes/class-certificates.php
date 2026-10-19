@@ -78,7 +78,7 @@ class Certificates {
                 'error' => __('An error occurred. Please try again.', 'gps-courses'),
                 'confirm_bulk' => __('Send certificates to {count} attendees?', 'gps-courses'),
                 'loading' => __('Loading...', 'gps-courses'),
-                'select_event' => __('Please select an event first.', 'gps-courses'),
+                'select_event' => __('Please select a course first.', 'gps-courses'),
             ],
         ]);
     }
@@ -172,7 +172,7 @@ class Certificates {
                     <tbody>
                         <tr>
                             <td colspan="6" class="no-attendees">
-                                <?php _e('Please select an event to view attendees.', 'gps-courses'); ?>
+                                <?php _e('Please select a course to view attendees.', 'gps-courses'); ?>
                             </td>
                         </tr>
                     </tbody>
@@ -195,7 +195,7 @@ class Certificates {
         $event_id = isset($_POST['event_id']) ? (int) $_POST['event_id'] : 0;
 
         if (empty($event_id)) {
-            wp_send_json_error(['message' => __('Invalid event', 'gps-courses')]);
+            wp_send_json_error(['message' => __('Invalid course', 'gps-courses')]);
         }
 
         global $wpdb;

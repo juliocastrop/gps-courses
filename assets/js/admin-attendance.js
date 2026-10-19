@@ -137,7 +137,7 @@
             const $result = $('.scanner-mode-manual .scan-result');
 
             if (!this.selectedEventId) {
-                alert('Please select an event first');
+                alert('Please select a course first');
                 return;
             }
 
@@ -232,7 +232,7 @@
 
             // Check if event is selected
             if (!this.selectedEventId) {
-                alert('Please select an event first before starting the scanner');
+                alert('Please select a course first before starting the scanner');
                 return;
             }
 
@@ -336,7 +336,7 @@
 
             // Check if event is selected
             if (!this.selectedEventId) {
-                this.showMessage('error', 'Please select an event first', $scanResult);
+                this.showMessage('error', 'Please select a course first', $scanResult);
                 // Resume scanner
                 setTimeout(() => {
                     if (scannerActive && html5QrCode) {
@@ -405,7 +405,7 @@
 
             // Get attendee name and event title
             const attendeeName = data.ticket && data.ticket.attendee_name ? data.ticket.attendee_name : (data.attendee_name || 'Unknown');
-            const eventTitle = data.event && data.event.post_title ? data.event.post_title : (data.event_title || 'Event');
+            const eventTitle = data.event && data.event.post_title ? data.event.post_title : (data.event_title || 'Course');
             const ticketCode = data.ticket && data.ticket.ticket_code ? data.ticket.ticket_code : (data.ticket_code || 'N/A');
             const checkedInAt = data.checked_in_at || new Date().toLocaleString();
 
@@ -526,7 +526,7 @@
             const $results = $('#search-results');
 
             if (!this.selectedEventId) {
-                alert('Please select an event first');
+                alert('Please select a course first');
                 return;
             }
 

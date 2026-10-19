@@ -45,7 +45,7 @@ class Schedules {
                 'filter_items_list'  => __('Filter agendas list', 'gps-courses'),
                 'items_list'         => __('Agendas list', 'gps-courses'),
             ],
-            'description'   => __('Event schedules with topics and time slots', 'gps-courses'),
+            'description'   => __('Course agendas with topics and time slots', 'gps-courses'),
             'public'        => false,
             'show_ui'       => true,
             'show_in_menu'  => 'gps-dashboard',
@@ -474,7 +474,7 @@ class Schedules {
         $date_column = $new_columns['date'] ?? null;
         unset($new_columns['date']);
 
-        $new_columns['event'] = __('Event', 'gps-courses');
+        $new_columns['event'] = __('Course', 'gps-courses');
         $new_columns['schedule_date'] = __('Date', 'gps-courses');
         $new_columns['topics_count'] = __('Topics', 'gps-courses');
 
