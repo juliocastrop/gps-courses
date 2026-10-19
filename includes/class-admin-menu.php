@@ -8,11 +8,13 @@ if (!defined('ABSPATH')) exit;
  *
  * Nothing is unregistered or renamed: every screen keeps its slug, URL, hook
  * suffix (gps-courses_page_*) and capability. This class only
- *   - rebuilds the submenu to one entry per hub (admin_menu, priority 999,
- *     after every page registers),
+ *   - reorders the submenu (admin_menu, priority 999, after every page
+ *     registers): one visible entry per hub, every other entry kept but
+ *     hidden with CSS. The entries must stay in $submenu: WordPress resolves
+ *     a plugin page's hook and access check from it (removing them, as
+ *     remove_submenu_page() does, makes those pages "not allowed"),
  *   - prints the hub's tab bar on each of its screens,
- *   - keeps the menu highlight and the page <title> right on screens that
- *     no longer have their own menu entry.
+ *   - highlights the hub in the menu on every screen of the hub.
  *
  * A new admin screen must be added to hubs() or it won't be listed.
  */
@@ -25,7 +27,6 @@ class Admin_Menu {
         add_action('admin_menu', [__CLASS__, 'rebuild'], 999);
         add_filter('parent_file', [__CLASS__, 'parent_file']);
         add_filter('submenu_file', [__CLASS__, 'submenu_file'], 10, 2);
-        add_action('current_screen', [__CLASS__, 'page_title']);
         add_action('all_admin_notices', [__CLASS__, 'tabs'], 1);
         add_action('admin_head', [__CLASS__, 'styles']);
     }
@@ -40,6 +41,10 @@ class Admin_Menu {
      * (list / edit screens) or 'taxonomy'.
      */
     public static function hubs() {
+        static $hubs = null;
+        if (null !== $hubs) {
+            return $hubs;
+        }
         $debug = (defined('WP_DEBUG') && WP_DEBUG) || get_option(self::OPT_DEBUG);
         $hubs = [
             'courses' => ['label' => __('Courses', 'gps-courses'), 'tabs' => [
@@ -93,7 +98,8 @@ class Admin_Menu {
                 ['label' => __('Settings', 'gps-courses'), 'url' => 'admin.php?page=gps-settings', 'cap' => 'manage_options', 'page' => 'gps-settings'],
             ]],
         ];
-        return apply_filters('gpsc_admin_hubs', $hubs);
+        $hubs = apply_filters('gpsc_admin_hubs', $hubs);
+        return $hubs;
     }
 
     /** The submenu slug WordPress uses for a tab's URL. */
@@ -151,18 +157,31 @@ class Admin_Menu {
         foreach ($submenu[self::PARENT] as $item) {
             $existing[$item[2]] = $item;
         }
-        $new = [];
+        // Visible: one entry per hub, in hub order (the first one is also the top-level link)
+        $new  = [];
+        $used = [];
         foreach (self::hubs() as $hub) {
             $tab = self::first_tab($hub);
             if (!$tab) {
                 continue;
             }
             $slug = self::slug($tab['url']);
-            $item = isset($existing[$slug]) ? $existing[$slug] : [$hub['label'], $tab['cap'], $slug, $tab['label']];
-            $item[0] = $hub['label'];
+            if (!isset($existing[$slug])) {
+                continue; // not registered for this user
+            }
+            $item        = $existing[$slug];
+            $item[0]     = $hub['label'];
+            $new[]       = $item;
+            $used[$slug] = true;
+        }
+        // Hidden: everything else, still registered where WordPress looks for it
+        foreach ($submenu[self::PARENT] as $item) {
+            if (isset($used[$item[2]])) {
+                continue;
+            }
+            $item[4] = trim((isset($item[4]) ? $item[4] . ' ' : '') . 'gps-hub-hidden');
             $new[]   = $item;
         }
-        // The top-level link opens the first entry: keep All Courses first
         $submenu[self::PARENT] = $new;
     }
 
@@ -180,25 +199,14 @@ class Admin_Menu {
         return $tab ? self::slug($tab['url']) : $submenu_file;
     }
 
-    /** Screens without a menu entry lose their <title>: give it back. */
-    public static function page_title() {
-        global $title;
-        $cur = self::current();
-        if (!$cur || !empty($title)) {
-            return;
-        }
-        $hubs  = self::hubs();
-        $title = $hubs[$cur[0]]['tabs'][$cur[1]]['label'];
-    }
-
     /* ============================================================
      * Tab bar
      * ============================================================ */
 
     public static function tabs() {
         $cur = self::current();
-        if (!$cur) {
-            return;
+        if (!$cur || self::block_editor()) {
+            return; // the block editor covers the notices area
         }
         $hubs = self::hubs();
         $hub  = $hubs[$cur[0]];
@@ -221,8 +229,15 @@ class Admin_Menu {
         echo '</nav>';
     }
 
+    protected static function block_editor() {
+        $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+        return $screen && method_exists($screen, 'is_block_editor') && $screen->is_block_editor();
+    }
+
     public static function styles() {
-        if (!self::current()) {
+        // On every admin screen: the hidden entries must never show in the menu
+        echo '<style id="gps-hub-menu-css">#adminmenu .gps-hub-hidden{display:none}</style>';
+        if (!self::current() || self::block_editor()) {
             return;
         }
         ?>
