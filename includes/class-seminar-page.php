@@ -568,8 +568,12 @@ class Seminar_Page {
             $faqs[] = ['q' => $f['q'], 'a' => $a];
         }
 
-        // Tagline: the product's short description, else a sentence from the data
+        // Tagline: the product's short description when it is short, else a sentence from the data
         $tagline = $product ? trim(preg_replace('/\s+/', ' ', wp_strip_all_tags(strip_shortcodes((string) $product->get_short_description())))) : '';
+        // A short description that reads as a paragraph (the old policy text) is not a tagline
+        if ((function_exists('mb_strlen') ? mb_strlen($tagline, 'UTF-8') : strlen($tagline)) > 200) {
+            $tagline = '';
+        }
         if ('' === $tagline) {
             $tagline = $moderator
                 /* translators: %s: moderator name */
