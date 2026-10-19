@@ -499,6 +499,10 @@ class AI_Search {
         if (class_exists('\\WPSEO_Sitemaps_Cache') && method_exists('\\WPSEO_Sitemaps_Cache', 'invalidate_post')) {
             \WPSEO_Sitemaps_Cache::invalidate_post($post_id);
         }
+        // The cached page shows what changed (a re-save used to purge it)
+        if (is_callable(['\\FlyingPress\\Purge', 'purge_url']) && ($url = get_permalink($post_id))) {
+            call_user_func(['\\FlyingPress\\Purge', 'purge_url'], $url);
+        }
     }
 
     public static function touch_ticket_event($ticket_id) {
@@ -589,10 +593,11 @@ class AI_Search {
             return $graph;
         }
         self::$merged = true;
-        // Yoast's JSON isn't encoded with JSON_HEX_TAG: no "</" may reach its script tag
+        // Yoast's JSON isn't encoded with JSON_HEX_TAG: nothing may close its script tag
+        // (FAQ answers keep their <a> / <strong> markup)
         array_walk_recursive($nodes, function (&$v) {
-            if (is_string($v) && false !== strpos($v, '</')) {
-                $v = str_replace('</', '< /', $v);
+            if (is_string($v) && false !== stripos($v, '</script')) {
+                $v = preg_replace('#</(script)#i', '< /$1', $v);
             }
         });
         foreach ($nodes as $node) {
