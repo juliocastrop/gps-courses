@@ -262,16 +262,24 @@ class AI_Search_Admin {
     }
 
     public static function weekly_step() {
+        // One batch at a time (a slow batch outlives WP-cron's own lock)
+        if (get_transient('gpsc_ais_running')) {
+            if (!wp_next_scheduled(self::CRON_STEP)) {
+                wp_schedule_single_event(time() + 120, self::CRON_STEP);
+            }
+            return;
+        }
         $queue = (array) get_option(self::QUEUE, []);
         if (!$queue) {
             self::weekly_report();
             return;
         }
+        set_transient('gpsc_ais_running', 1, 6 * MINUTE_IN_SECONDS);
         $batch = array_splice($queue, 0, self::BATCH);
         // Saved and scheduled first: a batch cut short by the time limit can't stop the run
         update_option(self::QUEUE, $queue, false);
         if (!wp_next_scheduled(self::CRON_STEP)) {
-            wp_schedule_single_event(time() + 60, self::CRON_STEP);
+            wp_schedule_single_event(time() + 300, self::CRON_STEP);
         }
         if (function_exists('set_time_limit')) {
             @set_time_limit(300);
@@ -279,11 +287,16 @@ class AI_Search_Admin {
         foreach ($batch as $id) {
             self::check_one((int) $id);
         }
+        delete_transient('gpsc_ais_running');
     }
 
     /** Email the pages that dropped or are under the threshold for the first time. */
     public static function weekly_report() {
-        $before = (array) get_option(self::BEFORE, []);
+        $before = get_option(self::BEFORE, null);
+        if (!is_array($before)) {
+            return; // no run in progress (a stray step)
+        }
+        delete_option(self::BEFORE);
         $rows   = [];
         foreach (AI_Search_Score::targets() as $id) {
             $now  = (int) get_post_meta($id, AI_Search_Score::META_SCORE, true);
@@ -442,7 +455,7 @@ class AI_Search_Admin {
                         <span class="gpsc-ais__body"><span class="gpsc-ais__label"><?php echo esc_html($c['label']); ?></span><?php if (!$c['ok']) : ?><span class="gpsc-ais__fix"><?php echo esc_html($c['fix']); ?></span><?php endif; ?></span>
                     </li>
                 <?php endforeach; ?>
-                <li class="gpsc-ais__item gpsc-ais__item--ok"><span class="gpsc-ais__icon" aria-hidden="true">↗</span><span class="gpsc-ais__body"><a href="<?php echo esc_url(home_url('/llms.txt')); ?>" target="_blank" rel="noopener">llms.txt</a> · <a href="<?php echo esc_url(home_url('/llms-full.txt')); ?>" target="_blank" rel="noopener">llms-full.txt</a> · <a href="<?php echo esc_url(home_url('/robots.txt')); ?>" target="_blank" rel="noopener">robots.txt</a></span></li>
+                <li class="gpsc-ais__item gpsc-ais__item--ok"><span class="gpsc-ais__icon" aria-hidden="true">↗</span><span class="gpsc-ais__body"><a href="<?php echo esc_url(admin_url('admin.php?page=' . self::PAGE . '&refresh=1')); ?>"><?php esc_html_e('Re-check the site', 'gps-courses'); ?></a> · <a href="<?php echo esc_url(home_url('/llms.txt')); ?>" target="_blank" rel="noopener">llms.txt</a> · <a href="<?php echo esc_url(home_url('/llms-full.txt')); ?>" target="_blank" rel="noopener">llms-full.txt</a> · <a href="<?php echo esc_url(home_url('/robots.txt')); ?>" target="_blank" rel="noopener">robots.txt</a></span></li>
             </ul>
 
             <div class="gpsc-ais-tools">
