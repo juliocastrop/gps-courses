@@ -1663,7 +1663,6 @@ class Course_Page {
             'mainEntityOfPage' => ['@id' => $d['url']],
             'provider'    => AI_Search::org_ref(),
             'inLanguage'  => 'en',
-            'isAccessibleForFree' => false,
         ];
         if ($d['image']) {
             $img = wp_get_attachment_image_url($d['image'], 'full');
@@ -1675,7 +1674,7 @@ class Course_Page {
             /* translators: %s: number of CE credits */
             $course['educationalCredentialAwarded'] = sprintf(__('%s CE credits', 'gps-courses'), $d['ce']);
             if (is_numeric($d['ce'])) {
-                $course['numberOfCredits'] = ['@type' => 'StructuredValue', 'value' => (float) $d['ce'], 'unitText' => 'CE credits'];
+                $course['numberOfCredits'] = ['@type' => 'QuantitativeValue', 'value' => (float) $d['ce'], 'unitText' => 'CE credits'];
             }
         }
         if ($d['objectives']) {
@@ -1749,6 +1748,7 @@ class Course_Page {
         if ($offer) {
             $instance['offers'] = $offer;
             $course['offers']   = $offer;
+            $course['isAccessibleForFree'] = $offer['price'] <= 0;
         }
         $course['hasCourseInstance'] = $instance;
 

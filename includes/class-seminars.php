@@ -244,6 +244,9 @@ class Seminars {
             $data,
             ['%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d']
         );
+        if ($result) {
+            do_action('gpsc_seminar_sessions_changed', (int) $data['seminar_id']);
+        }
 
         return $result ? $wpdb->insert_id : false;
     }
@@ -255,13 +258,15 @@ class Seminars {
         global $wpdb;
         Course_Catalog::bump();
 
-        return $wpdb->update(
+        $result = $wpdb->update(
             $wpdb->prefix . 'gps_seminar_sessions',
             $data,
             ['id' => $session_id],
             null,
             ['%d']
         );
+        do_action('gpsc_seminar_sessions_changed', self::session_seminar_id($session_id));
+        return $result;
     }
 
     /**
@@ -271,11 +276,23 @@ class Seminars {
         global $wpdb;
         Course_Catalog::bump();
 
-        return $wpdb->delete(
+        $seminar_id = self::session_seminar_id($session_id);
+        $result = $wpdb->delete(
             $wpdb->prefix . 'gps_seminar_sessions',
             ['id' => $session_id],
             ['%d']
         );
+        do_action('gpsc_seminar_sessions_changed', $seminar_id);
+        return $result;
+    }
+
+    /** The seminar a session belongs to (0 if unknown). */
+    public static function session_seminar_id($session_id) {
+        global $wpdb;
+        return (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT seminar_id FROM {$wpdb->prefix}gps_seminar_sessions WHERE id = %d",
+            $session_id
+        ));
     }
 
     /**

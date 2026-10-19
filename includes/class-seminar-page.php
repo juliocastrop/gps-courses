@@ -660,7 +660,7 @@ class Seminar_Page {
             'provider'    => AI_Search::org_ref(),
             'inLanguage'  => 'en',
             'isAccessibleForFree' => false,
-            'numberOfCredits' => ['@type' => 'StructuredValue', 'value' => $d['ce_total'], 'unitText' => 'CE credits'],
+            'numberOfCredits' => ['@type' => 'QuantitativeValue', 'value' => $d['ce_total'], 'unitText' => 'CE credits'],
             /* translators: %d: number of CE credits */
             'educationalCredentialAwarded' => sprintf(__('%d CE credits', 'gps-courses'), $d['ce_total']),
             'offers'      => [

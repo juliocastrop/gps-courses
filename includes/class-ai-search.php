@@ -48,6 +48,13 @@ class AI_Search {
         add_action('save_post_gps_schedule', [__CLASS__, 'touch_schedule_event'], 50);
         add_action('gpsc_ticket_activated', [__CLASS__, 'touch_ticket_event'], 50);
         add_action('save_post_gps_seminar', [__CLASS__, 'touch_seminar_product'], 50);
+        add_action('gpsc_seminar_sessions_changed', [__CLASS__, 'touch_seminar_product'], 50);
+
+        // Texts that llms.txt quotes: rebuild it when they change
+        foreach (['gps_contact_email', 'gps_default_faqs', 'gps_refund_policy', 'gps_seminar_faqs', 'gps_seminar_location', 'gps_seminar_topics', 'gps_seminar_moderator'] as $opt) {
+            add_action('update_option_' . $opt, [__NAMESPACE__ . '\\Course_Catalog', 'bump']);
+            add_action('add_option_' . $opt, [__NAMESPACE__ . '\\Course_Catalog', 'bump']);
+        }
 
         // One schema graph with Yoast
         add_filter('wpseo_schema_graph', [__CLASS__, 'merge_graph'], 20, 2);
@@ -65,16 +72,22 @@ class AI_Search {
 
     /** Paths no crawler needs (same spirit as the WooCommerce / WordPress defaults). */
     protected static function private_paths() {
-        return apply_filters('gpsc_ai_robots_disallow', [
-            '/wp-admin/',
-            '/cart/',
-            '/checkout/',
-            '/my-account/',
+        $paths = ['/wp-admin/'];
+        foreach (['cart', 'checkout', 'myaccount'] as $page) {
+            $url  = function_exists('wc_get_page_permalink') ? wc_get_page_permalink($page) : '';
+            $path = $url ? (string) wp_parse_url($url, PHP_URL_PATH) : '';
+            if ('' !== $path && '/' !== $path) {
+                $paths[] = trailingslashit($path);
+            }
+        }
+        $paths = array_merge($paths, [
             '/*?add-to-cart=',
             '/*?*add-to-cart=',
             '/wp-content/uploads/wc-logs/',
+            '/wp-content/uploads/woocommerce_transient_files/',
             '/wp-content/uploads/woocommerce_uploads/',
         ]);
+        return apply_filters('gpsc_ai_robots_disallow', array_values(array_unique($paths)));
     }
 
     public static function robots_txt($output, $public) {
@@ -116,7 +129,7 @@ class AI_Search {
         }
         $path = (string) wp_parse_url(wp_unslash($_SERVER['REQUEST_URI']), PHP_URL_PATH);
         $base = rtrim((string) wp_parse_url(home_url('/'), PHP_URL_PATH), '/');
-        if (0 === strpos($path, $base)) {
+        if ('' !== $base && 0 === strpos($path, $base)) {
             $path = substr($path, strlen($base));
         }
         if ('/llms.txt' === $path) {
@@ -140,7 +153,7 @@ class AI_Search {
             set_transient($key, $body, self::LLMS_TTL);
         }
         if (!defined('DONOTCACHEPAGE')) {
-            define('DONOTCACHEPAGE', true); // always current: built from the live catalog
+            define('DONOTCACHEPAGE', true); // the page cache would outlive the catalog version in our key
         }
         status_header(200);
         header('Content-Type: text/plain; charset=utf-8');
@@ -174,7 +187,7 @@ class AI_Search {
         return isset($map[$status]) ? $map[$status] : '';
     }
 
-    /** The product page that sells a seminar (the seminar post is not public). */
+    /** The product page that sells a seminar (where people enroll), else the seminar post. */
     protected static function seminar_url($seminar_id) {
         $product = (int) get_post_meta($seminar_id, '_gps_seminar_product_id', true);
         if ($product && 'publish' === get_post_status($product)) {
@@ -234,6 +247,9 @@ class AI_Search {
             $lines[] = '- No course dates are published right now. See ' . (get_post_type_archive_link('gps_event') ?: home_url('/')) . ' for updates.';
         }
         foreach ($cat['courses'] as $c) {
+            if (self::hidden($c['id'])) {
+                continue;
+            }
             $bits = array_filter([
                 self::plain($c['when']),
                 trim(self::plain($c['venue']) . ($c['city'] ? ', ' . self::plain($c['city']) : ''), ', '),
@@ -256,14 +272,18 @@ class AI_Search {
             foreach ($cat['seminars'] as $s) {
                 $count = count($s['sessions']);
                 $next  = $s['sessions'] ? $s['sessions'][0] : null;
+                $product  = (int) get_post_meta($s['id'], '_gps_seminar_product_id', true);
+                $wc       = $product && function_exists('wc_get_product') ? wc_get_product($product) : null;
+                $tuition  = $wc && $wc->get_price() > 0 ? (float) $wc->get_price() : $s['tuition'];
+                $sessions = class_exists(__NAMESPACE__ . '\\Seminar_Page') ? (int) apply_filters('gpsc_seminar_program_sessions', Seminar_Page::PROGRAM_SESSIONS, $s['id']) : 10;
+                $per      = class_exists(__NAMESPACE__ . '\\Seminar_Page') ? Seminar_Page::CE_PER_SESSION : 2;
                 $bits  = array_filter([
-                    '10-session program, one evening a month, 2 CE credits per session (20 CE)',
-                    'tuition ' . self::money($s['tuition']),
+                    $sessions . '-session program, one evening a month, ' . $per . ' CE credits per session (' . ($sessions * $per) . ' CE)',
+                    'tuition ' . self::money($tuition),
                     'join anytime: membership starts at the next session',
                     $next ? 'next session ' . date_i18n('M j, Y', strtotime($next['date'])) . ('' !== $next['topic'] ? ' (' . self::plain($next['topic']) . ')' : '') : '',
                     $count ? '' : 'next cycle dates coming soon',
                 ]);
-                $product = (int) get_post_meta($s['id'], '_gps_seminar_product_id', true);
                 $name    = $product && 'publish' === get_post_status($product) ? get_the_title($product) : $s['title'];
                 $lines[] = '- [' . self::plain($name) . '](' . self::seminar_url($s['id']) . '): ' . implode(' · ', $bits);
             }
@@ -292,6 +312,9 @@ class AI_Search {
         $lines[] = '';
 
         foreach ($cat['courses'] as $c) {
+            if (self::hidden($c['id'])) {
+                continue;
+            }
             $d = class_exists(__NAMESPACE__ . '\\Course_Page') ? Course_Page::data((int) $c['id']) : null;
             $lines[] = '## ' . self::plain($c['title']);
             $lines[] = '';
@@ -371,7 +394,7 @@ class AI_Search {
             $seen = [];
             foreach ($cat['seminars'] as $s) {
                 $product = (int) get_post_meta($s['id'], '_gps_seminar_product_id', true);
-                if (!$product || isset($seen[$product]) || !Seminar_Page::seminar_for_product($product)) {
+                if (!$product || isset($seen[$product]) || 'publish' !== get_post_status($product) || self::hidden($product) || !Seminar_Page::seminar_for_product($product)) {
                     continue;
                 }
                 $seen[$product] = true;
@@ -437,29 +460,56 @@ class AI_Search {
      * Sitemap lastmod
      * ============================================================ */
 
+    /** Password-protected posts stay out of llms.txt (their page shows a password form). */
+    protected static function hidden($post_id) {
+        $post = get_post((int) $post_id);
+        return !$post || '' !== (string) $post->post_password;
+    }
+
     /**
-     * Bump a post's modified date (and Yoast's indexable, which feeds the
-     * sitemap) without changing anything else. Save handlers that read form
-     * fields check their own nonces, so nothing else is written.
+     * Bump a post's modified date, its Yoast indexable (which feeds the
+     * sitemap) and the sitemap cache, without re-saving the post: a re-save
+     * would run every save_post handler with another screen's form in $_POST
+     * (Elementor would reset its edit mode) or kses the content for visitors
+     * (ticket activation runs on page views).
      */
     public static function touch($post_id) {
+        global $wpdb;
         $post_id = (int) $post_id;
         if (!$post_id || isset(self::$touched[$post_id]) || 'publish' !== get_post_status($post_id)) {
             return;
         }
         self::$touched[$post_id] = true;
-        wp_update_post(['ID' => $post_id]);
+        $wpdb->update($wpdb->posts, [
+            'post_modified'     => current_time('mysql'),
+            'post_modified_gmt' => current_time('mysql', true),
+        ], ['ID' => $post_id]);
+        clean_post_cache($post_id);
+
+        if (function_exists('YoastSEO')) {
+            try {
+                $watcher = YoastSEO()->classes->get('Yoast\\WP\\SEO\\Integrations\\Watchers\\Indexable_Post_Watcher');
+                if ($watcher && method_exists($watcher, 'build_indexable')) {
+                    $watcher->build_indexable($post_id);
+                }
+            } catch (\Throwable $e) {
+                // Yoast catches up on its next save of the post
+            }
+        }
+        if (class_exists('\\WPSEO_Sitemaps_Cache') && method_exists('\\WPSEO_Sitemaps_Cache', 'invalidate_post')) {
+            \WPSEO_Sitemaps_Cache::invalidate_post($post_id);
+        }
     }
 
     public static function touch_ticket_event($ticket_id) {
-        if (wp_is_post_revision($ticket_id)) {
+        if (wp_is_post_revision($ticket_id) || (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE)) {
             return;
         }
         self::touch((int) get_post_meta((int) $ticket_id, '_gps_event_id', true));
     }
 
     public static function touch_schedule_event($schedule_id) {
-        if (wp_is_post_revision($schedule_id)) {
+        if (wp_is_post_revision($schedule_id) || (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE)) {
             return;
         }
         self::touch((int) get_post_meta((int) $schedule_id, '_gps_event_id', true));
@@ -498,7 +548,7 @@ class AI_Search {
         $p = [
             '@type' => 'Person',
             '@id'   => self::person_id($s['id']),
-            'name'  => self::plain($s['full']),
+            'name'  => self::plain($s['name']),
         ];
         if ('' !== $s['title']) {
             $p['jobTitle'] = self::plain($s['title']);
@@ -518,7 +568,6 @@ class AI_Search {
         if ('' !== $s['linkedin']) {
             $p['sameAs'] = [$s['linkedin']];
         }
-        $p['affiliation'] = self::org_ref();
         return $p;
     }
 
@@ -540,6 +589,12 @@ class AI_Search {
             return $graph;
         }
         self::$merged = true;
+        // Yoast's JSON isn't encoded with JSON_HEX_TAG: no "</" may reach its script tag
+        array_walk_recursive($nodes, function (&$v) {
+            if (is_string($v) && false !== strpos($v, '</')) {
+                $v = str_replace('</', '< /', $v);
+            }
+        });
         foreach ($nodes as $node) {
             $graph[] = $node;
         }
