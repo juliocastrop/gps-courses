@@ -74,6 +74,16 @@ class AI_Search_Score {
         if (in_array($post->post_name, (array) apply_filters('gpsc_ais_skip_slugs', self::SKIP_SLUGS), true)) {
             return true;
         }
+        // Legal pages: needed, but not what people ask AI assistants about
+        $legal = [(int) get_option('wp_page_for_privacy_policy'), function_exists('wc_terms_and_conditions_page_id') ? (int) wc_terms_and_conditions_page_id() : 0];
+        if (in_array((int) $post->ID, array_filter($legal), true) || preg_match('/^(privacy-policy|terms-and-conditions|terms|privacy)(-\d+)?$/', $post->post_name)) {
+            return true;
+        }
+        // A page that already tells crawlers "noindex" (a plugin or the theme) is hidden on purpose
+        $crawl = get_post_meta($post->ID, self::META_CRAWL, true);
+        if (is_array($crawl) && !empty($crawl['html']['noindex'])) {
+            return true;
+        }
         return self::noindex($post->ID);
     }
 
