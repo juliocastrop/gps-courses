@@ -58,6 +58,8 @@ class Plugin {
         require_once GPSC_PATH . 'includes/class-course-page.php';
         require_once GPSC_PATH . 'includes/class-seminar-page.php';
         require_once GPSC_PATH . 'includes/class-ai-search.php';
+        require_once GPSC_PATH . 'includes/class-ai-search-score.php';
+        require_once GPSC_PATH . 'includes/class-ai-search-admin.php';
         require_once GPSC_PATH . 'includes/class-shop-cart.php';
         require_once GPSC_PATH . 'includes/class-shop-checkout.php';
         require_once GPSC_PATH . 'includes/public-api.php';
@@ -122,6 +124,7 @@ class Plugin {
         Course_Page::init();
         Seminar_Page::init();
         AI_Search::init();
+        AI_Search_Admin::init();
         Shop_Cart::init();
         Shop_Checkout::init();
 
