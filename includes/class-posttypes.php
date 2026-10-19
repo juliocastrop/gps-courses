@@ -414,9 +414,7 @@ class Posttypes {
         echo '<li>🎟️ <a href="'.admin_url('admin.php?page=gps-purchased-tickets').'">'.esc_html__('Purchased Tickets','gps-courses').'</a></li>';
         echo '<li>📱 <a href="'.admin_url('admin.php?page=gps-attendance').'">'.esc_html__('Attendance Scanner','gps-courses').'</a></li>';
         echo '<li>📊 <a href="'.admin_url('admin.php?page=gps-attendance-report').'">'.esc_html__('Attendance Report','gps-courses').'</a></li>';
-        echo '<li>🕒 <a href="'.admin_url('edit.php?post_type=gps_session').'">'.esc_html__('Manage Sessions','gps-courses').'</a></li>';
         echo '<li>🎤 <a href="'.admin_url('edit.php?post_type=gps_speaker').'">'.esc_html__('Manage Speakers','gps-courses').'</a></li>';
-        echo '<li>👥 <a href="'.admin_url('edit.php?post_type=gps_organizer').'">'.esc_html__('Manage Organizers','gps-courses').'</a></li>';
         echo '<li>💼 <a href="'.admin_url('edit.php?post_type=gps_sponsor').'">'.esc_html__('Manage Sponsors','gps-courses').'</a></li>';
         echo '<li>⚙️ <a href="'.admin_url('admin.php?page=gps-settings').'">'.esc_html__('Settings','gps-courses').'</a></li>';
         echo '</ul></div>';
