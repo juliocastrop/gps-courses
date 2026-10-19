@@ -654,8 +654,8 @@ class Activator {
     }
 
     public static function deactivate() {
-        // Plugin cron events (course stages, next-dates emails, sold-out waitlist expiry)
-        foreach (['gpsc_interest_notify_hourly', 'gpsc_interest_notify_course', 'gpsc_stage_daily', 'gps_process_expired_ticket_waitlist'] as $hook) {
+        // Plugin cron events (course stages, next-dates emails, sold-out waitlist expiry, AI Search checks)
+        foreach (['gpsc_interest_notify_hourly', 'gpsc_interest_notify_course', 'gpsc_stage_daily', 'gps_process_expired_ticket_waitlist', 'gpsc_ais_weekly', 'gpsc_ais_batch', 'gpsc_ais_check_one'] as $hook) {
             if (function_exists('wp_unschedule_hook')) {
                 wp_unschedule_hook($hook);
             } else {

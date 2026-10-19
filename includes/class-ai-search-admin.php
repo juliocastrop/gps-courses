@@ -35,7 +35,7 @@ class AI_Search_Admin {
         add_action('pre_get_posts', [__CLASS__, 'sort_query']);
 
         // A save gets a fresh score now and a live check a minute later (cache rebuilt by then)
-        add_action('save_post', [__CLASS__, 'after_save'], 99, 2);
+        add_action('wp_insert_post', [__CLASS__, 'after_save'], 99, 2); // after Yoast saves its title / description
         add_action(self::CRON_ONE, [__CLASS__, 'check_one']);
 
         // Weekly run
@@ -79,7 +79,8 @@ class AI_Search_Admin {
             echo '<p class="gpsc-ais__muted">' . esc_html__('This page is not scored (password protected, hidden from search or a utility page).', 'gps-courses') . '</p></div>';
             return;
         }
-        echo self::box_html($r); // escaped inside
+        echo '<div class="gpsc-ais__inner">' . self::box_html($r) . '</div>'; // escaped inside
+        echo '<span class="gpsc-ais__status" role="status" aria-live="polite"></span>';
         echo '</div>';
     }
 
@@ -87,6 +88,7 @@ class AI_Search_Admin {
     public static function box_html(array $r) {
         $tone = AI_Search_Score::tone($r['score']);
         $icon = ['ok' => '✓', 'warn' => '!', 'fail' => '✕', 'pending' => '…'];
+        $sr   = ['ok' => __('Passed', 'gps-courses'), 'warn' => __('Partly', 'gps-courses'), 'fail' => __('Missing', 'gps-courses'), 'pending' => __('Not checked', 'gps-courses')];
         $html  = '<div class="gpsc-ais__score gpsc-ais__score--' . esc_attr($tone) . '"><strong>' . (int) $r['score'] . '</strong><span>/100</span></div>';
         /* translators: %d: threshold */
         $html .= '<p class="gpsc-ais__muted">' . esc_html(sprintf(__('GPS AI Search Standard v1 · target %d+', 'gps-courses'), AI_Search_Score::threshold())) . '</p>';
@@ -97,6 +99,7 @@ class AI_Search_Admin {
             }
             $html .= '<li class="gpsc-ais__item gpsc-ais__item--' . esc_attr($it['status']) . '">';
             $html .= '<span class="gpsc-ais__icon" aria-hidden="true">' . esc_html($icon[$it['status']]) . '</span>';
+            $html .= '<span class="screen-reader-text">' . esc_html($sr[$it['status']]) . ': </span>';
             $html .= '<span class="gpsc-ais__body"><span class="gpsc-ais__label">' . esc_html($it['label']) . '</span>';
             if ('pending' !== $it['status']) {
                 $html .= ' <span class="gpsc-ais__pts">' . esc_html(rtrim(rtrim(number_format($it['points'], 1), '0'), '.') . '/' . $it['max']) . '</span>';
@@ -116,7 +119,7 @@ class AI_Search_Admin {
         }
         $html .= '</p>';
         $html .= '<button type="button" class="button gpsc-ais__check">' . esc_html__('Check as AI crawlers', 'gps-courses') . '</button>';
-        $html .= '<span class="gpsc-ais__status" role="status" aria-live="polite"></span>';
+        $html .= '<p class="gpsc-ais__muted">' . esc_html__('The check fetches the page from this server with each crawler\'s name; Cloudflare may treat the real crawlers differently.', 'gps-courses') . '</p>';
         return $html;
     }
 
@@ -166,7 +169,11 @@ class AI_Search_Admin {
             echo '<span class="gpsc-ais-badge gpsc-ais-badge--none" title="' . esc_attr__('Not scored', 'gps-courses') . '">—</span>';
             return;
         }
-        $r = AI_Search_Score::get($post_id, 15 * MINUTE_IN_SECONDS);
+        $r = get_post_meta($post_id, AI_Search_Score::META_DETAIL, true);
+        if (!is_array($r) || !isset($r['score'])) {
+            echo '<span class="gpsc-ais-badge gpsc-ais-badge--none" title="' . esc_attr__('Not scored yet: open the page or the AI Search report.', 'gps-courses') . '">…</span>';
+            return;
+        }
         $title = $r['pending'] ? __('Some checks are pending: open the page and click "Check as AI crawlers".', 'gps-courses') : __('AI Search score', 'gps-courses');
         echo '<span class="gpsc-ais-badge gpsc-ais-badge--' . esc_attr(AI_Search_Score::tone($r['score'])) . '" title="' . esc_attr($title) . '">' . (int) $r['score'] . ($r['pending'] ? '*' : '') . '</span>';
     }
@@ -178,8 +185,13 @@ class AI_Search_Admin {
 
     public static function sort_query($q) {
         if (is_admin() && $q->is_main_query() && 'gpsc_ais' === $q->get('orderby')) {
-            $q->set('meta_key', AI_Search_Score::META_SCORE);
-            $q->set('orderby', 'meta_value_num');
+            // Posts without a score stay in the list (a plain meta_key would drop them)
+            $q->set('meta_query', [
+                'relation' => 'OR',
+                'gpsc_ais' => ['key' => AI_Search_Score::META_SCORE, 'type' => 'NUMERIC', 'compare' => 'EXISTS'],
+                ['key' => AI_Search_Score::META_SCORE, 'compare' => 'NOT EXISTS'],
+            ]);
+            $q->set('orderby', 'gpsc_ais');
         }
     }
 
@@ -239,9 +251,9 @@ class AI_Search_Admin {
         $ids    = AI_Search_Score::targets();
         $before = [];
         foreach ($ids as $id) {
-            $s = get_post_meta($id, AI_Search_Score::META_SCORE, true);
-            if ('' !== $s) {
-                $before[$id] = (int) $s;
+            $d = get_post_meta($id, AI_Search_Score::META_DETAIL, true);
+            if (is_array($d) && !empty($d['crawl_at']) && empty($d['pending'])) {
+                $before[$id] = (int) $d['score']; // only scores from a full live check compare fairly
             }
         }
         update_option(self::BEFORE, $before, false);
@@ -252,17 +264,21 @@ class AI_Search_Admin {
     public static function weekly_step() {
         $queue = (array) get_option(self::QUEUE, []);
         if (!$queue) {
+            self::weekly_report();
             return;
         }
-        foreach (array_splice($queue, 0, self::BATCH) as $id) {
+        $batch = array_splice($queue, 0, self::BATCH);
+        // Saved and scheduled first: a batch cut short by the time limit can't stop the run
+        update_option(self::QUEUE, $queue, false);
+        if (!wp_next_scheduled(self::CRON_STEP)) {
+            wp_schedule_single_event(time() + 60, self::CRON_STEP);
+        }
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(300);
+        }
+        foreach ($batch as $id) {
             self::check_one((int) $id);
         }
-        update_option(self::QUEUE, $queue, false);
-        if ($queue) {
-            wp_schedule_single_event(time() + 60, self::CRON_STEP);
-            return;
-        }
-        self::weekly_report();
     }
 
     /** Email the pages that dropped or are under the threshold for the first time. */
@@ -293,7 +309,7 @@ class AI_Search_Admin {
         foreach ($rows as $row) {
             $r      = get_post_meta($row['id'], AI_Search_Score::META_DETAIL, true);
             $issues = is_array($r) ? self::row_issues($r) : '';
-            $body  .= '<tr><td style="border-bottom:1px solid #e5e7eb;"><a href="' . esc_url(get_edit_post_link($row['id'], 'raw')) . '" style="color:#0B52AC;font-weight:bold;">' . esc_html(get_the_title($row['id'])) . '</a>'
+            $body  .= '<tr><td style="border-bottom:1px solid #e5e7eb;"><a href="' . esc_url(admin_url('post.php?post=' . (int) $row['id'] . '&action=edit')) . '" style="color:#0B52AC;font-weight:bold;">' . esc_html(get_the_title($row['id'])) . '</a>'
                     . ($issues ? '<br><span style="color:#5b6880;font-size:13px;">' . esc_html($issues) . '</span>' : '') . '</td>'
                     . '<td style="border-bottom:1px solid #e5e7eb;white-space:nowrap;text-align:right;"><strong>' . (int) $row['now'] . '</strong>' . (null !== $row['prev'] ? ' <span style="color:#5b6880;">(' . esc_html__('was', 'gps-courses') . ' ' . (int) $row['prev'] . ')</span>' : '') . '</td></tr>';
         }
@@ -317,7 +333,8 @@ class AI_Search_Admin {
     public static function assets($hook) {
         $screen = function_exists('get_current_screen') ? get_current_screen() : null;
         $ours   = (isset($_GET['page']) && self::PAGE === $_GET['page'])
-            || ($screen && in_array($screen->base, ['post', 'edit'], true) && in_array($screen->post_type, ['gps_event', 'page', 'product'], true));
+            || ($screen && in_array($screen->base, ['post', 'edit'], true) && in_array($screen->post_type, ['gps_event', 'page'], true))
+            || ($screen && 'post' === $screen->base && 'product' === $screen->post_type && !empty($_GET['post']) && AI_Search_Score::type_of(absint($_GET['post'])));
         if (!$ours) {
             return;
         }
@@ -353,6 +370,10 @@ class AI_Search_Admin {
 
     /** Site-wide checks: robots block, llms.txt, Organization schema. */
     protected static function site_checks() {
+        $cached = get_transient('gpsc_ais_site_checks');
+        if (is_array($cached) && empty($_GET['refresh'])) {
+            return $cached;
+        }
         $checks = [];
         $robots = wp_remote_get(home_url('/robots.txt'), ['timeout' => 15]);
         $rb     = is_wp_error($robots) ? '' : (string) wp_remote_retrieve_body($robots);
@@ -373,6 +394,7 @@ class AI_Search_Admin {
             'label' => __('Yoast SEO active (shared schema graph)', 'gps-courses'),
             'fix'   => __('Yoast SEO is not active: course schema prints on its own.', 'gps-courses'),
         ];
+        set_transient('gpsc_ais_site_checks', $checks, HOUR_IN_SECONDS);
         return $checks;
     }
 
@@ -383,7 +405,7 @@ class AI_Search_Admin {
         $sum     = 0;
         $below   = 0;
         foreach ($ids as $id) {
-            $r = AI_Search_Score::get($id, HOUR_IN_SECONDS);
+            $r = AI_Search_Score::get($id, DAY_IN_SECONDS); // cron and saves keep them current
             if (!$r) {
                 continue;
             }
@@ -396,7 +418,7 @@ class AI_Search_Admin {
             }
             $rows[] = ['id' => $id, 'r' => $r];
         }
-        usort($rows, function ($a, $b) { return $a['r']['score'] - $b['r']['score']; });
+        usort($rows, function ($a, $b) { return (int) $a['r']['score'] < (int) $b['r']['score'] ? -1 : ((int) $a['r']['score'] > (int) $b['r']['score'] ? 1 : 0); });
         $avg   = $ids ? (int) round($sum / count($ids)) : 0;
         $types = ['course' => __('Course', 'gps-courses'), 'seminar' => __('Seminars', 'gps-courses'), 'page' => __('Page', 'gps-courses')];
         $last  = (int) get_option('gpsc_ais_last_run', 0);

@@ -26,13 +26,16 @@
         var btn = e.target.closest('.gpsc-ais__check');
         if (!btn) { return; }
         var box = btn.closest('.gpsc-ais');
-        var status = box.querySelector('.gpsc-ais__status');
+        var inner = box.querySelector('.gpsc-ais__inner');
+        // The live region stays outside the part that is replaced, so it is announced
+        var status = box.querySelector('.gpsc-ais > .gpsc-ais__status');
         btn.disabled = true;
         status.textContent = i18n.checking || 'Checking…';
         check(box.getAttribute('data-id')).then(function (d) {
-            box.innerHTML = d.html;
-            var s = box.querySelector('.gpsc-ais__status');
-            if (s) { s.textContent = i18n.done || 'Checked.'; }
+            inner.innerHTML = d.html;
+            status.textContent = (i18n.done || 'Checked.') + ' ' + d.score + '/100';
+            var again = inner.querySelector('.gpsc-ais__check');
+            if (again) { again.focus(); }
         }).catch(function () {
             btn.disabled = false;
             status.textContent = i18n.error || 'The check failed. Try again.';

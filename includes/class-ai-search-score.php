@@ -79,27 +79,36 @@ class AI_Search_Score {
 
     /** Yoast "Allow search engines to show this in results?" = No, per post or per type. */
     public static function noindex($post_id) {
-        if ('1' === (string) get_post_meta($post_id, '_yoast_wpseo_meta-robots-noindex', true)) {
+        $own = (string) get_post_meta($post_id, '_yoast_wpseo_meta-robots-noindex', true); // '1' hide, '2' show, '' / '0' default
+        if ('1' === $own) {
             return true;
         }
+        if ('2' === $own) {
+            return false;
+        }
         $titles = get_option('wpseo_titles', []);
-        $type   = get_post_type($post_id);
-        $forced = (string) get_post_meta($post_id, '_yoast_wpseo_meta-robots-noindex', true);
-        return '' === $forced && is_array($titles) && !empty($titles['noindex-' . $type]);
+        return is_array($titles) && !empty($titles['noindex-' . get_post_type($post_id)]);
     }
 
     /** Every post the report scores: courses, seminar products, pages. */
     public static function targets() {
-        $ids = get_posts([
-            'post_type'      => ['gps_event', 'page', 'product'],
+        $base = [
             'post_status'    => 'publish',
-            'posts_per_page' => 500,
+            'posts_per_page' => -1,
             'fields'         => 'ids',
             'no_found_rows'  => true,
-            'orderby'        => 'type title',
+            'orderby'        => 'title',
             'order'          => 'ASC',
-        ]);
-        return array_values(array_filter(array_map('intval', $ids), function ($id) {
+        ];
+        $ids = array_merge(
+            get_posts($base + ['post_type' => ['gps_event', 'page']]),
+            get_posts($base + ['post_type' => 'product', 'meta_query' => [['key' => '_gps_seminar_id', 'compare' => 'EXISTS']]])
+        );
+        $ids = array_map('intval', $ids);
+        if ($ids) {
+            _prime_post_caches($ids, false, true);
+        }
+        return array_values(array_filter($ids, function ($id) {
             return '' !== self::type_of($id);
         }));
     }
@@ -131,7 +140,7 @@ class AI_Search_Score {
             $code = (int) wp_remote_retrieve_response_code($res);
             $result['bots'][$bot] = [
                 'code'    => $code,
-                'noindex' => false !== stripos((string) wp_remote_retrieve_header($res, 'x-robots-tag'), 'noindex'),
+                'noindex' => false !== stripos(implode(',', (array) wp_remote_retrieve_header($res, 'x-robots-tag')), 'noindex'),
             ];
             if ('' === $html && 200 === $code) {
                 $html = (string) wp_remote_retrieve_body($res);
@@ -148,7 +157,7 @@ class AI_Search_Score {
     public static function read_html($html) {
         $out = [
             'noindex' => false, 'title' => '', 'desc' => '', 'h1' => 0, 'order_ok' => true,
-            'img' => 0, 'img_alt' => 0, 'img_noalt' => 0, 'types' => [], 'faq_q' => 0, 'words' => 0,
+            'img' => 0, 'img_alt' => 0, 'img_noalt' => 0, 'types' => [], 'faq_q' => 0,
         ];
         if (!class_exists('\\DOMDocument')) {
             return $out;
@@ -229,16 +238,12 @@ class AI_Search_Score {
                     $out['types']['Offer'] = true;
                 }
                 if (in_array('FAQPage', (array) $n['@type'], true) && !empty($n['mainEntity'])) {
-                    $out['faq_q'] = max($out['faq_q'], count((array) $n['mainEntity']));
+                    $q = $n['mainEntity'];
+                    $out['faq_q'] = max($out['faq_q'], isset($q['@type']) ? 1 : count((array) $q));
                 }
             }
         }
         $out['types'] = array_keys($out['types']);
-        $body = $xp->query('//body');
-        if ($body->length) {
-            $text = preg_replace('/\s+/u', ' ', $body->item(0)->textContent);
-            $out['words'] = count(preg_split('/\s+/u', trim($text)));
-        }
         return $out;
     }
 
@@ -454,7 +459,7 @@ class AI_Search_Score {
             $check((bool) $d['start'], 3, __('dates', 'gps-courses'));
             $check('' !== (string) $d['times'], 2, __('start / end time', 'gps-courses'));
             $check('' !== $d['venue'] && ('' !== $d['address'] || '' !== $d['city']), 3, __('venue and address', 'gps-courses'));
-            if ($on_sale || 'soon' === $d['stage']) {
+            if ($on_sale) { // 'soon' has no ticket on sale yet, by definition
                 $check(null !== $d['price_min'] || (bool) $d['tickets'], 3, __('a ticket with its price', 'gps-courses'));
             }
             $check((bool) $d['speakers'], 2, __('instructor (Speaker profile)', 'gps-courses'));
@@ -539,7 +544,7 @@ class AI_Search_Score {
             $len  = function_exists('mb_strlen') ? mb_strlen($desc) : strlen($desc);
             return self::item('summary', $label, 10, $len >= 70 ? 1 : ($len ? 0.5 : 0), __('Write a 1–2 sentence summary in the Yoast meta description (70–160 characters).', 'gps-courses'));
         }
-        $tag = self::plain('course' === $c['type'] ? get_post_meta($c['id'], Course_Page::META_TAGLINE, true) : $c['d']['tagline']);
+        $tag = self::plain($c['d']['tagline']); // what the page shows (tagline, else the hero line)
         $len = function_exists('mb_strlen') ? mb_strlen($tag) : strlen($tag);
         $got = 0;
         $max = 5;
@@ -581,7 +586,11 @@ class AI_Search_Score {
         $got   = 0;
 
         // Title (what the page prints, else Yoast / post title)
-        $title = $h ? $h['title'] : self::plain(get_post_meta($c['id'], '_yoast_wpseo_title', true) ?: get_the_title($c['id']));
+        $yoast = self::plain(get_post_meta($c['id'], '_yoast_wpseo_title', true));
+        if ('' === $yoast || false !== strpos($yoast, '%%')) {
+            $yoast = self::plain(get_the_title($c['id'])) . ' - ' . self::plain(get_bloginfo('name')); // Yoast's default pattern
+        }
+        $title = $h ? $h['title'] : $yoast;
         $tl    = function_exists('mb_strlen') ? mb_strlen($title) : strlen($title);
         if ($tl >= 15 && $tl <= 75) {
             $got += 3;
@@ -593,10 +602,10 @@ class AI_Search_Score {
         // Meta description (printed, else Yoast, else our fallback on GPS templates)
         $desc = $h ? $h['desc'] : self::plain(get_post_meta($c['id'], '_yoast_wpseo_metadesc', true));
         if ('' === $desc && !$h && in_array($c['type'], ['course', 'seminar'], true) && !empty($c['template'])) {
-            $desc = 'course' === $c['type'] ? self::plain(get_post_meta($c['id'], Course_Page::META_TAGLINE, true)) : $c['d']['tagline'];
+            $desc = self::plain($c['d']['tagline']);
         }
         $dl = function_exists('mb_strlen') ? mb_strlen($desc) : strlen($desc);
-        if ($dl >= 70 && $dl <= 170) {
+        if ($dl >= 70 && $dl <= 160) {
             $got += 3;
         } elseif ($dl) {
             $got += 1.5;
@@ -666,7 +675,7 @@ class AI_Search_Score {
         $label = __('Images with alternative text', 'gps-courses');
         if (in_array($c['type'], ['course', 'seminar'], true)) {
             $ids = [];
-            $img = 'course' === $c['type'] ? $c['d']['image'] : $c['d']['image'];
+            $img = $c['d']['image'];
             if ($img) {
                 $ids[] = (int) $img;
             }
