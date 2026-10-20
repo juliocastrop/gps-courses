@@ -449,6 +449,7 @@ body.post-type-gps_event .wrap .page-title-action:focus {
 /* Tabs Navigation */
 .gps-event-tabs {
     display: flex;
+    flex-wrap: wrap; /* 8 tabs: wrap in the narrower two-column editor instead of cutting the last one */
     margin: 0;
     padding: 0;
     list-style: none;
@@ -459,7 +460,7 @@ body.post-type-gps_event .wrap .page-title-action:focus {
 
 .gps-event-tabs li {
     margin: 0;
-    flex: 1;
+    flex: 1 1 auto;
 }
 
 .gps-event-tabs li a {
@@ -467,7 +468,8 @@ body.post-type-gps_event .wrap .page-title-action:focus {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    padding: 16px 20px;
+    padding: 14px 16px;
+    white-space: nowrap;
     text-decoration: none;
     color: #50575e;
     font-weight: 600;
