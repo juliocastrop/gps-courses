@@ -95,6 +95,7 @@ class Tickets_Admin {
             );
 
             error_log(sprintf('GPS Courses: Reconcile — linked ticket #%d to WP user #%d (%s)', $ticket->id, $wp_user->ID, $email));
+            self::award_pending_credits($ticket->id);
         }
 
         set_transient('gps_reconcile_attendees_done', 1, DAY_IN_SECONDS);
@@ -104,11 +105,70 @@ class Tickets_Admin {
      * Get the effective attendee data for a ticket (designated or buyer)
      */
     public static function get_effective_attendee($ticket) {
+        $designated = self::designated_user_id($ticket);
         return (object) [
             'name'    => !empty($ticket->designated_attendee_name) ? $ticket->designated_attendee_name : $ticket->attendee_name,
             'email'   => !empty($ticket->designated_attendee_email) ? $ticket->designated_attendee_email : $ticket->attendee_email,
-            'user_id' => !empty($ticket->designated_attendee_id) ? $ticket->designated_attendee_id : $ticket->user_id,
+            'user_id' => $designated ? $designated : $ticket->user_id,
         ];
+    }
+
+    /**
+     * WP user of the designated attendee: the stored id, else the account with the
+     * designated email (stored on the ticket once found). 0 when there is none.
+     */
+    public static function designated_user_id($ticket) {
+        if (!empty($ticket->designated_attendee_id)) {
+            return (int) $ticket->designated_attendee_id;
+        }
+        if (empty($ticket->designated_attendee_email)) {
+            return 0;
+        }
+        $user = get_user_by('email', $ticket->designated_attendee_email);
+        if (!$user) {
+            return 0;
+        }
+        if (!empty($ticket->id)) {
+            global $wpdb;
+            $wpdb->update($wpdb->prefix . 'gps_tickets', ['designated_attendee_id' => $user->ID], ['id' => (int) $ticket->id], ['%d'], ['%d']);
+        }
+        $ticket->designated_attendee_id = $user->ID;
+        return (int) $user->ID;
+    }
+
+    /**
+     * Who earns the CE credits of a ticket. A ticket assigned to another person
+     * never falls back to the buyer: without an account for the designated
+     * email it returns 0 and the credits wait (see award_pending_credits()).
+     */
+    public static function credit_user_id($ticket) {
+        if (!empty($ticket->designated_attendee_email) || !empty($ticket->designated_attendee_id)) {
+            return self::designated_user_id($ticket);
+        }
+        return (int) $ticket->user_id;
+    }
+
+    /**
+     * Award the credits a ticket's certificate could not give yet (designated
+     * attendee without an account at that time). Called when the ticket gets
+     * linked to a WP user.
+     */
+    public static function award_pending_credits($ticket_id) {
+        global $wpdb;
+        $ticket = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}gps_tickets WHERE id = %d", $ticket_id));
+        if (!$ticket || 'cancelled' === $ticket->status) {
+            return;
+        }
+        $has_cert = $wpdb->get_var($wpdb->prepare("SELECT 1 FROM {$wpdb->prefix}gps_certificates WHERE ticket_id = %d", $ticket_id));
+        $user_id  = self::credit_user_id($ticket);
+        if (!$has_cert || $user_id <= 0 || Credits::has_award($user_id, $ticket->event_id)) {
+            return;
+        }
+        if (Credits::award($user_id, $ticket->event_id, 'certificate', 'Awarded upon certificate generation (attendee account linked later)')) {
+            $credits = (float) get_post_meta($ticket->event_id, '_gps_ce_credits', true);
+            do_action('gps_credits_awarded', $user_id, $ticket->event_id, $credits);
+            do_action('gps_credits_awarded_notification', $user_id, $ticket->event_id, $credits);
+        }
     }
 
     /**
@@ -333,8 +393,11 @@ class Tickets_Admin {
                 $email
             );
         } elseif (!$wp_user) {
-            $warnings[] = __('Could not create a WordPress account for this email. CE credits will be linked to the buyer\'s account.', 'gps-courses');
+            $warnings[] = __('Could not create a WordPress account for this email. CE credits will be awarded once an account with this email exists.', 'gps-courses');
         }
+
+        // A certificate generated before this assignment may have credits waiting
+        self::award_pending_credits($ticket_id);
 
         error_log(sprintf(
             'GPS Courses: Designated attendee assigned to ticket #%d — Name: "%s", Email: "%s", WP User: %s — by admin #%d',

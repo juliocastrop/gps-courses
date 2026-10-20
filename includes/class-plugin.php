@@ -11,6 +11,7 @@ class Plugin {
         require_once GPSC_PATH . 'includes/class-posttypes.php';
         require_once GPSC_PATH . 'includes/class-woocommerce.php';
         require_once GPSC_PATH . 'includes/class-credits.php';
+        require_once GPSC_PATH . 'includes/class-order-cancellations.php';
         require_once GPSC_PATH . 'includes/class-tickets.php';
         require_once GPSC_PATH . 'includes/class-tickets-admin.php';
         require_once GPSC_PATH . 'includes/class-schedules.php';
@@ -82,6 +83,7 @@ class Plugin {
         Posttypes::init();
         Tickets::init();
         Tickets_Admin::init();
+        Order_Cancellations::init();
         Schedules::init();
         Emails::init();
         Email_Settings::init();

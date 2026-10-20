@@ -658,8 +658,11 @@ class Account_Dashboard {
             $n = (float) $c->credits;
             $items[] = [
                 'icon'  => 'gps-ce-credits',
-                /* translators: %s: number of credits */
-                'title' => sprintf(_n('%s CE credit awarded', '%s CE credits awarded', (int) ceil($n), 'gps-courses'), self::num($n)),
+                'title' => $n < 0
+                    /* translators: %s: number of credits */
+                    ? sprintf(_n('%s CE credit revoked', '%s CE credits revoked', (int) ceil(abs($n)), 'gps-courses'), self::num(abs($n)))
+                    /* translators: %s: number of credits */
+                    : sprintf(_n('%s CE credit awarded', '%s CE credits awarded', (int) ceil($n), 'gps-courses'), self::num($n)),
                 'text'  => (string) $c->post_title,
                 'date'  => (string) $c->awarded_at,
             ];

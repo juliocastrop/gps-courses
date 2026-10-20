@@ -386,6 +386,14 @@ class Certificates {
             ];
         }
 
+        // Refunded / cancelled order: no certificate, and no credits back
+        if ('cancelled' === $ticket->status) {
+            return [
+                'success' => false,
+                'message' => __('Ticket is cancelled (refunded or cancelled order)', 'gps-courses'),
+            ];
+        }
+
         // Check if attended
         $attendance = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}gps_attendance WHERE ticket_id = %d",
@@ -497,18 +505,23 @@ class Certificates {
 
         // Award CE credits now that the certificate exists — but only once per
         // attendee/event. A regenerated certificate must not duplicate credits.
-        $credits_val = (float) $ce_credits;
-        if ($credits_val > 0 && !Credits::has_award($effective->user_id, $ticket->event_id)) {
+        // The credits go to the person on the ticket: a ticket assigned to someone
+        // else never credits the buyer (that silently cost the attendee the credits).
+        $credits_val    = (float) $ce_credits;
+        $credit_user_id = Tickets_Admin::credit_user_id($ticket);
+        if ($credits_val > 0 && $credit_user_id <= 0) {
+            error_log(sprintf('GPS Courses: ticket #%d credits pending: designated attendee %s has no account yet.', $ticket_id, $effective->email));
+        } elseif ($credits_val > 0 && !Credits::has_award($credit_user_id, $ticket->event_id)) {
             Credits::award(
-                $effective->user_id,
+                $credit_user_id,
                 $ticket->event_id,
                 'certificate',
                 'Awarded upon certificate generation'
             );
 
             // Trigger the CE credits notification email
-            do_action('gps_credits_awarded', $effective->user_id, $ticket->event_id, $credits_val);
-            do_action('gps_credits_awarded_notification', $effective->user_id, $ticket->event_id, $credits_val);
+            do_action('gps_credits_awarded', $credit_user_id, $ticket->event_id, $credits_val);
+            do_action('gps_credits_awarded_notification', $credit_user_id, $ticket->event_id, $credits_val);
         }
 
         return [

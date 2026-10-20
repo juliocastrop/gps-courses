@@ -95,7 +95,7 @@ class Reports {
 
         $total_checked_in = (int) $wpdb->get_var("SELECT COUNT(DISTINCT ticket_id) FROM {$wpdb->prefix}gps_attendance");
         $total_enrollments = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}gps_enrollments");
-        $total_credits_awarded = (float) $wpdb->get_var("SELECT COALESCE(SUM(credits), 0) FROM {$wpdb->prefix}gps_ce_ledger WHERE transaction_type = 'attendance'");
+        $total_credits_awarded = (float) $wpdb->get_var("SELECT COALESCE(SUM(credits), 0) FROM {$wpdb->prefix}gps_ce_ledger");
 
         // Get recent events
         $events = get_posts([
