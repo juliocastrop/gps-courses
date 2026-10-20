@@ -493,7 +493,8 @@ class Editions {
         }
         if (is_admin() && !wp_doing_ajax()) {
             global $pagenow;
-            if ($query->is_main_query() && 'edit.php' === $pagenow) {
+            // The Trash view keeps trashed editions (so they can be restored)
+            if ($query->is_main_query() && 'edit.php' === $pagenow && 'trash' !== $query->get('post_status')) {
                 $query->set('post_parent', 0);
             }
             return;

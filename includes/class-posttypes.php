@@ -573,9 +573,19 @@ class Posttypes {
         if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
         if (!current_user_can('edit_post', $post_id)) return;
 
+        // An edition saves only its own fields (dates, venue, CE, label, speakers)
+        if (Editions::of($post_id)) {
+            Editions_Admin::save_child_meta($post_id);
+            return;
+        }
+        // A course with editions: dates, venue and CE come from its current
+        // edition (Editions::sync), the form shows them read-only
+        // Same rule as the form: a course fed by a published edition skips the edition fields
+        $has_editions = Editions::is_master($post_id) && Editions::current($post_id) > 0;
+
         // Migrate old meta keys to new ones (one-time migration)
-        $old_start = get_post_meta($post_id, '_gps_date_start', true);
-        $old_end = get_post_meta($post_id, '_gps_date_end', true);
+        $old_start = $has_editions ? '' : get_post_meta($post_id, '_gps_date_start', true);
+        $old_end = $has_editions ? '' : get_post_meta($post_id, '_gps_date_end', true);
         if (!empty($old_start) && empty(get_post_meta($post_id, '_gps_start_date', true))) {
             update_post_meta($post_id, '_gps_start_date', $old_start);
         }
@@ -604,18 +614,20 @@ class Posttypes {
         $course_description = sanitize_textarea_field($_POST['gps_course_description'] ?? '');
         $objectives = sanitize_textarea_field($_POST['gps_objectives'] ?? '');
 
-        // Update all metadata
-        update_post_meta($post_id, '_gps_start_date', $start_date);
-        update_post_meta($post_id, '_gps_end_date', $end_date);
-        update_post_meta($post_id, '_gps_start_time', $start_time);
-        update_post_meta($post_id, '_gps_end_time', $end_time);
-        update_post_meta($post_id, '_gps_venue', $venue);
-        update_post_meta($post_id, '_gps_address', $address);
-        update_post_meta($post_id, '_gps_city', $city);
-        update_post_meta($post_id, '_gps_state', $state);
-        update_post_meta($post_id, '_gps_zip', $zip);
-        update_post_meta($post_id, '_gps_country', $country);
-        update_post_meta($post_id, '_gps_ce_credits', $ce_credits);
+        // Update all metadata (the edition fields only for a course without editions)
+        if (!$has_editions) {
+            update_post_meta($post_id, '_gps_start_date', $start_date);
+            update_post_meta($post_id, '_gps_end_date', $end_date);
+            update_post_meta($post_id, '_gps_start_time', $start_time);
+            update_post_meta($post_id, '_gps_end_time', $end_time);
+            update_post_meta($post_id, '_gps_venue', $venue);
+            update_post_meta($post_id, '_gps_address', $address);
+            update_post_meta($post_id, '_gps_city', $city);
+            update_post_meta($post_id, '_gps_state', $state);
+            update_post_meta($post_id, '_gps_zip', $zip);
+            update_post_meta($post_id, '_gps_country', $country);
+            update_post_meta($post_id, '_gps_ce_credits', $ce_credits);
+        }
         update_post_meta($post_id, '_gps_instructor', $instructor);
         update_post_meta($post_id, '_gps_description', $description);
         update_post_meta($post_id, '_gps_course_description', $course_description);
@@ -1179,6 +1191,25 @@ class Posttypes {
     }
 
     /**
+     * A course form input. $locked (a course with editions): a disabled copy
+     * WITHOUT a name, so the value is shown but never posted. $attrs is a
+     * literal attribute string from this class.
+     */
+    protected static function edition_input($type, $name, $value, $locked, $attrs = '') {
+        if ($locked) {
+            $class = 'gps-edition-locked-input';
+            if (preg_match('/class="([^"]*)"/', $attrs, $m)) {
+                $class .= ' ' . $m[1];
+                $attrs  = str_replace($m[0], '', $attrs);
+            }
+            $attrs = trim(str_replace('required', '', $attrs));
+            echo '<input type="' . esc_attr($type) . '" id="' . esc_attr($name) . '" value="' . esc_attr($value) . '" disabled class="' . esc_attr($class) . '" ' . $attrs . ' />';
+            return;
+        }
+        echo '<input type="' . esc_attr($type) . '" id="' . esc_attr($name) . '" name="' . esc_attr($name) . '" value="' . esc_attr($value) . '" ' . $attrs . ' />';
+    }
+
+    /**
      * Custom event edit screen with tabbed interface
      */
     public static function custom_event_edit_screen($post) {
@@ -1186,8 +1217,20 @@ class Posttypes {
             return;
         }
 
+        // An edition: only its own fields (dates, venue, CE, label, speakers)
+        if (Editions::of($post->ID)) {
+            Editions_Admin::render_child_screen($post);
+            return;
+        }
+
         // Get current values with GPS Dental Training defaults for new events
         $is_new_post = ($post->post_status === 'auto-draft');
+
+        // A course with editions shows its current edition's dates, venue and
+        // CE read-only (inputs without a name: never posted)
+        // Locked only when a published edition feeds the course (drafts only: still editable)
+        $locked       = !$is_new_post && Editions::is_master($post->ID) && Editions::current($post->ID) > 0;
+        $editions_tab = !$is_new_post;
 
         $start_date = get_post_meta($post->ID, '_gps_start_date', true);
         $end_date = get_post_meta($post->ID, '_gps_end_date', true);
@@ -1226,6 +1269,9 @@ class Posttypes {
             <div class="gps-event-tabs-wrapper">
                 <ul class="gps-event-tabs">
                     <li><a href="#gps-tab-basic"><span class="dashicons dashicons-admin-generic"></span> <?php _e('Basic Info', 'gps-courses'); ?></a></li>
+                    <?php if ($editions_tab): ?>
+                    <li><a href="#gps-tab-editions"><span class="dashicons dashicons-calendar-alt"></span> <?php esc_html_e('Editions', 'gps-courses'); ?> <span class="gps-tab-count"><?php echo (int) Editions_Admin::count($post->ID); ?></span></a></li>
+                    <?php endif; ?>
                     <li><a href="#gps-tab-details"><span class="dashicons dashicons-info"></span> <?php _e('Details', 'gps-courses'); ?></a></li>
                     <li><a href="#gps-tab-location"><span class="dashicons dashicons-location"></span> <?php _e('Location', 'gps-courses'); ?></a></li>
                     <li><a href="#gps-tab-content"><span class="dashicons dashicons-edit"></span> <?php _e('Description', 'gps-courses'); ?></a></li>
@@ -1238,38 +1284,35 @@ class Posttypes {
                 <!-- Basic Info Tab -->
                 <div id="gps-tab-basic" class="gps-tab-content">
                     <p class="gps-tab-intro"><?php esc_html_e('Dates, times and category appear in the course header, calendar and listings. The course image is in the sidebar.', 'gps-courses'); ?></p>
+                    <?php if ($locked) { echo Editions_Admin::locked_note($post->ID); } ?>
 
                     <div class="gps-form-grid">
                         <div class="gps-form-field gps-form-field-half">
                             <label for="gps_start_date">
                                 <?php _e('Start Date', 'gps-courses'); ?> <span class="required">*</span>
                             </label>
-                            <input type="date" id="gps_start_date" name="gps_start_date"
-                                   value="<?php echo esc_attr($start_date); ?>" required />
+                            <?php self::edition_input('date', 'gps_start_date', $start_date, $locked, 'required'); ?>
                         </div>
 
                         <div class="gps-form-field gps-form-field-half">
                             <label for="gps_end_date">
                                 <?php _e('End Date', 'gps-courses'); ?> <span class="required">*</span>
                             </label>
-                            <input type="date" id="gps_end_date" name="gps_end_date"
-                                   value="<?php echo esc_attr($end_date); ?>" required />
+                            <?php self::edition_input('date', 'gps_end_date', $end_date, $locked, 'required'); ?>
                         </div>
 
                         <div class="gps-form-field gps-form-field-half">
                             <label for="gps_start_time">
                                 <?php _e('Start Time', 'gps-courses'); ?> <span class="required">*</span>
                             </label>
-                            <input type="time" id="gps_start_time" name="gps_start_time"
-                                   value="<?php echo esc_attr($start_time); ?>" required />
+                            <?php self::edition_input('time', 'gps_start_time', $start_time, $locked, 'required'); ?>
                         </div>
 
                         <div class="gps-form-field gps-form-field-half">
                             <label for="gps_end_time">
                                 <?php _e('End Time', 'gps-courses'); ?> <span class="required">*</span>
                             </label>
-                            <input type="time" id="gps_end_time" name="gps_end_time"
-                                   value="<?php echo esc_attr($end_time); ?>" required />
+                            <?php self::edition_input('time', 'gps_end_time', $end_time, $locked, 'required'); ?>
                         </div>
 
                         <div class="gps-form-field gps-form-field-half">
@@ -1345,15 +1388,21 @@ class Posttypes {
                     </div>
                 </div>
 
+                <?php if ($editions_tab): ?>
+                <!-- Editions Tab -->
+                <div id="gps-tab-editions" class="gps-tab-content">
+                    <?php Editions_Admin::render_tab($post); ?>
+                </div>
+                <?php endif; ?>
+
                 <!-- Details Tab -->
                 <div id="gps-tab-details" class="gps-tab-content">
                     <div class="gps-form-field">
                         <label for="gps_ce_credits">
                             <?php _e('CE Credits', 'gps-courses'); ?>
                         </label>
-                        <input type="number" id="gps_ce_credits" name="gps_ce_credits"
-                               value="<?php echo esc_attr($ce_credits); ?>" min="0" step="0.5" class="widefat" />
-                        <p class="description"><?php _e('Number of CE credits offered', 'gps-courses'); ?></p>
+                        <?php self::edition_input('number', 'gps_ce_credits', $ce_credits, $locked, 'min="0" step="0.5" class="widefat"'); ?>
+                        <p class="description"><?php echo $locked ? esc_html__('Set per edition (Editions tab).', 'gps-courses') : esc_html__('Number of CE credits offered', 'gps-courses'); ?></p>
                     </div>
 
                     <div class="gps-form-field">
@@ -1387,20 +1436,19 @@ class Posttypes {
 
                 <!-- Location Tab -->
                 <div id="gps-tab-location" class="gps-tab-content">
+                    <?php if ($locked) { echo Editions_Admin::locked_note($post->ID); } ?>
                     <div class="gps-form-field">
                         <label for="gps_venue">
                             <?php _e('Venue Name', 'gps-courses'); ?>
                         </label>
-                        <input type="text" id="gps_venue" name="gps_venue"
-                               value="<?php echo esc_attr($venue); ?>" class="widefat" />
+                        <?php self::edition_input('text', 'gps_venue', $venue, $locked, 'class="widefat"'); ?>
                     </div>
 
                     <div class="gps-form-field">
                         <label for="gps_address">
                             <?php _e('Address', 'gps-courses'); ?>
                         </label>
-                        <input type="text" id="gps_address" name="gps_address"
-                               value="<?php echo esc_attr($address); ?>" class="widefat" />
+                        <?php self::edition_input('text', 'gps_address', $address, $locked, 'class="widefat"'); ?>
                     </div>
 
                     <div class="gps-form-grid">
@@ -1408,32 +1456,28 @@ class Posttypes {
                             <label for="gps_city">
                                 <?php _e('City', 'gps-courses'); ?>
                             </label>
-                            <input type="text" id="gps_city" name="gps_city"
-                                   value="<?php echo esc_attr($city); ?>" />
+                            <?php self::edition_input('text', 'gps_city', $city, $locked); ?>
                         </div>
 
                         <div class="gps-form-field gps-form-field-half">
                             <label for="gps_state">
                                 <?php _e('State/Province', 'gps-courses'); ?>
                             </label>
-                            <input type="text" id="gps_state" name="gps_state"
-                                   value="<?php echo esc_attr($state); ?>" />
+                            <?php self::edition_input('text', 'gps_state', $state, $locked); ?>
                         </div>
 
                         <div class="gps-form-field gps-form-field-half">
                             <label for="gps_zip">
                                 <?php _e('ZIP/Postal Code', 'gps-courses'); ?>
                             </label>
-                            <input type="text" id="gps_zip" name="gps_zip"
-                                   value="<?php echo esc_attr($zip); ?>" />
+                            <?php self::edition_input('text', 'gps_zip', $zip, $locked); ?>
                         </div>
 
                         <div class="gps-form-field gps-form-field-half">
                             <label for="gps_country">
                                 <?php _e('Country', 'gps-courses'); ?>
                             </label>
-                            <input type="text" id="gps_country" name="gps_country"
-                                   value="<?php echo esc_attr($country); ?>" />
+                            <?php self::edition_input('text', 'gps_country', $country, $locked); ?>
                         </div>
                     </div>
                 </div>

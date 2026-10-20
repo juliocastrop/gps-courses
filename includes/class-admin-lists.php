@@ -64,7 +64,7 @@ class Admin_Lists {
     }
 
     /** "13 / 20 sold" with a meter; $total null = unlimited. */
-    protected static function meter($sold, $total, $tone = 'info', $format = null) {
+    public static function meter($sold, $total, $tone = 'info', $format = null) {
         if (null === $total) {
             /* translators: %d: tickets sold */
             return '<div class="gps-meter__label">' . esc_html(sprintf(__('%d sold · no limit', 'gps-courses'), $sold)) . '</div>';
@@ -358,6 +358,18 @@ class Admin_Lists {
                 if ('publish' !== $post->post_status) {
                     /* translators: %s: date */
                     $parts[] = sprintf(__('last edited %s', 'gps-courses'), date_i18n(get_option('date_format'), strtotime($post->post_modified)));
+                }
+                if (Editions::is_master($post_id)) {
+                    // "Editions: 2 (2026, 2027)" — drafts included
+                    $labels = array_map(function ($e) {
+                        return Editions::edition_label($e->ID);
+                    }, Editions_Admin::editions($post_id));
+                    /* translators: 1: number of editions, 2: their labels */
+                    $parts[] = sprintf(__('Editions: %1$d (%2$s)', 'gps-courses'), count($labels), implode(', ', $labels));
+                } elseif ('trash' === $post->post_status && (int) $post->post_parent > 0 && 'gps_event' === get_post_type($post->post_parent)) {
+                    // A trashed edition (Trash view): say which course it belongs to
+                    /* translators: 1: edition label (year), 2: course title */
+                    array_unshift($parts, sprintf(__('Edition %1$s of %2$s', 'gps-courses'), Editions::edition_label($post_id), get_the_title($post->post_parent)));
                 }
                 self::title_cell($post, esc_html(implode(' · ', $parts)));
                 break;
@@ -844,7 +856,7 @@ class Admin_Lists {
             $cur = isset($_GET['gps_course']) ? absint($_GET['gps_course']) : 0;
             echo '<label class="screen-reader-text" for="gps-filter-course">' . esc_html__('Filter by course', 'gps-courses') . '</label>';
             echo '<select name="gps_course" id="gps-filter-course"><option value="">' . esc_html__('All courses', 'gps-courses') . '</option>';
-            foreach (course_select_options($cur) as $id => $title) {
+            foreach (self::course_filter_options($cur) as $id => $title) {
                 echo '<option value="' . (int) $id . '"' . selected($cur, $id, false) . '>' . esc_html($title) . '</option>';
             }
             echo '</select>';
@@ -868,6 +880,27 @@ class Admin_Lists {
         if ('gps_ticket' === $post_type && isset($_GET['gps_sale'])) {
             echo '<input type="hidden" name="gps_sale" value="' . esc_attr(sanitize_key(wp_unslash($_GET['gps_sale']))) . '">';
         }
+    }
+
+    /**
+     * Course filter of the Ticket Types / Agendas lists: every course and
+     * edition ("Course — Edition 2026"), plus "Course — all editions" for a
+     * course that has editions (filter_query() expands it).
+     */
+    public static function course_filter_options($cur = 0) {
+        $options = course_select_options($cur);
+        if (!Editions::has_children()) {
+            return $options;
+        }
+        foreach (array_unique(array_values(Editions::map())) as $master) {
+            if ('gps_event' !== get_post_type($master)) {
+                continue;
+            }
+            /* translators: %s: course title */
+            $options[(int) $master] = sprintf(__('%s — all editions', 'gps-courses'), get_the_title($master));
+        }
+        uasort($options, 'strnatcasecmp');
+        return $options;
     }
 
     public static function filter_query($query) {

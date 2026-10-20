@@ -1062,3 +1062,253 @@ body.post-type-gps_event .wrap .page-title-action:focus {
     .post-type-gps_event .wp-list-table .column-gps_from,
     .post-type-gps_ticket .wp-list-table .column-gps_price { text-align: left; }
 }
+
+/* ============================================
+   Course editions (Editions tab, edition editor)
+   ============================================ */
+
+.gps-event-tabs .gps-tab-count {
+    display: inline-block;
+    min-width: 18px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #e8eef8;
+    color: #193463;
+    font-size: 11px;
+    line-height: 18px;
+    text-align: center;
+}
+
+.gps-editions-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    margin: 0 0 18px;
+}
+
+.gps-editions-toolbar .button .dashicons {
+    margin: 3px 2px 0 -2px;
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.gps-editions-toolbar .description {
+    color: #50575e;
+}
+
+.gps-editions-resync {
+    margin-left: auto;
+}
+
+.gps-editions-empty {
+    padding: 16px 18px;
+    border: 1px dashed #c3c4c7;
+    border-radius: 8px;
+    background: #f6f7f7;
+}
+
+.gps-editions-empty p {
+    margin: 0 0 10px;
+}
+
+.gps-editions-empty p:last-child {
+    margin-bottom: 0;
+}
+
+.gps-edition-card {
+    margin: 0 0 14px;
+    padding: 16px 18px;
+    border: 1px solid #dcdcde;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.gps-edition-card.is-current {
+    border-color: #0B52AC;
+    box-shadow: inset 3px 0 0 #0B52AC;
+}
+
+.gps-edition-card__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    margin-bottom: 12px;
+}
+
+.gps-edition-card__head h3 {
+    margin: 0;
+    font-size: 15px;
+}
+
+.gps-edition-card__current {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: #0B52AC;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.gps-edition-card__current .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+.gps-edition-card__links {
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+.gps-edition-card__links .gps-sep {
+    margin: 0 4px;
+    color: #a7aaad;
+}
+
+.gps-edition-card__grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px 18px;
+    margin: 0;
+}
+
+.gps-edition-card__grid dt {
+    margin: 0 0 3px;
+    color: #646970;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.gps-edition-card__grid dd {
+    margin: 0;
+    font-weight: 600;
+}
+
+.gps-edition-card .gps-sub,
+.gps-edition-side-list .gps-sub {
+    display: block;
+    margin-top: 2px;
+    color: #50575e;
+    font-size: 12px;
+    font-weight: 400;
+}
+
+.gps-edition-card .gps-muted,
+.gps-edition-side-list .gps-muted {
+    color: #646970;
+    font-weight: 400;
+}
+
+.gps-edition-locked {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin: 0 0 18px;
+    padding: 10px 14px;
+    border: 1px solid #c5d5ee;
+    border-radius: 8px;
+    background: #f3f7fd;
+    color: #193463;
+}
+
+.gps-edition-locked .dashicons {
+    flex: 0 0 auto;
+    margin-top: 1px;
+    color: #0B52AC;
+}
+
+input.gps-edition-locked-input[disabled] {
+    background: #f6f7f7;
+    border-color: #dcdcde;
+    color: #1d2327;
+    opacity: 1;
+}
+
+.gps-edition-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+    margin: 0 0 14px;
+    padding: 12px 16px;
+    border: 1px solid #c5d5ee;
+    border-left: 4px solid #0B52AC;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.gps-edition-banner > .dashicons {
+    color: #0B52AC;
+}
+
+.gps-edition-banner__back {
+    margin-left: auto;
+    font-weight: 600;
+}
+
+.gps-edition-editor {
+    padding: 6px 30px 24px;
+}
+
+.gps-edition-section {
+    padding: 18px 0;
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.gps-edition-section:last-child {
+    border-bottom: 0;
+}
+
+.gps-edition-section h2 {
+    margin: 0 0 12px;
+    padding: 0;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.gps-edition-side-list {
+    margin: 0 0 10px;
+}
+
+.gps-edition-side-list li {
+    margin: 0;
+    padding: 6px 0;
+    border-bottom: 1px solid #f0f0f1;
+}
+
+/* An edition shares the course's title, page design and SEO */
+.gps-edition-child #title[readonly] {
+    background: #f6f7f7;
+}
+
+.gps-edition-child #elementor-switch-mode,
+.gps-edition-child #elementor-editor,
+.gps-edition-child .gps-layout-head,
+.gps-edition-child #edit-slug-box .edit-slug {
+    display: none;
+}
+
+@media screen and (max-width: 1100px) {
+    .gps-edition-card__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media screen and (max-width: 782px) {
+    .gps-edition-card__links,
+    .gps-editions-resync,
+    .gps-edition-banner__back {
+        margin-left: 0;
+    }
+    .gps-edition-card__grid {
+        grid-template-columns: 1fr;
+    }
+    .gps-edition-editor {
+        padding: 6px 16px 16px;
+    }
+}

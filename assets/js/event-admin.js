@@ -9,8 +9,17 @@
     $(document).ready(function() {
         // Initialize tabs
         if ($('.gps-event-tabs-wrapper').length) {
+            // ?gps_tab=editions (from an edition, Add edition, Resync) opens that tab
+            var startTab = 0;
+            var tabMatch = /[?&]gps_tab=([a-z]+)/.exec(window.location.search);
+            if (tabMatch) {
+                var $tabLink = $('.gps-event-tabs a[href="#gps-tab-' + tabMatch[1] + '"]');
+                if ($tabLink.length) {
+                    startTab = $('.gps-event-tabs li').index($tabLink.closest('li'));
+                }
+            }
             $('.gps-event-tabs-wrapper').tabs({
-                active: 0,
+                active: startTab,
                 heightStyle: 'content',
                 activate: function(event, ui) {
                     // Trigger resize for editors in the activated tab
