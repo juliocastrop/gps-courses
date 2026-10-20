@@ -194,6 +194,7 @@ class Admin_Menu {
             'tools' => ['label' => __('Tools', 'gps-courses'), 'tabs' => [
                 ['label' => __('Orders Diagnostic', 'gps-courses'), 'url' => 'admin.php?page=gps-orders-diagnostic', 'cap' => 'manage_options', 'page' => 'gps-orders-diagnostic'],
                 ['label' => __('Registration Guard', 'gps-courses'), 'url' => 'admin.php?page=gps-registration-guard', 'cap' => 'manage_options', 'page' => 'gps-registration-guard'],
+                ['label' => __('Error log', 'gps-courses'), 'url' => 'admin.php?page=gps-error-log', 'cap' => 'manage_options', 'page' => 'gps-error-log'],
                 // Destructive buttons (recreate tables): only while debugging
                 ['label' => __('Debug Info', 'gps-courses'), 'url' => 'admin.php?page=gps-debug', 'cap' => 'manage_options', 'page' => 'gps-debug', 'hidden' => !$debug],
             ]],

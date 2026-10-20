@@ -19,6 +19,7 @@ class Plugin {
         require_once GPSC_PATH . 'includes/class-email-catalog.php';
         require_once GPSC_PATH . 'includes/class-emails.php';
         require_once GPSC_PATH . 'includes/class-email-hub.php';
+        require_once GPSC_PATH . 'includes/class-error-log.php';
         require_once GPSC_PATH . 'includes/class-waitlist.php';
         require_once GPSC_PATH . 'includes/class-elementor.php';
         require_once GPSC_PATH . 'includes/class-attendance.php';
@@ -90,6 +91,7 @@ class Plugin {
         // Emails › All emails / Brand / Schedule replace Email Branding, Email
         // Templates and Seminar Notifications (old URLs redirect there)
         Email_Hub::init();
+        Error_Log::init();
         Waitlist::init();
         Elementor_Integration::init();
         Attendance::init();
