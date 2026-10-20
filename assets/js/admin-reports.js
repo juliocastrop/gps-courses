@@ -28,6 +28,9 @@
             const type = $button.data('type');
             const eventId = $('#export-event').val();
 
+            if (!$button.data('original-text')) {
+                $button.data('original-text', $button.html()); // restored after the export
+            }
             $button.prop('disabled', true).html('<span class="spinner is-active"></span> ' + gpsReports.i18n.exporting);
 
             $.ajax({
@@ -43,8 +46,11 @@
 
                     if (response.success) {
                         // Create download link
-                        const csvContent = atob(response.data.data);
-                        const blob = new Blob([csvContent], { type: 'text/csv' });
+                        // Bytes, not a string: a string Blob would re-encode UTF-8 (é → Ã©)
+                        const raw = atob(response.data.data);
+                        const bytes = new Uint8Array(raw.length);
+                        for (let i = 0; i < raw.length; i++) { bytes[i] = raw.charCodeAt(i); }
+                        const blob = new Blob([bytes], { type: 'text/csv;charset=utf-8' });
                         const url = window.URL.createObjectURL(blob);
                         const a = document.createElement('a');
                         a.href = url;

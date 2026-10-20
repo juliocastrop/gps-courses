@@ -287,9 +287,10 @@ class Reports {
                             <label for="bulk-operation"><?php _e('Operation:', 'gps-courses'); ?></label>
                             <select id="bulk-operation" name="operation" class="widefat" required>
                                 <option value=""><?php _e('Select Operation', 'gps-courses'); ?></option>
-                                <option value="award_credits"><?php _e('Award CE Credits (Checked In)', 'gps-courses'); ?></option>
-                                <option value="resend_tickets"><?php _e('Resend Tickets (All)', 'gps-courses'); ?></option>
-                                <option value="mark_attended"><?php _e('Mark All as Attended', 'gps-courses'); ?></option>
+                                <?php /* "Award CE Credits" bypassed certificates (credits are awarded when the
+                                         certificate is generated) and "Resend Tickets" fired a hook nothing
+                                         listens to (it reported success without sending): both removed. */ ?>
+                                <option value="mark_attended"><?php _e('Mark All as Attended (valid tickets)', 'gps-courses'); ?></option>
                             </select>
                         </div>
 
@@ -564,7 +565,12 @@ class Reports {
         foreach ($data as $row) {
             $csv_row = [];
             foreach (array_keys($columns) as $key) {
-                $csv_row[] = isset($row->$key) ? $row->$key : '';
+                $value = isset($row->$key) ? (string) $row->$key : '';
+                // Spreadsheets run cells that start with = + - @ as formulas
+                if ('' !== $value && in_array($value[0], ['=', '+', '-', '@', "	", ""], true)) {
+                    $value = "'" . $value;
+                }
+                $csv_row[] = $value;
             }
             fputcsv($output, $csv_row);
         }
@@ -573,7 +579,8 @@ class Reports {
         $csv_content = stream_get_contents($output);
         fclose($output);
 
-        return base64_encode($csv_content);
+        // UTF-8 byte order mark: Excel opens names with accents correctly
+        return base64_encode("ï»¿" . $csv_content);
     }
 
     /**
@@ -613,9 +620,23 @@ class Reports {
             $sql .= " WHERE";
         }
 
-        $sql .= $wpdb->prepare(" t.event_id = %d", $event_id);
+        $sql .= $wpdb->prepare(" t.event_id = %d AND t.status = 'valid'", $event_id);
+        $sql = str_replace('SELECT DISTINCT', 'SELECT DISTINCT t.order_id,', $sql);
 
-        $attendees = $wpdb->get_results($sql);
+        // Paid orders only, and one email per address (a buyer with 2 tickets gets 1)
+        $attendees = [];
+        foreach ((array) $wpdb->get_results($sql) as $row) {
+            $order = function_exists('wc_get_order') ? wc_get_order((int) $row->order_id) : null;
+            if ($order && !in_array($order->get_status(), ['completed', 'processing'], true)) {
+                continue;
+            }
+            $key = strtolower(trim((string) $row->attendee_email));
+            if ('' === $key || isset($attendees[$key])) {
+                continue;
+            }
+            $attendees[$key] = $row;
+        }
+        $attendees = array_values($attendees);
 
         if (empty($attendees)) {
             wp_send_json_error(['message' => __('No recipients found.', 'gps-courses')]);
@@ -677,64 +698,19 @@ class Reports {
         global $wpdb;
 
         switch ($operation) {
-            case 'award_credits':
-                // Award credits to all checked-in attendees who haven't received them
-                $credits = (float) get_post_meta($event_id, '_gps_ce_credits', true);
-
-                if (!$credits) {
-                    wp_send_json_error(['message' => __('This event has no CE credits configured.', 'gps-courses')]);
-                }
-
-                $attendees = $wpdb->get_results($wpdb->prepare(
-                    "SELECT DISTINCT a.user_id, a.ticket_id
-                     FROM {$wpdb->prefix}gps_attendance a
-                     WHERE a.event_id = %d
-                     AND NOT EXISTS (
-                         SELECT 1 FROM {$wpdb->prefix}gps_ce_ledger l
-                         WHERE l.user_id = a.user_id AND l.event_id = %d
-                     )",
-                    $event_id, $event_id
-                ));
-
-                $count = 0;
-                foreach ($attendees as $attendee) {
-                    Credits::award($attendee->user_id, $event_id, 'attendance', 'Bulk awarded by admin');
-                    $count++;
-                }
-
-                wp_send_json_success([
-                    'message' => sprintf(__('Awarded %1$s CE credits to %2$d attendees.', 'gps-courses'), Credits::format($credits), $count),
-                ]);
-                break;
-
-            case 'resend_tickets':
-                // Resend ticket emails
-                $tickets = $wpdb->get_results($wpdb->prepare(
-                    "SELECT * FROM {$wpdb->prefix}gps_tickets WHERE event_id = %d",
-                    $event_id
-                ));
-
-                $count = 0;
-                foreach ($tickets as $ticket) {
-                    // Trigger ticket email
-                    do_action('gps_resend_ticket', $ticket->id);
-                    $count++;
-                }
-
-                wp_send_json_success([
-                    'message' => sprintf(__('Resent %d tickets.', 'gps-courses'), $count),
-                ]);
-                break;
-
             case 'mark_attended':
-                // Mark all tickets as attended
+                // Valid tickets of paid orders only (never cancelled / refunded ones)
                 $tickets = $wpdb->get_results($wpdb->prepare(
-                    "SELECT * FROM {$wpdb->prefix}gps_tickets WHERE event_id = %d",
+                    "SELECT * FROM {$wpdb->prefix}gps_tickets WHERE event_id = %d AND status = 'valid'",
                     $event_id
                 ));
 
                 $count = 0;
                 foreach ($tickets as $ticket) {
+                    $order = function_exists('wc_get_order') ? wc_get_order((int) $ticket->order_id) : null;
+                    if ($order && !in_array($order->get_status(), ['completed', 'processing'], true)) {
+                        continue;
+                    }
                     // Check if already attended
                     $exists = $wpdb->get_var($wpdb->prepare(
                         "SELECT id FROM {$wpdb->prefix}gps_attendance WHERE ticket_id = %d",
