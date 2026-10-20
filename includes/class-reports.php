@@ -567,7 +567,7 @@ class Reports {
             foreach (array_keys($columns) as $key) {
                 $value = isset($row->$key) ? (string) $row->$key : '';
                 // Spreadsheets run cells that start with = + - @ as formulas
-                if ('' !== $value && in_array($value[0], ['=', '+', '-', '@', "	", ""], true)) {
+                if ('' !== $value && in_array($value[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
                     $value = "'" . $value;
                 }
                 $csv_row[] = $value;
