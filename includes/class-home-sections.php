@@ -110,6 +110,41 @@ class Home_Sections {
         return '' !== $short ? $short : $title;
     }
 
+    /**
+     * Up to $n past courses, one per short title, most recent first:
+     * [title (short), url, image, when, ce].
+     */
+    public static function past_courses($n = 3) {
+        $out  = [];
+        $seen = [];
+        foreach (Course_Catalog::courses('past', 12) as $c) {
+            $short = self::short_title($c['title']);
+            $key   = function_exists('mb_strtolower') ? mb_strtolower($short, 'UTF-8') : strtolower($short);
+            if ('' === $short || isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $out[] = [
+                'title' => html_entity_decode(wp_strip_all_tags((string) $c['title']), ENT_QUOTES, 'UTF-8'),
+                'url'   => (string) $c['url'],
+                'image' => (string) $c['image'],
+                'when'  => (string) $c['when'],
+                'ce'    => (float) $c['ce'],
+            ];
+            if (count($out) >= $n) {
+                break;
+            }
+        }
+        return $out;
+    }
+
+    /** URL of the PACE logo (white) for the CE credits card. */
+    public static function pace_logo_url() {
+        $id  = (int) apply_filters('gpsc_home_pace_logo_id', 7120);
+        $url = $id ? (string) wp_get_attachment_image_url($id, 'medium') : '';
+        return (string) apply_filters('gpsc_home_pace_logo_url', $url);
+    }
+
     /** Up to $n distinct short titles of past courses, most recent first. */
     public static function past_titles($n = 3) {
         $out  = [];

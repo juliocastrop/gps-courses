@@ -104,23 +104,130 @@
 .gps-home .gps-home-fill {
     display: flex;
     flex-direction: column;
-    gap: 10px;
     min-width: 0;
-    padding: 26px 24px;
+    overflow: hidden;
     border-radius: 14px;
+}
+
+/* Same 170px band as a course card's image, so the row reads as one set */
+.gps-home .gps-home-fill__media {
+    position: relative;
+    flex: none;
+    height: 170px;
+    background: var(--gps-navy-deep);
+}
+
+.gps-home .gps-home-fill__media--mosaic {
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    gap: 2px;
+}
+
+.gps-home .gps-home-fill__tile {
+    background-size: cover;
+    background-position: center;
+    filter: saturate(.85);
+}
+
+.gps-home .gps-home-fill__media--mosaic::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(19, 37, 77, .15) 0%, rgba(19, 37, 77, .55) 100%);
+}
+
+.gps-home .gps-home-fill__media--ce {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(120% 120% at 100% 0%, #234a8c 0%, var(--gps-navy-deep) 60%);
+}
+
+.gps-home .gps-home-fill__logo {
+    display: block;
+    width: auto;
+    max-width: 62%;
+    max-height: 92px;
+    height: auto;
+}
+
+.gps-home .gps-home-fill__badge {
+    position: absolute;
+    left: 14px;
+    top: 14px;
+    z-index: 1;
+    padding: 4px 9px;
+    border-radius: 4px;
+    background: var(--gps-navy-deep);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.gps-home .gps-home-fill__badge--gold {
+    left: auto;
+    right: 14px;
+    background: #f3e7c6;
+    color: #6f5822;
+}
+
+.gps-home .gps-home-fill__body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px 22px 22px;
+}
+
+.gps-home .gps-home-fill__list {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.gps-home .gps-home-fill__list li + li {
+    border-top: 1px solid var(--gps-line);
+}
+
+.gps-home .gps-home-fill__list a {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 0;
+    text-decoration: none;
+}
+
+.gps-home .gps-home-fill__list strong {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 14px;
+    line-height: 1.35;
+    font-weight: 700;
+    color: var(--gps-navy-deep);
+}
+
+.gps-home .gps-home-fill__list span {
+    font-size: 12px;
+    color: var(--gps-muted);
+}
+
+.gps-home .gps-home-fill__list a:hover strong {
+    color: var(--gps-blue);
 }
 
 .gps-home .gps-home-fill .gps-home-eyebrow {
     margin: 0;
 }
 
-.gps-home .gps-home-fill--more {
-    border: 2px dashed #c4cfe0;
-    background: rgba(255, 255, 255, .55);
-}
-
+.gps-home .gps-home-fill--more,
 .gps-home .gps-home-fill--ce {
-    border-top: 4px solid var(--gps-gold);
     background: #fff;
     box-shadow: 0 1px 0 var(--gps-line), 0 14px 30px -22px rgba(18, 38, 74, .55);
 }

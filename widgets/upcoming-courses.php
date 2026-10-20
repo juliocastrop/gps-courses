@@ -5,6 +5,7 @@ if (!defined('ABSPATH')) exit;
 
 use Elementor\Controls_Manager;
 use GPSC\Course_Catalog;
+use GPSC\Credits;
 use GPSC\Home_Sections;
 
 /**
@@ -97,11 +98,11 @@ class Upcoming_Courses_Widget extends Base_Widget {
             'condition' => $more,
         ]);
         $this->add_control('more_fallback', [
-            'label'       => __('Title when there are no past courses', 'gps-courses'),
+            'label'       => __('Title', 'gps-courses'),
             'type'        => Controls_Manager::TEXT,
             'label_block' => true,
             'default'     => __('Past courses run again', 'gps-courses'),
-            'description' => __('Normally the title names up to 3 past courses: "PRF, Pink Ceramics and … run again".', 'gps-courses'),
+            'description' => __('Below it, the card lists up to 3 past courses (photo, last dates, CE) linked to their pages, where visitors join the interest list.', 'gps-courses'),
             'condition'   => $more,
         ]);
         $this->add_control('more_text', [
@@ -192,15 +193,19 @@ class Upcoming_Courses_Widget extends Base_Widget {
         }
         foreach ($fillers as $kind) {
             if ('more' === $kind) {
+                $past = Home_Sections::past_courses(3);
                 $this->render_filler('more', [
                     'eyebrow' => $s['more_eyebrow'] ?? '',
-                    'title'   => Home_Sections::runs_again(Home_Sections::past_titles(3), (string) ($s['more_fallback'] ?? '')),
+                    // With the list of past courses below, the title stays short
+                    'title'   => $past ? (string) ($s['more_fallback'] ?? '') : Home_Sections::runs_again([], (string) ($s['more_fallback'] ?? '')),
                     'text'    => $s['more_text'] ?? '',
                     'label'   => $s['more_link_label'] ?? '',
                     'url'     => $catalog . '#gps-past-h',
+                    'past'    => $past,
                 ]);
             } else {
                 $this->render_filler('ce', [
+                    'logo'    => Home_Sections::pace_logo_url(),
                     'eyebrow' => $s['ce_eyebrow'] ?? '',
                     'title'   => $s['ce_title'] ?? '',
                     'text'    => $s['ce_text'] ?? '',
@@ -219,10 +224,38 @@ class Upcoming_Courses_Widget extends Base_Widget {
         $label   = trim((string) $f['label']);
         ?>
         <article class="gps-home-fill gps-home-fill--<?php echo esc_attr($kind); ?>">
-            <?php if ('' !== $eyebrow) : ?><p class="gps-home-eyebrow"><?php echo esc_html($eyebrow); ?></p><?php endif; ?>
-            <?php if ('' !== $title) : ?><h3 class="gps-home-fill__title"><?php echo esc_html($title); ?></h3><?php endif; ?>
-            <?php if ('' !== $text) : ?><p class="gps-home-fill__text"><?php echo esc_html($text); ?></p><?php endif; ?>
-            <?php if ('' !== $label && '' !== $f['url']) : ?><a class="gps-home-fill__link" href="<?php echo esc_url($f['url']); ?>"><?php echo esc_html($label); ?></a><?php endif; ?>
+            <?php if ('more' === $kind) :
+                $imgs = array_values(array_filter(array_column(isset($f['past']) ? (array) $f['past'] : [], 'image'))); ?>
+                <div class="gps-home-fill__media gps-home-fill__media--mosaic" aria-hidden="true">
+                    <?php foreach (array_slice($imgs, 0, 3) as $img) : ?>
+                        <span class="gps-home-fill__tile" style="background-image:url('<?php echo esc_url($img); ?>')"></span>
+                    <?php endforeach; ?>
+                    <span class="gps-home-fill__badge"><?php esc_html_e('Past courses', 'gps-courses'); ?></span>
+                </div>
+            <?php else : ?>
+                <div class="gps-home-fill__media gps-home-fill__media--ce">
+                    <?php if (!empty($f['logo'])) : ?>
+                        <img class="gps-home-fill__logo" src="<?php echo esc_url($f['logo']); ?>" alt="<?php esc_attr_e('PACE Program Approval for Continuing Education', 'gps-courses'); ?>" loading="lazy">
+                    <?php endif; ?>
+                    <span class="gps-home-fill__badge gps-home-fill__badge--gold"><?php esc_html_e('FAGD / MAGD credit', 'gps-courses'); ?></span>
+                </div>
+            <?php endif; ?>
+            <div class="gps-home-fill__body">
+                <?php if ('' !== $eyebrow) : ?><p class="gps-home-eyebrow"><?php echo esc_html($eyebrow); ?></p><?php endif; ?>
+                <?php if ('' !== $title) : ?><h3 class="gps-home-fill__title"><?php echo esc_html($title); ?></h3><?php endif; ?>
+                <?php if (!empty($f['past'])) : ?>
+                    <ul class="gps-home-fill__list">
+                        <?php foreach ($f['past'] as $p) : ?>
+                            <li><a href="<?php echo esc_url($p['url']); ?>"><strong><?php echo esc_html($p['title']); ?></strong><span><?php
+                                $meta = array_filter([$p['when'], $p['ce'] > 0 ? Credits::format($p['ce']) . ' CE' : '']);
+                                echo esc_html(implode(' · ', $meta));
+                            ?></span></a></li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+                <?php if ('' !== $text) : ?><p class="gps-home-fill__text"><?php echo esc_html($text); ?></p><?php endif; ?>
+                <?php if ('' !== $label && '' !== $f['url']) : ?><a class="gps-home-fill__link" href="<?php echo esc_url($f['url']); ?>"><?php echo esc_html($label); ?></a><?php endif; ?>
+            </div>
         </article>
         <?php
     }
