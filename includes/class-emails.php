@@ -299,8 +299,9 @@ class Emails {
             foreach (array_values($cells) as $c => $cell) {
                 $a = isset($align[$c]) ? $align[$c] : 'left';
                 $html .= 0 === $i
-                    ? '<td align="' . $a . '" style="padding:10px;background-color:#f6f7f9;font-size:11px;font-weight:bold;letter-spacing:.04em;text-transform:uppercase;color:#5b6472;">' . $cell . '</td>'
-                    : '<td align="' . $a . '" style="padding:10px;border-top:1px solid #eef0f4;word-break:break-word;overflow-wrap:anywhere;">' . $cell . '</td>';
+                    ? '<td align="' . $a . '" style="padding:10px;' . ('right' === $a ? 'white-space:nowrap;' : '') . 'background-color:#f6f7f9;font-size:11px;font-weight:bold;letter-spacing:.04em;text-transform:uppercase;color:#5b6472;">' . $cell . '</td>'
+                    // Amounts / numbers (right-aligned) never wrap: "$2,500.00" stays on one line
+                    : '<td align="' . $a . '" style="padding:10px;border-top:1px solid #eef0f4;' . ('right' === $a ? 'white-space:nowrap;' : 'overflow-wrap:break-word;word-break:normal;') . '">' . $cell . '</td>';
             }
             $html .= '</tr>';
         }
