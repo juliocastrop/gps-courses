@@ -64,7 +64,8 @@ class AI_Search_Admin {
         $show = in_array($post_type, ['gps_event', 'page'], true)
             || ('product' === $post_type && class_exists(__NAMESPACE__ . '\\Seminar_Page') && Seminar_Page::seminar_for_product($post->ID));
         if ($show) {
-            add_meta_box('gpsc-ai-search', __('AI Search', 'gps-courses'), [__CLASS__, 'render_box'], $post_type, 'side', 'high');
+            // 'default': under Publish (core) and the course's own boxes
+            add_meta_box('gpsc-ai-search', __('AI Search', 'gps-courses'), [__CLASS__, 'render_box'], $post_type, 'side', 'default');
         }
     }
 

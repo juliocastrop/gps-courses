@@ -36,6 +36,8 @@ class Admin_Lists {
         add_filter('manage_edit-gps_schedule_sortable_columns', [__CLASS__, 'agenda_sortable']);
 
         add_filter('manage_gps_speaker_posts_columns', [__CLASS__, 'speaker_columns'], 20);
+        add_filter('manage_edit-gps_speaker_sortable_columns', [__CLASS__, 'name_sortable']);
+        add_filter('manage_edit-gps_sponsor_sortable_columns', [__CLASS__, 'name_sortable']);
         add_action('manage_gps_speaker_posts_custom_column', [__CLASS__, 'speaker_cell'], 10, 2);
 
         add_filter('manage_gps_sponsor_posts_columns', [__CLASS__, 'sponsor_columns'], 20);
@@ -121,7 +123,9 @@ class Admin_Lists {
         } else {
             echo '<span class="row-title">' . esc_html($title) . '</span>';
         }
-        _post_states($post);
+        if (in_array($post->post_status, ['publish', 'trash'], true)) {
+            _post_states($post); // drafts / pending / scheduled already have a Status badge
+        }
         echo '</strong>';
         if ('' !== $sub) {
             echo '<div class="gps-sub">' . $sub . '</div>'; // escaped by callers
@@ -223,6 +227,14 @@ class Admin_Lists {
             return 'publish' === $t->post_status;
         });
         $cutoff  = $start ? gmdate('Y-m-d', strtotime($start . ' -6 months')) : '';
+        if ($past) {
+            // A past course: the ticket types that actually sold (an early bird
+            // that never sold is not capacity, and its price was never paid)
+            $sold_types = array_filter($tickets, function ($t) {
+                return Tickets::get_ticket_stock($t->ID)['sold'] > 0;
+            });
+            $tickets = $sold_types ?: $tickets;
+        }
         $current = $past ? $tickets : array_filter($tickets, function ($t) use ($cutoff) {
             if (!Tickets::sale_ended($t->ID)) {
                 return true;
@@ -467,6 +479,11 @@ class Admin_Lists {
     public static function ticket_state($ticket_id) {
         if (Tickets::sale_ended($ticket_id)) {
             return 'ended';
+        }
+        $event_id = (int) get_post_meta($ticket_id, '_gps_event_id', true);
+        $end = $event_id ? ((string) get_post_meta($event_id, '_gps_end_date', true) ?: (string) get_post_meta($event_id, '_gps_start_date', true)) : '';
+        if ('' !== $end && $end < current_time('Y-m-d')) {
+            return 'ended'; // the course took place (no sale end date was set)
         }
         if (Tickets::is_sold_out($ticket_id)) {
             return 'sold_out';
@@ -729,6 +746,12 @@ class Admin_Lists {
     protected static function thumb($post_id, $shape) {
         $img = get_the_post_thumbnail($post_id, [80, 80], ['class' => 'gps-thumb gps-thumb--' . $shape, 'alt' => '']);
         return $img ?: '<span class="gps-thumb gps-thumb--' . esc_attr($shape) . ' gps-thumb--empty" aria-hidden="true"></span>';
+    }
+
+    public static function name_sortable($columns) {
+        $columns['gps_speaker'] = 'title';
+        $columns['gps_sponsor'] = 'title';
+        return $columns;
     }
 
     public static function speaker_columns($columns) {

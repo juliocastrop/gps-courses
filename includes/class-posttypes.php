@@ -19,7 +19,8 @@ class Posttypes {
         add_action('edit_form_after_title', [__CLASS__, 'custom_event_edit_screen']);
         add_filter('screen_layout_columns', [__CLASS__, 'event_screen_layout_columns']);
         add_filter('get_user_option_screen_layout_gps_event', [__CLASS__, 'event_screen_layout']);
-        add_action('add_meta_boxes_gps_event', [__CLASS__, 'event_meta_boxes'], 100);
+        // Before AI Search (add_meta_boxes, 30) so the sidebar reads Publish, Course image, AI Search
+        add_action('add_meta_boxes', [__CLASS__, 'event_meta_boxes'], 20);
         add_filter('get_user_option_closedpostboxes_gps_event', [__CLASS__, 'event_closed_boxes']);
 
         // Disable block editor for classic editor post types
@@ -1088,7 +1089,7 @@ class Posttypes {
                 'gps-event-admin',
                 plugin_dir_url(dirname(__FILE__)) . 'assets/js/event-admin.js',
                 ['jquery', 'jquery-ui-tabs', 'wp-color-picker', 'media-upload', 'thickbox'],
-                '1.0.5',
+                (string) filemtime(GPSC_PATH . 'assets/js/event-admin.js'),
                 true
             );
 
@@ -1130,11 +1131,14 @@ class Posttypes {
      * Course image box), and the hidden boxes still posted their old values,
      * so a featured image changed from the form came back on Update.
      */
-    public static function event_meta_boxes() {
+    public static function event_meta_boxes($post_type = '') {
+        if ('gps_event' !== $post_type) {
+            return;
+        }
         remove_meta_box('postimagediv', 'gps_event', 'side');
         remove_meta_box('gps_event_categorydiv', 'gps_event', 'side');
         remove_meta_box('tagsdiv-gps_event_tag', 'gps_event', 'side');
-        add_meta_box('gps_course_image', __('Course image', 'gps-courses'), [__CLASS__, 'render_course_image_box'], 'gps_event', 'side', 'high');
+        add_meta_box('gps_course_image', __('Course image', 'gps-courses'), [__CLASS__, 'render_course_image_box'], 'gps_event', 'side', 'default');
     }
 
     /** Yoast, revisions and tracking boxes start collapsed (until the user opens one). */
