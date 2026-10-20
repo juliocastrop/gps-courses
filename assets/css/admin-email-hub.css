@@ -377,3 +377,12 @@
         margin-left: 0;
     }
 }
+
+/* Text fields fill their card instead of WordPress's fixed 25em */
+.gps-email-hub .gps-field input[type="text"],
+.gps-email-hub .gps-field input[type="email"],
+.gps-email-hub .gps-field textarea {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+}
