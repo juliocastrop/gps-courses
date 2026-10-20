@@ -580,7 +580,7 @@ class Reports {
         fclose($output);
 
         // UTF-8 byte order mark: Excel opens names with accents correctly
-        return base64_encode("ï»¿" . $csv_content);
+        return base64_encode("\xEF\xBB\xBF" . $csv_content);
     }
 
     /**
