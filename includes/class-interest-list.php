@@ -87,6 +87,7 @@ class Interest_List {
             }
         }
         $event_id = isset($data['event_id']) ? absint($data['event_id']) : 0;
+        $event_id = Editions::of($event_id) ?: $event_id; // interest rows stay on the course, not an edition
         $email    = isset($data['email']) ? sanitize_email((string) $data['email']) : '';
         $first    = isset($data['first_name']) ? self::clip(sanitize_text_field((string) $data['first_name']), 100) : '';
         $last     = isset($data['last_name']) ? self::clip(sanitize_text_field((string) $data['last_name']), 100) : '';
@@ -363,6 +364,7 @@ class Interest_List {
      */
     public static function queue($event_id) {
         $event_id = (int) $event_id;
+        $event_id = Editions::of($event_id) ?: $event_id; // an edition opening opens its course
         if (!$event_id || 'gps_event' !== get_post_type($event_id) || 'publish' !== get_post_status($event_id)) {
             return;
         }

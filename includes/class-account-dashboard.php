@@ -523,6 +523,13 @@ class Account_Dashboard {
             "SELECT DISTINCT event_id FROM {$wpdb->prefix}gps_tickets WHERE user_id = %d OR designated_attendee_id = %d",
             $user_id, $user_id
         )));
+        // A ticket for an edition means the user has that course
+        foreach ($owned as $owned_id) {
+            $master = Editions::of($owned_id);
+            if ($master && !in_array($master, $owned, true)) {
+                $owned[] = $master;
+            }
+        }
 
         $query = new \WP_Query([
             'post_type'           => 'gps_event',

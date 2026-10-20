@@ -1080,7 +1080,13 @@ class Course_Page {
     /** Instructors from the course's speaker IDs (published speakers only). */
     public static function speakers($event_id) {
         $out = [];
-        foreach (self::speaker_ids($event_id) as $sid) {
+        $ids = self::speaker_ids($event_id);
+        // A course with editions: the current edition's own speakers, when it lists any
+        $edition = Editions::resolve($event_id);
+        if ($edition && $edition !== (int) $event_id) {
+            $ids = self::speaker_ids($edition) ?: $ids;
+        }
+        foreach ($ids as $sid) {
             if ($s = self::speaker($sid)) {
                 $out[] = $s;
             }

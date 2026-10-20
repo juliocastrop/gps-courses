@@ -906,23 +906,21 @@ class Countdown_Timer_Widget extends Base_Widget {
     }
 
     private function get_events_list() {
-        $events = get_posts([
-            'post_type' => 'gps_event',
-            'post_status' => 'publish',
-            'posts_per_page' => -1,
-            'orderby' => 'meta_value',
-            'meta_key' => '_gps_start_date',
-            'order' => 'ASC',
+        // Editions listed as "Course — Edition 2026 (date)"; a course with editions is not
+        return ['' => __('Current Event', 'gps-courses')] + \GPSC\Editions::admin_options(0, [
+            'query' => [
+                'post_type' => 'gps_event',
+                'post_status' => 'publish',
+                'posts_per_page' => -1,
+                'orderby' => 'meta_value',
+                'meta_key' => '_gps_start_date',
+                'order' => 'ASC',
+            ],
+            'no_title' => '',
+            'suffix' => function ($event) {
+                $start_date = get_post_meta($event->ID, '_gps_start_date', true);
+                return $start_date ? ' (' . date_i18n('M j, Y', strtotime($start_date)) . ')' : '';
+            },
         ]);
-
-        $options = ['' => __('Current Event', 'gps-courses')];
-
-        foreach ($events as $event) {
-            $start_date = get_post_meta($event->ID, '_gps_start_date', true);
-            $date_label = $start_date ? ' (' . date_i18n('M j, Y', strtotime($start_date)) . ')' : '';
-            $options[$event->ID] = $event->post_title . $date_label;
-        }
-
-        return $options;
     }
 }

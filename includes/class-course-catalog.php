@@ -124,6 +124,8 @@ class Course_Catalog {
             $args['tax_query'] = [['taxonomy' => $term->taxonomy, 'field' => 'term_id', 'terms' => (int) $term->term_id]];
         }
 
+        // Courses only, also when built in wp-admin (gpsc_catalog() is cached for everyone)
+        $args  = Editions::top_level_args($args);
         $query = new \WP_Query(apply_filters('gps_course_catalog_query_args', $args, $when));
         $full = 'upcoming' === $when;
         return array_map(function ($post) use ($full) {

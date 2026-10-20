@@ -121,15 +121,16 @@ class Attendance {
      * Render scanner page
      */
     public static function render_scanner_page() {
-        // Get all upcoming events
-        $events = get_posts([
+        // Get all upcoming events (editions instead of a course that has them)
+        $events = Editions::picker_posts(get_posts([
             'post_type' => 'gps_event',
             'post_status' => 'publish',
             'posts_per_page' => -1,
             'meta_key' => '_gps_start_date',
             'orderby' => 'meta_value',
             'order' => 'DESC',
-        ]);
+            Editions::QUERY_VAR => true,
+        ]));
 
         ?>
         <div class="wrap gps-attendance-scanner">
@@ -148,7 +149,7 @@ class Attendance {
                                 $date_label = $start_date ? ' - ' . date_i18n('M j, Y', strtotime($start_date)) : '';
                                 ?>
                                 <option value="<?php echo (int) $event->ID; ?>">
-                                    <?php echo esc_html($event->post_title . $date_label); ?>
+                                    <?php echo esc_html(Editions::label($event) . $date_label); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -268,15 +269,16 @@ class Attendance {
     public static function render_report_page() {
         global $wpdb;
 
-        // Get all events
-        $events = get_posts([
+        // Get all events (editions instead of a course that has them)
+        $events = Editions::picker_posts(get_posts([
             'post_type' => 'gps_event',
             'post_status' => 'publish',
             'posts_per_page' => -1,
             'orderby' => 'meta_value',
             'meta_key' => '_gps_start_date',
             'order' => 'DESC',
-        ]);
+            Editions::QUERY_VAR => true,
+        ]));
 
         ?>
         <div class="wrap gps-attendance-report">
@@ -291,7 +293,7 @@ class Attendance {
                         $date_label = $start_date ? ' - ' . date_i18n('M j, Y', strtotime($start_date)) : '';
                         ?>
                         <option value="<?php echo (int) $event->ID; ?>">
-                            <?php echo esc_html($event->post_title . $date_label); ?>
+                            <?php echo esc_html(Editions::label($event) . $date_label); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>

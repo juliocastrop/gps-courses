@@ -363,20 +363,16 @@ class Course_Description_Widget extends Base_Widget {
     }
 
     private function get_events_list() {
-        $events = get_posts([
-            'post_type' => 'gps_event',
-            'post_status' => 'publish',
-            'posts_per_page' => -1,
-            'orderby' => 'title',
-            'order' => 'ASC',
+        // Editions listed as "Course - Edition 2026"; a course with editions is not
+        return ['' => __('Current Event', 'gps-courses')] + \GPSC\Editions::admin_options(0, [
+            'query' => [
+                'post_type' => 'gps_event',
+                'post_status' => 'publish',
+                'posts_per_page' => -1,
+                'orderby' => 'title',
+                'order' => 'ASC',
+            ],
+            'no_title' => '',
         ]);
-
-        $options = ['' => __('Current Event', 'gps-courses')];
-
-        foreach ($events as $event) {
-            $options[$event->ID] = $event->post_title;
-        }
-
-        return $options;
     }
 }

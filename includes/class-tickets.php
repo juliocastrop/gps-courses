@@ -479,6 +479,7 @@ class Tickets {
      * Get active tickets for an event
      */
     public static function get_active_tickets($event_id) {
+        $event_id = Editions::resolve($event_id); // a course with editions sells its current edition
         $tickets = get_posts([
             'post_type'   => 'gps_ticket',
             'numberposts' => -1,
@@ -507,6 +508,7 @@ class Tickets {
      * Get ticket by type and event
      */
     public static function get_ticket_by_type($event_id, $type) {
+        $event_id = Editions::resolve($event_id);
         $tickets = get_posts([
             'post_type'   => 'gps_ticket',
             'numberposts' => 1,
@@ -760,6 +762,7 @@ class Tickets {
 
     public static function get_event_total_stock($event_id) {
         global $wpdb;
+        $event_id = Editions::resolve($event_id);
 
         // Get all ticket types for this event
         $tickets = get_posts([

@@ -88,14 +88,15 @@ class Certificates {
      */
     public static function render_certificates_page() {
         // Get all events
-        $events = get_posts([
+        $events = Editions::picker_posts(get_posts([
             'post_type' => 'gps_event',
             'post_status' => 'publish',
             'posts_per_page' => -1,
             'orderby' => 'meta_value',
             'meta_key' => '_gps_start_date',
             'order' => 'DESC',
-        ]);
+            Editions::QUERY_VAR => true, // editions instead of a course that has them
+        ]));
 
         ?>
         <div class="wrap" id="gps-certificates-page">
@@ -112,7 +113,7 @@ class Certificates {
                         $date_label = $start_date ? ' - ' . date_i18n('M j, Y', strtotime($start_date)) : '';
                         ?>
                         <option value="<?php echo esc_attr($event->ID); ?>">
-                            <?php echo esc_html($event->post_title . $date_label); ?>
+                            <?php echo esc_html(Editions::label($event) . $date_label); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>

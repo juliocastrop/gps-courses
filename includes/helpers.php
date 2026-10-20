@@ -57,38 +57,9 @@ function resolve_widget_event_id($saved, $widget_id = '') {
  * @return array<int,string> course ID => label, ordered by title
  */
 function course_select_options($current_id = 0) {
-    $current_id = (int) $current_id;
-    $courses = get_posts([
-        'post_type'   => 'gps_event',
-        'numberposts' => -1,
-        'no_found_rows'          => true,
-        'update_post_meta_cache' => false,
-        'update_post_term_cache' => false,
-        'post_status' => ['publish', 'draft', 'future', 'pending', 'private'],
-        'orderby'     => 'title',
-        'order'       => 'ASC',
-    ]);
-
-    $ids = wp_list_pluck($courses, 'ID');
-    if ($current_id && !in_array($current_id, array_map('intval', $ids), true)) {
-        $linked = get_post($current_id);
-        if ($linked && 'gps_event' === $linked->post_type) {
-            $courses[] = $linked;
-        }
-    }
-
-    $options = [];
-    foreach ($courses as $course) {
-        $title = '' !== $course->post_title ? $course->post_title : __('(no title)', 'gps-courses');
-        if ('publish' !== $course->post_status) {
-            $status_obj = get_post_status_object($course->post_status);
-            $status     = $status_obj ? $status_obj->label : $course->post_status;
-            /* translators: 1: course title, 2: post status label (Draft, Private...) */
-            $title = sprintf(__('%1$s (%2$s)', 'gps-courses'), $title, $status);
-        }
-        $options[(int) $course->ID] = $title;
-    }
-    return $options;
+    // Editions are listed as "Course — Edition 2026" and a course that has
+    // editions is left out (tickets and agendas belong to an edition)
+    return Editions::admin_options($current_id);
 }
 
 /**
@@ -141,12 +112,12 @@ function gps_check_course_availability($event_id) {
         ];
     }
 
-    // Get all tickets for this event
+    // Get all tickets for this event (a course with editions: its current edition's)
     $tickets = get_posts([
         'post_type' => 'gps_ticket',
         'posts_per_page' => -1,
         'meta_query' => [
-            ['key' => '_gps_event_id', 'value' => $event_id],
+            ['key' => '_gps_event_id', 'value' => Editions::resolve($event_id)],
         ],
     ]);
 

@@ -54,6 +54,7 @@ class Plugin {
         require_once GPSC_PATH . 'includes/class-account-dashboard.php';
         require_once GPSC_PATH . 'includes/class-course-catalog.php';
         require_once GPSC_PATH . 'includes/class-course-stage.php';
+        require_once GPSC_PATH . 'includes/class-editions.php';
         require_once GPSC_PATH . 'includes/class-event-calendar.php';
         require_once GPSC_PATH . 'includes/class-interest-list.php';
         require_once GPSC_PATH . 'includes/class-hero-slider.php';
@@ -126,6 +127,8 @@ class Plugin {
         Account_Dashboard::init();
         Course_Catalog::init();
         Course_Stage::init();
+        // Course editions (child gps_event posts): mirror, resolve, hide from the public site
+        Editions::init();
         Event_Calendar::init();
         Interest_List::init();
         Hero_Slider::init();

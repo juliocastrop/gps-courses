@@ -121,6 +121,8 @@ class Waitlist {
             wp_send_json_error(['message' => __('Please enter a valid email address.', 'gps-courses')]);
         }
 
+        // A course with editions: the ticket belongs to its current edition (stored on the row)
+        $event_id = Editions::resolve($event_id);
         if (empty($ticket_id) || empty($event_id) || (int) get_post_meta($ticket_id, '_gps_event_id', true) !== (int) $event_id) {
             wp_send_json_error(['message' => __('Invalid ticket or event.', 'gps-courses')]);
         }
@@ -899,11 +901,11 @@ class Waitlist {
                     'posts_per_page' => 1,
                     'post_status' => 'any',
                     'meta_query' => [
-                        ['key' => '_gps_event_id', 'value' => $event->ID],
+                        ['key' => '_gps_event_id', 'value' => Editions::resolve($event->ID)],
                     ],
                 ]);
                 if ($tickets) {
-                    $mock->event_id = $event->ID;
+                    $mock->event_id = Editions::resolve($event->ID);
                     $mock->ticket_type_id = $tickets[0]->ID;
                     break;
                 }
@@ -1053,7 +1055,7 @@ class Waitlist {
                         <option value=""><?php _e('All Events', 'gps-courses'); ?></option>
                         <?php foreach ($events_with_waitlist as $event): ?>
                             <option value="<?php echo (int) $event->ID; ?>" <?php selected($filter_event, $event->ID); ?>>
-                                <?php echo esc_html($event->post_title); ?>
+                                <?php echo esc_html(Editions::of($event->ID) ? Editions::label((int) $event->ID) : $event->post_title); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>

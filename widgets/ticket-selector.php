@@ -567,12 +567,13 @@ class Ticket_Selector_Widget extends Base_Widget {
         // Filter tickets if specific types are selected
         $selected_ticket_types = !empty($settings['ticket_types']) ? $settings['ticket_types'] : [];
         if (!empty($selected_ticket_types)) {
-            $tickets = array_filter($tickets, function($ticket) use ($selected_ticket_types, $event_id) {
+            $edition_id = \GPSC\Editions::resolve($event_id); // the tickets belong to the course's current edition
+            $tickets = array_filter($tickets, function($ticket) use ($selected_ticket_types, $edition_id) {
                 // Only show tickets that:
                 // 1. Are in the selected list
                 // 2. AND belong to the current event (safety check)
                 $ticket_event_id = get_post_meta($ticket->ID, '_gps_event_id', true);
-                return in_array($ticket->ID, $selected_ticket_types) && $ticket_event_id == $event_id;
+                return in_array($ticket->ID, $selected_ticket_types) && $ticket_event_id == $edition_id;
             });
         }
 
@@ -1211,21 +1212,17 @@ class Ticket_Selector_Widget extends Base_Widget {
     }
 
     private function get_events_list() {
-        $events = get_posts([
-            'post_type' => 'gps_event',
-            'post_status' => 'publish',
-            'posts_per_page' => -1,
-            'orderby' => 'title',
-            'order' => 'ASC',
+        // Editions listed as "Course — Edition 2026"; a course with editions is not
+        return ['' => __('Current Event', 'gps-courses')] + \GPSC\Editions::admin_options(0, [
+            'query' => [
+                'post_type' => 'gps_event',
+                'post_status' => 'publish',
+                'posts_per_page' => -1,
+                'orderby' => 'title',
+                'order' => 'ASC',
+            ],
+            'no_title' => '',
         ]);
-
-        $options = ['' => __('Current Event', 'gps-courses')];
-
-        foreach ($events as $event) {
-            $options[$event->ID] = $event->post_title;
-        }
-
-        return $options;
     }
 
     private function get_ticket_types_list() {
@@ -1260,7 +1257,7 @@ class Ticket_Selector_Widget extends Base_Widget {
                 if (!empty($ticket->event_id)) {
                     if (!isset($events_cache[$ticket->event_id])) {
                         $event = get_post($ticket->event_id);
-                        $events_cache[$ticket->event_id] = $event ? $event->post_title : 'Unknown Event';
+                        $events_cache[$ticket->event_id] = $event ? \GPSC\Editions::label($event) : 'Unknown Event';
                     }
                     $event_name = $events_cache[$ticket->event_id];
                 }
@@ -1304,7 +1301,7 @@ class Ticket_Selector_Widget extends Base_Widget {
             "SELECT post_id FROM {$wpdb->postmeta}
             WHERE meta_key = '_gps_event_id'
             AND meta_value = %d",
-            $event_id
+            \GPSC\Editions::resolve($event_id)
         ));
 
         if (empty($ticket_ids)) {

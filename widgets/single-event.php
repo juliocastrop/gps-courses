@@ -302,6 +302,7 @@ class Single_Event_Widget extends Base_Widget {
      * Render agenda/sessions section
      */
     private function render_agenda($event_id) {
+        $event_id = \GPSC\Editions::resolve($event_id); // a course with editions: its current edition's agenda
         $sessions = get_posts([
             'post_type' => 'gps_session',
             'meta_key' => '_gps_event_id',
@@ -388,20 +389,16 @@ class Single_Event_Widget extends Base_Widget {
      * Get list of events for select control
      */
     private function get_events_list() {
-        $events = get_posts([
-            'post_type' => 'gps_event',
-            'post_status' => 'publish',
-            'posts_per_page' => -1,
-            'orderby' => 'title',
-            'order' => 'ASC',
+        // Editions listed as "Course - Edition 2026"; a course with editions is not
+        return ['' => __('Current Event', 'gps-courses')] + \GPSC\Editions::admin_options(0, [
+            'query' => [
+                'post_type' => 'gps_event',
+                'post_status' => 'publish',
+                'posts_per_page' => -1,
+                'orderby' => 'title',
+                'order' => 'ASC',
+            ],
+            'no_title' => '',
         ]);
-
-        $options = ['' => __('Current Event', 'gps-courses')];
-
-        foreach ($events as $event) {
-            $options[$event->ID] = $event->post_title;
-        }
-
-        return $options;
     }
 }

@@ -127,19 +127,21 @@ class Other_Dates_Widget extends Base_Widget {
     }
 
     private function get_events_list() {
-        $events = get_posts([
-            'post_type'      => 'gps_event',
-            'post_status'    => 'publish',
-            'posts_per_page' => -1,
-            'orderby'        => 'meta_value',
-            'meta_key'       => '_gps_start_date',
-            'order'          => 'DESC',
+        // Editions listed as "Course — Edition 2026 (date)"; a course with editions is not
+        return ['' => __('Current course', 'gps-courses')] + \GPSC\Editions::admin_options(0, [
+            'query' => [
+                'post_type'      => 'gps_event',
+                'post_status'    => 'publish',
+                'posts_per_page' => -1,
+                'orderby'        => 'meta_value',
+                'meta_key'       => '_gps_start_date',
+                'order'          => 'DESC',
+            ],
+            'no_title' => '',
+            'suffix'   => function ($event) {
+                $start = get_post_meta($event->ID, '_gps_start_date', true);
+                return $start ? ' (' . date_i18n('M j, Y', strtotime($start)) . ')' : '';
+            },
         ]);
-        $options = ['' => __('Current course', 'gps-courses')];
-        foreach ($events as $event) {
-            $start = get_post_meta($event->ID, '_gps_start_date', true);
-            $options[$event->ID] = $event->post_title . ($start ? ' (' . date_i18n('M j, Y', strtotime($start)) . ')' : '');
-        }
-        return $options;
     }
 }

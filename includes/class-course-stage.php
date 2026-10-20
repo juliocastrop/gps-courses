@@ -82,6 +82,7 @@ class Course_Stage {
             $today,
             $yesterday
         ));
+        // An edition's dates change its course's page (purge_program_pages adds the course)
         self::bump_catalog();
         foreach ((array) $ids as $id) {
             self::purge_program_pages((int) $id);
@@ -101,6 +102,11 @@ class Course_Stage {
         $term = self::program($event_id);
         $ids  = $term ? self::program_event_ids($term->term_id) : [];
         $ids[] = $event_id;
+        // An edition is shown on its course's page: purge that one too
+        $master = Editions::of($event_id);
+        if ($master) {
+            $ids[] = $master;
+        }
         $urls = [];
         foreach (array_unique($ids) as $id) {
             $url = get_permalink($id);
@@ -254,7 +260,7 @@ class Course_Stage {
             'numberposts' => 20,
             'fields'      => 'ids',
             'no_found_rows' => true,
-            'meta_query'  => [['key' => '_gps_event_id', 'value' => (int) $event_id, 'type' => 'NUMERIC']],
+            'meta_query'  => [['key' => '_gps_event_id', 'value' => Editions::resolve($event_id), 'type' => 'NUMERIC']],
         ]);
         $now  = str_replace(' ', 'T', current_time('Y-m-d H:i'));
         $next = '';
@@ -284,7 +290,7 @@ class Course_Stage {
             'numberposts'   => 20,
             'fields'        => 'ids',
             'no_found_rows' => true,
-            'meta_query'    => [['key' => '_gps_event_id', 'value' => (int) $event_id, 'type' => 'NUMERIC']],
+            'meta_query'    => [['key' => '_gps_event_id', 'value' => Editions::resolve($event_id), 'type' => 'NUMERIC']],
         ]);
         if (!$tickets || !class_exists(__NAMESPACE__ . '\\Tickets')) {
             return false;
@@ -345,6 +351,8 @@ class Course_Stage {
         if (!(int) $event_id) {
             return null; // get_the_terms(0) would read the global post
         }
+        // Editions never carry a program: they belong to their course's
+        $event_id = Editions::of($event_id) ?: (int) $event_id;
         $terms = get_the_terms((int) $event_id, self::TAXONOMY);
         return is_array($terms) && $terms ? $terms[0] : null;
     }

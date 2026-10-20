@@ -42,19 +42,22 @@ if (!function_exists('gpsc_waitlist_add')) {
             return new WP_Error('past_event', __('This course has already taken place.', 'gps-courses'));
         }
 
+        // A course with editions: the waitlist row belongs to its current edition
+        $edition_id = \GPSC\Editions::resolve($event_id);
+
         // The ticket must belong to this course; otherwise use its first active ticket
         $ticket_id = isset($data['ticket_id']) ? (int) $data['ticket_id'] : 0;
-        if ($ticket_id && (int) get_post_meta($ticket_id, '_gps_event_id', true) !== $event_id) {
+        if ($ticket_id && (int) get_post_meta($ticket_id, '_gps_event_id', true) !== $edition_id) {
             $ticket_id = 0;
         }
         if (!$ticket_id) {
-            $tickets = \GPSC\Tickets::get_active_tickets($event_id);
+            $tickets = \GPSC\Tickets::get_active_tickets($edition_id);
             if (!$tickets) {
                 $tickets = get_posts([
                     'post_type'   => 'gps_ticket',
                     'numberposts' => 1,
                     'post_status' => 'publish',
-                    'meta_query'  => [['key' => '_gps_event_id', 'value' => $event_id, 'type' => 'NUMERIC']],
+                    'meta_query'  => [['key' => '_gps_event_id', 'value' => $edition_id, 'type' => 'NUMERIC']],
                 ]);
             }
             $ticket_id = $tickets ? (int) (is_object($tickets[0]) ? $tickets[0]->ID : $tickets[0]) : 0;
@@ -76,7 +79,7 @@ if (!function_exists('gpsc_waitlist_add')) {
 
         $result = \GPSC\Waitlist::add_to_waitlist(
             $ticket_id,
-            $event_id,
+            $edition_id,
             $email,
             isset($data['first_name']) ? sanitize_text_field($data['first_name']) : '',
             isset($data['last_name']) ? sanitize_text_field($data['last_name']) : '',
@@ -112,6 +115,7 @@ if (!function_exists('gpsc_waitlist_status')) {
         if (!$email || !(int) $event_id) {
             return null;
         }
+        $event_id = \GPSC\Editions::resolve($event_id); // rows are stored on the course's current edition
         $row = $wpdb->get_row($wpdb->prepare(
             "SELECT position, status, ticket_type_id FROM {$wpdb->prefix}gps_waitlist
              WHERE email = %s AND event_id = %d AND status IN ('waiting', 'notified') AND ticket_type_id > 0
@@ -186,7 +190,7 @@ if (!function_exists('gpsc_catalog')) {
                     'post_status' => 'publish',
                     'numberposts' => -1,
                     'fields'      => 'ids',
-                    'meta_query'  => [['key' => '_gps_event_id', 'value' => $c['id'], 'type' => 'NUMERIC']],
+                    'meta_query'  => [['key' => '_gps_event_id', 'value' => \GPSC\Editions::resolve($c['id']), 'type' => 'NUMERIC']],
                 ]);
                 $now   = str_replace(' ', 'T', current_time('Y-m-d H:i'));
                 $ended = 0;

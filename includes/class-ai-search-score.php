@@ -120,7 +120,8 @@ class AI_Search_Score {
             _prime_post_caches($ids, false, true);
         }
         return array_values(array_filter($ids, function ($id) {
-            return '' !== self::type_of($id);
+            // An edition is not a page of its own (it redirects to its course)
+            return '' !== self::type_of($id) && !Editions::of($id);
         }));
     }
 

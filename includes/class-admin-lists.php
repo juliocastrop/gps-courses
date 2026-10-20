@@ -196,7 +196,7 @@ class Admin_Lists {
             'post_status'    => ['publish', 'draft', 'pending', 'future', 'private'],
             'posts_per_page' => -1,
             'no_found_rows'  => true,
-            'meta_query'     => [['key' => '_gps_event_id', 'value' => (int) $course_id, 'type' => 'NUMERIC']],
+            'meta_query'     => [['key' => '_gps_event_id', 'value' => Editions::resolve($course_id), 'type' => 'NUMERIC']],
         ]);
     }
 
@@ -423,6 +423,7 @@ class Admin_Lists {
         $posts = get_posts([
             'post_type'      => 'gps_event',
             'post_status'    => 'publish',
+            'post_parent'    => 0, // courses, not their editions
             'posts_per_page' => -1,
             'no_found_rows'  => true,
         ]);
@@ -536,7 +537,7 @@ class Admin_Lists {
                     echo '<span class="gps-badge gps-badge--bad">' . esc_html__('No course', 'gps-courses') . '</span>';
                     break;
                 }
-                echo '<a href="' . esc_url(get_edit_post_link($event_id)) . '">' . esc_html(get_the_title($event)) . '</a>';
+                echo '<a href="' . esc_url(get_edit_post_link($event_id)) . '">' . esc_html(get_the_title($event) . Editions::title_suffix($event_id)) . '</a>';
                 break;
 
             case 'gps_type':
@@ -679,7 +680,7 @@ class Admin_Lists {
             case 'gps_course':
                 $event_id = (int) get_post_meta($post_id, '_gps_event_id', true);
                 $event = $event_id ? get_post($event_id) : null;
-                echo $event ? '<a href="' . esc_url(get_edit_post_link($event_id)) . '">' . esc_html(get_the_title($event)) . '</a>' : '<span class="gps-badge gps-badge--bad">' . esc_html__('No course', 'gps-courses') . '</span>';
+                echo $event ? '<a href="' . esc_url(get_edit_post_link($event_id)) . '">' . esc_html(get_the_title($event) . Editions::title_suffix($event_id)) . '</a>' : '<span class="gps-badge gps-badge--bad">' . esc_html__('No course', 'gps-courses') . '</span>';
                 break;
 
             case 'gps_day':
@@ -710,7 +711,7 @@ class Admin_Lists {
             return self::$speaker_counts;
         }
         self::$speaker_counts = [];
-        $courses = get_posts(['post_type' => 'gps_event', 'post_status' => ['publish', 'draft', 'pending', 'future', 'private'], 'posts_per_page' => -1, 'fields' => 'ids', 'no_found_rows' => true]);
+        $courses = get_posts(['post_type' => 'gps_event', 'post_status' => ['publish', 'draft', 'pending', 'future', 'private'], 'post_parent' => 0, 'posts_per_page' => -1, 'fields' => 'ids', 'no_found_rows' => true]);
         foreach ($courses as $cid) {
             $ids = get_post_meta($cid, '_gps_speaker_ids', true);
             foreach (array_unique(array_map('intval', (array) $ids)) as $sid) {
@@ -728,7 +729,7 @@ class Admin_Lists {
         if (null === $counts) {
             $counts   = [];
             $defaults = array_map('intval', (array) get_option('gps_default_sponsor_ids', []));
-            $courses  = get_posts(['post_type' => 'gps_event', 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids', 'no_found_rows' => true]);
+            $courses  = get_posts(['post_type' => 'gps_event', 'post_status' => 'publish', 'post_parent' => 0, 'posts_per_page' => -1, 'fields' => 'ids', 'no_found_rows' => true]);
             foreach ($courses as $cid) {
                 $mode = (string) get_post_meta($cid, '_gps_sponsors_mode', true);
                 if ('none' === $mode) {
@@ -898,7 +899,14 @@ class Admin_Lists {
 
         if (in_array($pt, ['gps_ticket', 'gps_schedule'], true) && !empty($_GET['gps_course'])) {
             $meta = array_filter((array) $query->get('meta_query'), 'is_array');
-            $meta[] = ['key' => '_gps_event_id', 'value' => absint($_GET['gps_course']), 'type' => 'NUMERIC'];
+            $course = absint($_GET['gps_course']);
+            if (Editions::is_master($course)) {
+                // A course with editions: the ticket types / agendas of all its editions
+                $ids    = array_merge([$course], wp_list_pluck(Editions::all($course, 'any'), 'ID'));
+                $meta[] = ['key' => '_gps_event_id', 'value' => array_map('intval', $ids), 'compare' => 'IN', 'type' => 'NUMERIC'];
+            } else {
+                $meta[] = ['key' => '_gps_event_id', 'value' => $course, 'type' => 'NUMERIC'];
+            }
             $query->set('meta_query', $meta);
         }
 

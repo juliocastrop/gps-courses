@@ -355,6 +355,7 @@ class Event_Calendar {
                 'terms'    => (int) $category,
             ]];
         }
+        $args  = Editions::top_level_args($args); // courses only, wherever the calendar is built
         $query = new \WP_Query(apply_filters('gpsc_calendar_course_query_args', $args));
         return array_map('intval', (array) $query->posts);
     }

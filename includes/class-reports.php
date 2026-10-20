@@ -98,14 +98,16 @@ class Reports {
         $total_credits_awarded = (float) $wpdb->get_var("SELECT COALESCE(SUM(credits), 0) FROM {$wpdb->prefix}gps_ce_ledger");
 
         // Get recent events
-        $events = get_posts([
+        // Reports are per edition: editions instead of a course that has them
+        $events = Editions::picker_posts(get_posts([
             'post_type' => 'gps_event',
             'post_status' => 'publish',
             'posts_per_page' => -1,
             'orderby' => 'meta_value',
             'order' => 'DESC',
             'meta_key' => '_gps_start_date',
-        ]);
+            Editions::QUERY_VAR => true,
+        ]));
 
         ?>
         <div class="wrap gps-reports-page">
@@ -189,7 +191,7 @@ class Reports {
                         <select id="export-event" class="widefat">
                             <option value=""><?php _e('All Events', 'gps-courses'); ?></option>
                             <?php foreach ($events as $event): ?>
-                                <option value="<?php echo $event->ID; ?>"><?php echo esc_html($event->post_title); ?></option>
+                                <option value="<?php echo $event->ID; ?>"><?php echo esc_html(Editions::label($event)); ?></option>
                             <?php endforeach; ?>
                         </select>
 
@@ -221,7 +223,7 @@ class Reports {
                             <select id="email-event" name="event_id" class="widefat" required>
                                 <option value=""><?php _e('Select Event', 'gps-courses'); ?></option>
                                 <?php foreach ($events as $event): ?>
-                                    <option value="<?php echo $event->ID; ?>"><?php echo esc_html($event->post_title); ?></option>
+                                    <option value="<?php echo $event->ID; ?>"><?php echo esc_html(Editions::label($event)); ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -278,7 +280,7 @@ class Reports {
                             <select id="bulk-event" name="event_id" class="widefat" required>
                                 <option value=""><?php _e('Select Event', 'gps-courses'); ?></option>
                                 <?php foreach ($events as $event): ?>
-                                    <option value="<?php echo $event->ID; ?>"><?php echo esc_html($event->post_title); ?></option>
+                                    <option value="<?php echo $event->ID; ?>"><?php echo esc_html(Editions::label($event)); ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -371,7 +373,7 @@ class Reports {
                         ?>
                         <tr>
                             <td>
-                                <strong><a href="<?php echo get_edit_post_link($event_id); ?>"><?php echo esc_html($event->post_title); ?></a></strong>
+                                <strong><a href="<?php echo get_edit_post_link($event_id); ?>"><?php echo esc_html(Editions::label($event)); ?></a></strong>
                             </td>
                             <td>
                                 <?php echo $start_date ? date_i18n(get_option('date_format'), strtotime($start_date)) : '—'; ?>

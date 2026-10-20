@@ -585,13 +585,14 @@ class Tickets_Admin {
 
         $tickets = self::get_tickets($event_filter);
 
-        $events = get_posts([
+        $events = Editions::picker_posts(get_posts([
             'post_type' => 'gps_event',
             'post_status' => 'publish',
             'posts_per_page' => -1,
             'orderby' => 'title',
-            'order' => 'ASC'
-        ]);
+            'order' => 'ASC',
+            Editions::QUERY_VAR => true, // editions instead of a course that has them
+        ]), $event_filter);
 
         ?>
         <div class="wrap">
@@ -605,7 +606,7 @@ class Tickets_Admin {
                         <option value=""><?php _e('All Events', 'gps-courses'); ?></option>
                         <?php foreach ($events as $event): ?>
                             <option value="<?php echo $event->ID; ?>" <?php selected($event_filter, $event->ID); ?>>
-                                <?php echo esc_html($event->post_title); ?>
+                                <?php echo esc_html(Editions::label($event)); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>

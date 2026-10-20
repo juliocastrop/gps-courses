@@ -532,6 +532,7 @@ class Schedules {
      * Get schedules for an event
      */
     public static function get_event_schedules($event_id) {
+        $event_id = Editions::resolve($event_id); // the agenda of the course's current edition
         return get_posts([
             'post_type'   => 'gps_schedule',
             'numberposts' => -1,

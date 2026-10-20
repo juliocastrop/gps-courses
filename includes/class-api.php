@@ -456,12 +456,12 @@ class API {
             ], 404);
         }
 
-        // Get all active tickets for this event
+        // Get all active tickets for this event (a course with editions: its current edition's)
         $tickets = get_posts([
             'post_type' => 'gps_ticket',
             'posts_per_page' => -1,
             'meta_query' => [
-                ['key' => '_gps_event_id', 'value' => $event_id],
+                ['key' => '_gps_event_id', 'value' => Editions::resolve($event_id)],
             ],
         ]);
 

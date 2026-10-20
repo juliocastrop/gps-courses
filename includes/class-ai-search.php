@@ -509,14 +509,18 @@ class AI_Search {
         if (wp_is_post_revision($ticket_id) || (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE)) {
             return;
         }
-        self::touch((int) get_post_meta((int) $ticket_id, '_gps_event_id', true));
+        $event_id = (int) get_post_meta((int) $ticket_id, '_gps_event_id', true);
+        self::touch($event_id);
+        self::touch(Editions::of($event_id)); // an edition's tickets are shown on its course's page
     }
 
     public static function touch_schedule_event($schedule_id) {
         if (wp_is_post_revision($schedule_id) || (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE)) {
             return;
         }
-        self::touch((int) get_post_meta((int) $schedule_id, '_gps_event_id', true));
+        $event_id = (int) get_post_meta((int) $schedule_id, '_gps_event_id', true);
+        self::touch($event_id);
+        self::touch(Editions::of($event_id)); // an edition's agenda is shown on its course's page
     }
 
     public static function touch_seminar_product($seminar_id) {
