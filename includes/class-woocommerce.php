@@ -1168,6 +1168,18 @@ class Woo {
 
             error_log('GPS Courses: Found event #' . $event_id . ' for ticket type #' . $ticket_type_id);
 
+            // Already has tickets (e.g. "Reprocess" on an order that has them): don't
+            // issue duplicates with new codes, or email the customer again
+            $existing = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}gps_tickets WHERE order_id = %d AND order_item_id = %d",
+                $order_id,
+                $item_id
+            ));
+            if ($existing > 0) {
+                error_log('GPS Courses: Order item #' . $item_id . ' already has ' . $existing . ' ticket(s), skipping');
+                continue;
+            }
+
             // Get attendee info from order
             $attendee_name = $order->get_billing_first_name() . ' ' . $order->get_billing_last_name();
             $attendee_email = $order->get_billing_email();

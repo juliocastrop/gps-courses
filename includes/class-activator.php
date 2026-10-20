@@ -291,13 +291,14 @@ class Activator {
         dbDelta($qr_codes);
         dbDelta($qr_scans);
 
-        // 🔹 Registrar CPTs y rewrite rules para que los permalinks se actualicen correctamente
-        Posttypes::register();
-
-        // Register certificate validation rewrite rules
-        Certificate_Validation::add_rewrite_rules();
-
-        flush_rewrite_rules();
+        // Permalinks: only when WordPress has its rewrite object. A table repair can
+        // run at plugins_loaded (version check), before $wp_rewrite exists: registering
+        // post types or rewrite rules there is a fatal error. Rules don't change then.
+        if (isset($GLOBALS['wp_rewrite']) && $GLOBALS['wp_rewrite'] instanceof \WP_Rewrite) {
+            Posttypes::register();
+            Certificate_Validation::add_rewrite_rules();
+            flush_rewrite_rules();
+        }
 
         // Changes dbDelta does not apply on existing tables
         self::migrate_ledger_decimal_credits();
@@ -555,6 +556,11 @@ class Activator {
     public static function repair_tables() {
         error_log('GPS Courses: Repairing tables (create missing, keep data)...');
         self::activate();
+        // Columns the CREATE statements don't carry (each one checks before altering)
+        self::migrate_waitlist_table();
+        self::migrate_tickets_designated_attendee();
+        self::migrate_session_individual_sales();
+        self::migrate_qr_tables();
         return true;
     }
 
