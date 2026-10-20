@@ -103,7 +103,7 @@ class Email_Template_Manager {
         wp_enqueue_script(
             'gps-email-template-manager',
             GPSC_URL . 'assets/js/email-template-manager.js',
-            ['jquery', 'wp-code-editor'],
+            ['jquery', 'code-editor'], // 'wp-code-editor' isn't a registered handle: the script never loaded
             GPSC_VERSION,
             true
         );
@@ -370,7 +370,7 @@ class Email_Template_Manager {
         }
 
         $template_key = sanitize_key($_POST['template']);
-        $content = wp_kses_post($_POST['content']);
+        $content = self::clean_content(wp_unslash($_POST['content']));
 
         // Replace variables with sample data
         $preview_content = self::replace_variables_with_samples($template_key, $content);
@@ -389,7 +389,7 @@ class Email_Template_Manager {
         }
 
         $template_key = sanitize_key($_POST['template']);
-        $content = wp_kses_post($_POST['content']);
+        $content = self::clean_content(wp_unslash($_POST['content']));
 
         update_option('gps_email_template_' . $template_key, $content);
 
@@ -407,7 +407,7 @@ class Email_Template_Manager {
         }
 
         $template_key = sanitize_key($_POST['template']);
-        $content = wp_kses_post($_POST['content']);
+        $content = self::clean_content(wp_unslash($_POST['content']));
         $email = sanitize_email($_POST['email']);
 
         if (!is_email($email)) {
@@ -419,10 +419,8 @@ class Email_Template_Manager {
 
         $subject = sprintf(__('[TEST] %s - GPS Dental Training', 'gps-courses'), self::TEMPLATES[$template_key]['name']);
 
-        $headers = [
-            'Content-Type: text/html; charset=UTF-8',
-            'From: ' . get_bloginfo('name') . ' <noreply@gpsdentaltraining.com>'
-        ];
+        // Sender comes from the site's mail settings (FluentSMTP / WooCommerce), like every other email
+        $headers = ['Content-Type: text/html; charset=UTF-8'];
 
         $sent = wp_mail($email, $subject, $email_content, $headers);
 
@@ -456,6 +454,16 @@ class Email_Template_Manager {
     }
 
     /**
+     * Template HTML as submitted. A full email document (doctype, head, <style>)
+     * is kept for users allowed to post unfiltered HTML; wp_kses_post() would
+     * strip <html>, <head>, <body> and <style> and break the email.
+     */
+    private static function clean_content($html) {
+        $html = (string) $html;
+        return current_user_can('unfiltered_html') ? $html : wp_kses_post($html);
+    }
+
+    /**
      * Replace template variables with sample data for preview
      */
     private static function replace_variables_with_samples($template_key, $content) {
@@ -463,7 +471,7 @@ class Email_Template_Manager {
             'user_name' => 'Dr. John Smith',
             'event_title' => 'Comprehensive PRF Protocols & Handling Clinical Integration',
             'event_date' => 'June 15, 2026',
-            'event_venue' => 'GPS Dental Training Center, Miami, FL',
+            'event_venue' => 'GPS Dental Training Center, Duluth, GA',
             'ticket_code' => 'GPS-2026-ABC123',
             'qr_code_url' => GPSC_URL . 'assets/images/sample-qr.png',
             'order_number' => '#12345',
