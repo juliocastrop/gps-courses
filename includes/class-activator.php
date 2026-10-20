@@ -316,10 +316,11 @@ class Activator {
         $table_name = $wpdb->prefix . 'gps_tickets';
         $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name;
 
-        // If table doesn't exist, recreate all tables (safer than trying to modify)
+        // Missing table: create what is missing. Never drop anything here: this runs on
+        // a plugin update during any request, and a failed check must not wipe the data.
         if (!$table_exists) {
-            error_log('GPS Courses: Database tables missing, recreating now...');
-            self::recreate_tables();
+            error_log('GPS Courses: Database tables missing, creating the missing ones...');
+            self::repair_tables();
         } else {
             // Check if transaction_type column exists in ce_ledger
             $column_exists = $wpdb->get_results(
@@ -548,49 +549,23 @@ class Activator {
     }
 
     /**
-     * Manually recreate all database tables
-     * Useful for fixing database issues
+     * Create any missing plugin table and add missing columns (dbDelta through
+     * activate()). Non-destructive: existing tables and their data are kept.
+     */
+    public static function repair_tables() {
+        error_log('GPS Courses: Repairing tables (create missing, keep data)...');
+        self::activate();
+        return true;
+    }
+
+    /**
+     * Kept for old callers: it used to DROP every plugin table first. It now only
+     * repairs (creates what is missing); data is never deleted.
+     *
+     * @deprecated Use repair_tables().
      */
     public static function recreate_tables() {
-        global $wpdb;
-
-        error_log('GPS Courses: Starting table recreation...');
-
-        // Suppress errors during drop
-        $wpdb->hide_errors();
-
-        // Drop existing tables in correct order (reverse of foreign key dependencies)
-        $tables = [
-            $wpdb->prefix . 'gps_qr_scans',
-            $wpdb->prefix . 'gps_qr_codes',
-            $wpdb->prefix . 'gps_session_tickets',
-            $wpdb->prefix . 'gps_seminar_waitlist',
-            $wpdb->prefix . 'gps_seminar_attendance',
-            $wpdb->prefix . 'gps_seminar_sessions',
-            $wpdb->prefix . 'gps_seminar_registrations',
-            $wpdb->prefix . 'gps_attendance',
-            $wpdb->prefix . 'gps_ce_ledger',
-            $wpdb->prefix . 'gps_tickets',
-            $wpdb->prefix . 'gps_enrollments',
-            $wpdb->prefix . 'gps_waitlist',
-            $wpdb->prefix . 'gps_certificates',
-        ];
-
-        foreach ($tables as $table) {
-            $result = $wpdb->query("DROP TABLE IF EXISTS $table");
-            error_log("GPS Courses: Dropped table $table - Result: " . ($result !== false ? 'success' : 'failed'));
-        }
-
-        // Show errors again
-        $wpdb->show_errors();
-
-        // Recreate tables
-        error_log('GPS Courses: Creating fresh tables...');
-        self::activate();
-
-        error_log('GPS Courses: Table recreation completed');
-
-        return true;
+        return self::repair_tables();
     }
 
     /**
@@ -611,8 +586,8 @@ class Activator {
             wp_die(__('You do not have permission to do this', 'gps-courses'));
         }
 
-        // Recreate tables
-        self::recreate_tables();
+        // Create the missing tables (existing data is kept)
+        self::repair_tables();
 
         // Redirect with success message
         $redirect_url = admin_url('admin.php?page=gps-dashboard&tables_recreated=1');
@@ -627,7 +602,7 @@ class Activator {
         // Show success message
         if (isset($_GET['tables_recreated'])) {
             echo '<div class="notice notice-success is-dismissible">';
-            echo '<p><strong>' . __('GPS Courses:', 'gps-courses') . '</strong> ' . __('Database tables have been recreated successfully!', 'gps-courses') . '</p>';
+            echo '<p><strong>' . __('GPS Courses:', 'gps-courses') . '</strong> ' . __('Missing database tables have been created. Existing data was kept.', 'gps-courses') . '</p>';
             echo '</div>';
             return;
         }
@@ -640,13 +615,13 @@ class Activator {
 
         if (!$table_exists) {
             echo '<div class="notice notice-error">';
-            echo '<p><strong>' . __('GPS Courses:', 'gps-courses') . '</strong> ' . __('Database tables are missing! Please recreate them.', 'gps-courses') . '</p>';
+            echo '<p><strong>' . __('GPS Courses:', 'gps-courses') . '</strong> ' . __('Some database tables are missing. Create them now (existing data is kept).', 'gps-courses') . '</p>';
             echo '<form method="post" style="display: inline;">';
             echo '<input type="hidden" name="gps_recreate_tables" value="1">';
             echo wp_nonce_field('gps_recreate_tables', 'gps_recreate_nonce', true, false);
             echo '<button type="submit" class="button button-primary">';
             echo '<span class="dashicons dashicons-database-add" style="margin-top: 3px;"></span> ';
-            echo __('Recreate Database Tables', 'gps-courses');
+            echo __('Create Missing Tables', 'gps-courses');
             echo '</button>';
             echo '</form>';
             echo '</div>';

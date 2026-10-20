@@ -11,8 +11,7 @@ class Debug_Helper {
 
     public static function init() {
         add_action('admin_menu', [__CLASS__, 'add_admin_menu']);
-        add_action('admin_init', [__CLASS__, 'handle_create_enrollments']);
-        add_action('admin_init', [__CLASS__, 'handle_recreate_tables']);
+        add_action('admin_init', [__CLASS__, 'handle_repair_tables']);
     }
 
     public static function add_admin_menu() {
@@ -26,126 +25,34 @@ class Debug_Helper {
         );
     }
 
-    public static function handle_recreate_tables() {
-        if (!isset($_POST['gps_debug_recreate_tables'])) {
+    /**
+     * "Repair missing tables": creates missing tables / columns, never drops data.
+     * (The old "Recreate All Database Tables" dropped every table and the old
+     * "Create Missing Enrollments" marked cancelled tickets as completed; both removed.)
+     */
+    public static function handle_repair_tables() {
+        if (!isset($_POST['gps_debug_repair_tables'])) {
             return;
         }
 
-        check_admin_referer('gps_debug_recreate_nonce');
+        check_admin_referer('gps_debug_repair_nonce');
 
         if (!current_user_can('activate_plugins')) {
             wp_die(__('You do not have permission to perform this action.', 'gps-courses'));
         }
 
-        // Recreate all tables
-        Activator::recreate_tables();
+        Activator::repair_tables();
 
-        // Redirect back with success message
-        $redirect_url = add_query_arg([
-            'page' => 'gps-debug',
-            'tables_recreated' => '1'
-        ], admin_url('admin.php'));
-
-        wp_redirect($redirect_url);
-        exit;
-    }
-
-    public static function handle_create_enrollments() {
-        if (!isset($_POST['gps_create_enrollments'])) {
-            return;
-        }
-
-        check_admin_referer('gps_create_enrollments_nonce');
-
-        if (!current_user_can('manage_options')) {
-            wp_die(__('You do not have permission to perform this action.', 'gps-courses'));
-        }
-
-        global $wpdb;
-
-        // Force MySQL to use buffered queries to prevent "Commands out of sync" error
-        $wpdb->flush();
-
-        // Get all tickets that don't have enrollments
-        // Using DISTINCT and simpler query to avoid connection issues
-        $ticket_ids = $wpdb->get_col("
-            SELECT DISTINCT t.id
-            FROM {$wpdb->prefix}gps_tickets t
-            LEFT JOIN {$wpdb->prefix}gps_enrollments e ON t.order_id = e.order_id AND t.event_id = e.session_id
-            WHERE e.id IS NULL
-        ");
-
-        $created = 0;
-        $failed = 0;
-
-        // Process tickets one by one to avoid connection issues
-        foreach ($ticket_ids as $ticket_id) {
-            // Get ticket data
-            $ticket = $wpdb->get_row($wpdb->prepare(
-                "SELECT id, user_id, event_id, order_id FROM {$wpdb->prefix}gps_tickets WHERE id = %d",
-                $ticket_id
-            ));
-
-            if (!$ticket) {
-                $failed++;
-                continue;
-            }
-
-            // Create enrollment
-            $result = $wpdb->insert(
-                $wpdb->prefix . 'gps_enrollments',
-                [
-                    'user_id' => $ticket->user_id,
-                    'session_id' => $ticket->event_id,
-                    'order_id' => $ticket->order_id,
-                    'status' => 'completed',
-                    'attended' => 0,
-                    'created_at' => current_time('mysql'),
-                ],
-                ['%d', '%d', '%d', '%s', '%d', '%s']
-            );
-
-            if ($result) {
-                $created++;
-            } else {
-                $failed++;
-            }
-
-            // Flush after each operation to prevent connection issues
-            $wpdb->flush();
-        }
-
-        $redirect_url = add_query_arg([
-            'page' => 'gps-debug',
-            'enrollments_created' => $created,
-            'enrollments_failed' => $failed
-        ], admin_url('admin.php'));
-
-        wp_redirect($redirect_url);
+        wp_redirect(add_query_arg(['page' => 'gps-debug', 'tables_repaired' => '1'], admin_url('admin.php')));
         exit;
     }
 
     public static function render_debug_page() {
         global $wpdb;
 
-        // Show success message if tables were recreated
-        if (isset($_GET['tables_recreated'])) {
+        if (isset($_GET['tables_repaired'])) {
             echo '<div class="notice notice-success is-dismissible"><p>';
-            echo '<strong>' . __('Success!', 'gps-courses') . '</strong> ';
-            echo __('All database tables have been recreated successfully.', 'gps-courses');
-            echo '</p></div>';
-        }
-
-        // Show success message if enrollments were created
-        if (isset($_GET['enrollments_created'])) {
-            $created = (int) $_GET['enrollments_created'];
-            $failed = isset($_GET['enrollments_failed']) ? (int) $_GET['enrollments_failed'] : 0;
-
-            echo '<div class="notice notice-success is-dismissible"><p>';
-            echo sprintf(__('Created %d enrollments successfully.', 'gps-courses'), $created);
-            if ($failed > 0) {
-                echo ' ' . sprintf(__('%d failed.', 'gps-courses'), $failed);
-            }
+            echo esc_html__('Missing tables and columns were created. Existing data was not touched.', 'gps-courses');
             echo '</p></div>';
         }
 
@@ -153,44 +60,14 @@ class Debug_Helper {
         <div class="wrap">
             <h1><?php _e('Debug Info', 'gps-courses'); ?></h1>
 
-            <!-- Recreate Database Tables -->
-            <div class="card" style="border-left: 4px solid #d63638;">
-                <h2>⚠️ Recreate Database Tables</h2>
-                <p><?php _e('If you\'re experiencing database errors or missing tables, you can recreate all database tables here.', 'gps-courses'); ?></p>
-                <p><strong style="color: #d63638;"><?php _e('Warning:', 'gps-courses'); ?></strong> <?php _e('This will DROP all existing GPS Courses tables and recreate them. All data will be lost!', 'gps-courses'); ?></p>
-                <form method="post" action="" onsubmit="return confirm('⚠️ WARNING: This will DELETE all GPS Courses data!\n\nAre you absolutely sure you want to continue?');">
-                    <?php wp_nonce_field('gps_debug_recreate_nonce'); ?>
-                    <button type="submit" name="gps_debug_recreate_tables" class="button button-primary" style="background: #d63638; border-color: #d63638;">
-                        <span class="dashicons dashicons-database-remove" style="margin-top: 3px;"></span>
-                        <?php _e('Recreate All Database Tables', 'gps-courses'); ?>
-                    </button>
-                </form>
-            </div>
-
-            <!-- Fix Missing Enrollments -->
+            <!-- Repair (non-destructive) -->
             <div class="card">
-                <h2>Fix Missing Enrollments</h2>
-                <?php
-                // Count tickets without enrollments
-                $missing_enrollments = $wpdb->get_var("
-                    SELECT COUNT(*)
-                    FROM {$wpdb->prefix}gps_tickets t
-                    LEFT JOIN {$wpdb->prefix}gps_enrollments e ON t.id = e.order_id AND t.event_id = e.session_id
-                    WHERE e.id IS NULL
-                ");
-                ?>
-                <p><?php echo sprintf(__('Tickets without enrollments: %d', 'gps-courses'), $missing_enrollments); ?></p>
-                <?php if ($missing_enrollments > 0): ?>
-                    <form method="post" action="">
-                        <?php wp_nonce_field('gps_create_enrollments_nonce'); ?>
-                        <button type="submit" name="gps_create_enrollments" class="button button-primary">
-                            <?php _e('Create Missing Enrollments', 'gps-courses'); ?>
-                        </button>
-                        <p class="description"><?php _e('This will create enrollment records for all existing tickets that don\'t have them yet.', 'gps-courses'); ?></p>
-                    </form>
-                <?php else: ?>
-                    <p class="description"><?php _e('All tickets have enrollments!', 'gps-courses'); ?></p>
-                <?php endif; ?>
+                <h2><?php esc_html_e('Repair Missing Tables', 'gps-courses'); ?></h2>
+                <p><?php esc_html_e('Creates any GPS Courses table or column that is missing. Existing tables and their data are never changed or deleted.', 'gps-courses'); ?></p>
+                <form method="post" action="">
+                    <?php wp_nonce_field('gps_debug_repair_nonce'); ?>
+                    <button type="submit" name="gps_debug_repair_tables" class="button"><?php esc_html_e('Repair Missing Tables', 'gps-courses'); ?></button>
+                </form>
             </div>
 
             <!-- Database Prefix -->
@@ -251,7 +128,7 @@ class Debug_Helper {
                 if (!empty($missing_tables)) {
                     echo '<div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-left: 4px solid #ffc107;">';
                     echo '<strong>⚠️ Warning:</strong> Missing tables detected: ' . implode(', ', $missing_tables);
-                    echo '<br>Please use the "Recreate All Database Tables" button above to fix this.';
+                    echo '<br>Please use the "Repair Missing Tables" button above to fix this.';
                     echo '</div>';
                 }
                 ?>
