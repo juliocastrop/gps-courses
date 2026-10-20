@@ -312,28 +312,81 @@ class AI_Search_Admin {
         if (!$rows) {
             return;
         }
+        // Recipients: GPS Courses › Settings notification emails (set in email_parts)
+        Emails::send_parts('ai_search_digest', self::email_parts($rows));
+    }
+
+    /**
+     * Parts of the weekly AI Search email (catalog key ai_search_digest).
+     *
+     * @param array $rows [['id' => post id, 'now' => score, 'prev' => score|null], ...]
+     * @return array|null
+     */
+    public static function email_parts(array $rows) {
+        if (!$rows) {
+            return null;
+        }
+        $table = [[esc_html__('Page', 'gps-courses'), esc_html__('Score', 'gps-courses')]];
+        foreach ($rows as $row) {
+            $id     = (int) $row['id'];
+            $r      = get_post_meta($id, AI_Search_Score::META_DETAIL, true);
+            $issues = is_array($r) && isset($r['items']) ? self::row_issues($r) : '';
+            $prev   = isset($row['prev']) ? $row['prev'] : null;
+            $table[] = [
+                '<a href="' . esc_url(admin_url('post.php?post=' . $id . '&action=edit')) . '" style="color:#0B52AC;font-weight:bold;text-decoration:none;">' . esc_html(get_the_title($id)) . '</a>'
+                    . ('' !== $issues ? '<br><span style="color:#5b6472;font-size:13px;">' . esc_html($issues) . '</span>' : ''),
+                '<strong>' . (int) $row['now'] . '</strong>'
+                    . (null !== $prev ? '<br><span style="color:#5b6472;font-size:13px;white-space:nowrap;">' . esc_html__('was', 'gps-courses') . ' ' . (int) $prev . '</span>' : ''),
+            ];
+        }
+        $count  = count($rows);
+        $blocks = Emails::paragraph(esc_html(sprintf(
+            /* translators: 1: pages, 2: minimum score */
+            _n('The weekly AI Search check found %1$d page that dropped or is under the minimum score of %2$d:', 'The weekly AI Search check found %1$d pages that dropped or are under the minimum score of %2$d:', $count, 'gps-courses'),
+            $count,
+            (int) AI_Search_Score::threshold()
+        )))
+            . Emails::table($table, ['left', 'right']);
+
         $to = class_exists(__NAMESPACE__ . '\\Settings') && method_exists(__NAMESPACE__ . '\\Settings', 'get_notification_emails')
             ? Settings::get_notification_emails()
             : [get_option('admin_email')];
-        if (!$to) {
-            return;
+        return [
+            'to'     => $to,
+            'vars'   => ['count' => (string) $count],
+            'blocks' => $blocks,
+            'opts'   => ['button_url' => admin_url('admin.php?page=' . self::PAGE)],
+        ];
+    }
+
+    /**
+     * Sample (read-only): the pages under the minimum score now, or the three
+     * lowest scores when every page passes.
+     *
+     * @return array|null
+     */
+    public static function email_sample() {
+        $scores = [];
+        foreach (AI_Search_Score::targets() as $id) {
+            $meta = get_post_meta($id, AI_Search_Score::META_SCORE, true);
+            if ('' === $meta || false === $meta) {
+                continue;
+            }
+            $scores[(int) $id] = (int) $meta;
         }
-        $body = '<p style="margin:0 0 16px;">' . esc_html__('The weekly AI Search check found pages that need attention:', 'gps-courses') . '</p>';
-        $body .= '<table width="100%" cellpadding="8" cellspacing="0" style="border-collapse:collapse;font-size:14px;">';
-        foreach ($rows as $row) {
-            $r      = get_post_meta($row['id'], AI_Search_Score::META_DETAIL, true);
-            $issues = is_array($r) ? self::row_issues($r) : '';
-            $body  .= '<tr><td style="border-bottom:1px solid #e5e7eb;"><a href="' . esc_url(admin_url('post.php?post=' . (int) $row['id'] . '&action=edit')) . '" style="color:#0B52AC;font-weight:bold;">' . esc_html(get_the_title($row['id'])) . '</a>'
-                    . ($issues ? '<br><span style="color:#5b6880;font-size:13px;">' . esc_html($issues) . '</span>' : '') . '</td>'
-                    . '<td style="border-bottom:1px solid #e5e7eb;white-space:nowrap;text-align:right;"><strong>' . (int) $row['now'] . '</strong>' . (null !== $row['prev'] ? ' <span style="color:#5b6880;">(' . esc_html__('was', 'gps-courses') . ' ' . (int) $row['prev'] . ')</span>' : '') . '</td></tr>';
+        if (!$scores) {
+            return null;
         }
-        $body .= '</table>';
-        $body .= '<p style="margin:20px 0 0;"><a href="' . esc_url(admin_url('admin.php?page=' . self::PAGE)) . '" style="color:#0B52AC;">' . esc_html__('Open the AI Search report', 'gps-courses') . '</a></p>';
-        $heading = __('AI Search: weekly check', 'gps-courses');
-        $html    = class_exists(__NAMESPACE__ . '\\Emails') ? Emails::frame_open($heading) . $body . Emails::frame_close() : $body;
-        /* translators: %d: pages */
-        $subject = sprintf(_n('AI Search: %d page needs attention', 'AI Search: %d pages need attention', count($rows), 'gps-courses'), count($rows));
-        wp_mail($to, $subject, $html, ['Content-Type: text/html; charset=UTF-8']);
+        asort($scores);
+        $under = array_filter($scores, function ($s) {
+            return $s < AI_Search_Score::threshold();
+        });
+        $pick = array_slice($under ?: $scores, 0, $under ? 10 : 3, true);
+        $rows = [];
+        foreach ($pick as $id => $score) {
+            $rows[] = ['id' => $id, 'now' => $score, 'prev' => null];
+        }
+        return self::email_parts($rows);
     }
 
     /* ============================================================

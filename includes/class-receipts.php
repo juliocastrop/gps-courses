@@ -112,26 +112,24 @@ class Receipts {
     public static function handle_email() {
         $order = self::guard_admin_action();
 
-        $email = $order->get_billing_email();
-        if (!$email) {
+        $parts = self::email_parts($order);
+        if (!$parts) {
             wp_safe_redirect(add_query_arg('gps_receipt_sent', '0', wp_get_referer() ?: admin_url()));
             exit;
         }
 
         $pdf_data = self::generate_pdf($order);
-        $tmp = wp_tempnam('gps-receipt-' . $order->get_id() . '.pdf');
+        // Own folder so the attachment keeps its real name (gps-receipt-N.pdf)
+        $dir = trailingslashit(get_temp_dir()) . 'gps-receipt-' . wp_generate_password(12, false);
+        wp_mkdir_p($dir);
+        $tmp = $dir . '/' . self::filename($order);
         file_put_contents($tmp, $pdf_data);
 
-        $subject = sprintf(__('Your GPS Dental Training receipt — order #%s', 'gps-courses'), $order->get_order_number());
-        $body    = self::email_body($order);
-        $headers = [
-            'Content-Type: text/html; charset=UTF-8',
-            'From: ' . self::from_name_and_email(),
-        ];
-
-        $ok = wp_mail($email, $subject, $body, $headers, [$tmp]);
+        $parts['opts']['attachments'] = [$tmp];
+        $ok = Emails::send_parts('receipt', $parts);
 
         @unlink($tmp);
+        @rmdir($dir);
 
         wp_safe_redirect(add_query_arg('gps_receipt_sent', $ok ? '1' : '0', wp_get_referer() ?: admin_url()));
         exit;
@@ -820,27 +818,74 @@ class Receipts {
         return 'gps-receipt-' . $order->get_order_number() . '.pdf';
     }
 
-    protected static function email_body($order) {
-        $name = $order->get_billing_first_name() ?: __('there', 'gps-courses');
-        $company = get_option('gps_company_name') ?: 'GPS Dental Training';
+    /**
+     * Receipt email (catalog key "receipt") for an order: to the billing
+     * email. The sender attaches the PDF (opts.attachments).
+     *
+     * @param \WC_Order|int $order
+     * @return array|null ['to','vars','blocks','opts']
+     */
+    public static function email_parts($order) {
+        $order = self::resolve_order($order);
+        if (!$order instanceof \WC_Order || !$order->get_billing_email()) {
+            return null;
+        }
 
-        ob_start();
-        ?>
-        <p><?php printf(esc_html__('Hi %s,', 'gps-courses'), esc_html($name)); ?></p>
-        <p><?php printf(
-            esc_html__('Attached is the receipt for your order #%s. Please keep this for your records.', 'gps-courses'),
-            esc_html($order->get_order_number())
-        ); ?></p>
-        <p><?php esc_html_e('If you have any questions, just reply to this email.', 'gps-courses'); ?></p>
-        <p>— <?php echo esc_html($company); ?></p>
-        <?php
-        return ob_get_clean();
+        $paid = $order->get_date_paid() ?: $order->get_date_created();
+        $meta = array_filter([
+            /* translators: %s: order number */
+            sprintf(__('Order #%s', 'gps-courses'), $order->get_order_number()),
+            $paid ? $paid->date_i18n('M j, Y') : '',
+        ], 'strlen');
+
+        $rows = [[esc_html__('Item', 'gps-courses'), esc_html__('Total', 'gps-courses')]];
+        foreach ($order->get_items() as $item) {
+            $ctx  = self::describe_item($item);
+            $name = self::clean_text($ctx['title'] ?: $item->get_name());
+            if ((int) $item->get_quantity() > 1) {
+                $name .= ' × ' . (int) $item->get_quantity();
+            }
+            $cell = '<strong style="color:#0d153f;">' . esc_html($name) . '</strong>';
+            $sub  = array_filter([$ctx['when'], $ctx['where']], 'strlen');
+            if ($sub) {
+                $cell .= '<br><span style="font-size:13px;color:#5b6472;">' . esc_html(implode(' · ', $sub)) . '</span>';
+            }
+            $rows[] = [$cell, wp_kses_post($order->get_formatted_line_subtotal($item))];
+        }
+        $rows[] = ['<strong>' . esc_html__('Total paid', 'gps-courses') . '</strong>', '<strong>' . wp_kses_post($order->get_formatted_order_total()) . '</strong>'];
+
+        $blocks = Emails::file_row(self::filename($order), implode(' · ', $meta))
+                . Emails::table($rows, ['left', 'right'])
+                . Emails::paragraph(esc_html__('Please keep it for your records. If you have any questions, just reply to this email.', 'gps-courses'), true);
+
+        return [
+            'to'     => (string) $order->get_billing_email(),
+            'vars'   => [
+                'first_name'   => Emails::first_name(Emails::person_name($order->get_billing_first_name())),
+                'order_number' => (string) $order->get_order_number(),
+            ],
+            'blocks' => $blocks,
+            'opts'   => [],
+        ];
     }
 
-    protected static function from_name_and_email() {
-        $name  = get_option('gps_email_from_name')    ?: 'GPS Dental Training';
-        $email = get_option('gps_email_from_address') ?: get_option('admin_email');
-        return sprintf('%s <%s>', $name, $email);
+    /** Preview / test: the latest paid order with a GPS item. Read-only. */
+    public static function email_sample() {
+        if (!function_exists('wc_get_orders')) {
+            return null;
+        }
+        $orders = wc_get_orders([
+            'limit'   => 20,
+            'status'  => ['completed', 'processing'],
+            'orderby' => 'date',
+            'order'   => 'DESC',
+        ]);
+        foreach ((array) $orders as $order) {
+            if ($order instanceof \WC_Order && self::has_gps_items($order)) {
+                return self::email_parts($order);
+            }
+        }
+        return null;
     }
 
     protected static function resolve_order($post_or_order) {

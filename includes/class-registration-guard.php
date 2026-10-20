@@ -640,19 +640,50 @@ class Registration_Guard {
     }
 
     /**
-     * Send the branded verification email from the plugin's configured sender.
+     * Send the verification code email (Emails sets the brand sender).
      */
     protected static function send_code_email($email, $code) {
-        $site = self::site_name();
-        /* translators: 1: site name, 2: 6-digit code */
-        $subject = sprintf(__('Your %1$s verification code: %2$s', 'gps-courses'), $site, $code);
-        /* translators: %s: site name */
-        $intro = sprintf(__('Use this code to create your %s account:', 'gps-courses'), $site);
-        $body  = '<p style="margin:0 0 20px;">' . esc_html($intro) . '</p>'
-            . '<div style="display:inline-block;background:#f8f9fa;border:2px dashed #BC9D67;border-radius:8px;padding:14px 28px;font-size:32px;font-weight:bold;letter-spacing:8px;color:#193463;font-family:\'Courier New\',monospace;">' . esc_html($code) . '</div>'
-            . '<p style="margin:20px 0 0;color:#6c757d;font-size:13px;">' . esc_html__('The code expires in 10 minutes. If you did not try to create an account, you can ignore this email.', 'gps-courses') . '</p>';
+        return Emails::send_parts('signup_code', self::email_code_parts($email, $code));
+    }
 
-        return wp_mail($email, $subject, self::email_layout(__('Verify your email', 'gps-courses'), $body), self::mail_headers());
+    /**
+     * Parts of the sign-up code email (catalog key signup_code).
+     *
+     * @param string $email Address being registered.
+     * @param string $code  The 6-digit code (plain, only ever passed in — never read from storage).
+     * @return array|null
+     */
+    public static function email_code_parts($email, $code) {
+        $email = (string) $email;
+        $code  = (string) $code;
+        if ('' === $email || '' === $code) {
+            return null;
+        }
+        $minutes = (int) max(1, round(self::OTP_TTL / 60));
+        $blocks  = Emails::big_code($code)
+            . Emails::paragraph(esc_html(sprintf(
+                /* translators: %d: minutes */
+                __('The code expires in %d minutes. If you did not try to create an account, you can ignore this email.', 'gps-courses'),
+                $minutes
+            )), true);
+
+        return [
+            'to'     => $email,
+            'vars'   => [],
+            'blocks' => $blocks,
+            'opts'   => ['align' => 'center'],
+        ];
+    }
+
+    /**
+     * Sample for previews / tests. The code is a secret: never reads a stored
+     * code, always shows a fake one.
+     *
+     * @return array|null
+     */
+    public static function email_code_sample() {
+        $to = (string) get_option('admin_email');
+        return self::email_code_parts($to ?: 'customer@example.com', '123 456');
     }
 
     /**
@@ -662,48 +693,51 @@ class Registration_Guard {
      * @param \WP_User $user
      */
     protected static function send_welcome_email($user) {
-        $site  = self::site_name();
-        $first = trim((string) $user->first_name);
-        /* translators: %s: site name */
-        $subject = sprintf(__('Welcome to %s — your account is ready', 'gps-courses'), $site);
-        /* translators: %s: first name */
-        $hello = $first ? sprintf(__('Hi %s,', 'gps-courses'), $first) : __('Hi,', 'gps-courses');
-        $login = function_exists('wc_get_page_permalink') ? wc_get_page_permalink('myaccount') : wp_login_url();
-        $body  = '<p style="margin:0 0 14px;text-align:left;">' . esc_html($hello) . '</p>'
-            . '<p style="margin:0 0 22px;text-align:left;">' . esc_html__('Your account has been created and your email is verified. Log in with your email and the password you chose to see your courses, tickets and CE credits.', 'gps-courses') . '</p>'
-            . '<a href="' . esc_url($login) . '" style="display:inline-block;background:#0B52AC;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;">' . esc_html__('Log in to my account', 'gps-courses') . '</a>'
-            . '<p style="margin:22px 0 0;color:#6c757d;font-size:13px;">' . esc_html__('Forgot your password? Use "Lost your password?" on the login page.', 'gps-courses') . '</p>';
-
-        return wp_mail($user->user_email, $subject, self::email_layout(__('Welcome!', 'gps-courses'), $body), self::mail_headers());
-    }
-
-    /** Site name, HTML entities decoded. */
-    protected static function site_name() {
-        return wp_specialchars_decode(get_bloginfo('name'), ENT_QUOTES);
+        return Emails::send_parts('account_welcome', self::email_welcome_parts($user));
     }
 
     /**
-     * HTML + From headers. Email Settings stores `gps_email_from_email`; General
-     * Settings stores `gps_email_from_address` — prefer either before admin_email.
+     * Parts of the welcome email (catalog key account_welcome).
+     *
+     * @param \WP_User|int $user
+     * @return array|null
      */
-    protected static function mail_headers() {
-        $from_name = get_option('gps_email_from_name') ?: self::site_name();
-        $from_mail = get_option('gps_email_from_email') ?: (get_option('gps_email_from_address') ?: get_option('admin_email'));
-        return ['Content-Type: text/html; charset=UTF-8', sprintf('From: %s <%s>', $from_name, $from_mail)];
+    public static function email_welcome_parts($user) {
+        if (!($user instanceof \WP_User)) {
+            $user = get_userdata((int) $user);
+        }
+        if (!$user || empty($user->user_email)) {
+            return null;
+        }
+        $first   = Emails::first_name($user);
+        $account = function_exists('wc_get_page_permalink') ? wc_get_page_permalink('myaccount') : wp_login_url();
+        $opts    = ['button_url' => $account];
+        if ('' === $first) {
+            // Without a name the heading would read "Welcome, ".
+            $opts['heading'] = __('Welcome', 'gps-courses');
+        }
+        $blocks = Emails::paragraph(esc_html__('Log in with your email and the password you chose. Forgot your password? Use "Lost your password?" on the login page.', 'gps-courses'), true);
+
+        return [
+            'to'     => $user->user_email,
+            'vars'   => ['first_name' => $first],
+            'blocks' => '',
+            'opts'   => $opts + ['after' => $blocks],
+        ];
     }
 
-    /** GPS email frame (logo, navy band, footer). $body is already-escaped HTML. */
-    protected static function email_layout($heading, $body) {
-        if (method_exists(Emails::class, 'frame_open')) {
-            return Emails::frame_open($heading, '', 'center') . $body . Emails::frame_close();
+    /** Sample: the most recently registered customer (read-only). */
+    public static function email_welcome_sample() {
+        $users = get_users([
+            'role'    => 'customer',
+            'orderby' => 'registered',
+            'order'   => 'DESC',
+            'number'  => 1,
+        ]);
+        if (empty($users)) {
+            $users = get_users(['orderby' => 'registered', 'order' => 'DESC', 'number' => 1]);
         }
-        return '<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">'
-            . '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f5f5f5;"><tr><td align="center" style="padding:40px 20px;">'
-            . '<table width="560" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">'
-            . '<tr><td style="background:#193463;color:#ffffff;padding:28px 30px;text-align:center;border-radius:8px 8px 0 0;">'
-            . '<h1 style="margin:0;font-size:22px;color:#ffffff;">' . esc_html($heading) . '</h1></td></tr>'
-            . '<tr><td style="padding:30px;text-align:center;color:#333333;font-size:15px;line-height:1.5;">' . $body . '</td></tr>'
-            . '</table></td></tr></table></body></html>';
+        return $users ? self::email_welcome_parts($users[0]) : null;
     }
 
     /**

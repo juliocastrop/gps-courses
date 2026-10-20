@@ -595,8 +595,8 @@ class Reports {
 
         $event_id = (int) $_POST['event_id'];
         $recipients = sanitize_text_field($_POST['recipients']);
-        $subject = sanitize_text_field($_POST['subject']);
-        $message = wp_kses_post($_POST['message']);
+        $subject = sanitize_text_field(wp_unslash($_POST['subject'] ?? ''));
+        $message = wp_kses_post(wp_unslash($_POST['message'] ?? ''));
 
         if (!$event_id || !$subject || !$message) {
             wp_send_json_error(['message' => __('Please fill all required fields.', 'gps-courses')]);
@@ -649,19 +649,29 @@ class Reports {
         $sent_count = 0;
         $failed = [];
 
+        $event_title = Emails::plain($event->post_title);
+        $event_date  = $start_date ? date_i18n(get_option('date_format'), strtotime($start_date)) : '';
+
         foreach ($attendees as $attendee) {
-            // Replace placeholders
+            // Placeholders: values are plain text, escaped into the admin's html
             $personalized_message = str_replace(
                 ['{attendee_name}', '{event_title}', '{ticket_code}', '{event_date}'],
-                [$attendee->attendee_name, $event->post_title, $attendee->ticket_code, date_i18n(get_option('date_format'), strtotime($start_date))],
+                [esc_html($attendee->attendee_name), esc_html($event_title), esc_html($attendee->ticket_code), esc_html($event_date)],
                 $message
             );
+            $personalized_subject = str_replace(
+                ['{attendee_name}', '{event_title}', '{ticket_code}', '{event_date}'],
+                [Emails::plain($attendee->attendee_name), $event_title, Emails::plain($attendee->ticket_code), $event_date],
+                $subject
+            );
 
-            $sent = wp_mail(
+            $sent = Emails::send(
+                'blast',
                 $attendee->attendee_email,
-                $subject,
-                $personalized_message,
-                ['Content-Type: text/html; charset=UTF-8']
+                ['first_name' => Emails::first_name(Emails::person_name($attendee->attendee_name))],
+                wp_kses_post(wpautop($personalized_message)),
+                // The admin writes the greeting ("Dear {attendee_name}") in the message
+                ['subject' => $personalized_subject, 'heading' => $personalized_subject, 'no_greeting' => true]
             );
 
             if ($sent) {

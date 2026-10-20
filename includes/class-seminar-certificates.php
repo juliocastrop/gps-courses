@@ -565,50 +565,126 @@ class Seminar_Certificates {
     }
 
     /**
-     * Send certificate email
+     * Send certificate email (PDF attached), then record when it was sent.
      */
     private static function send_certificate_email($registration_id, $certificate_path, $period) {
-        $registration = Seminar_Registrations::get_registration($registration_id);
-        $user = get_userdata($registration->user_id);
+        $sent = Emails::send_parts('seminar_certificate', self::email_parts($registration_id, $certificate_path, $period));
 
-        if (!$user) {
-            return false;
+        if ($sent) {
+            global $wpdb;
+            $wpdb->update(
+                $wpdb->prefix . 'gps_certificates',
+                ['certificate_sent_at' => current_time('mysql')],
+                ['certificate_path' => $certificate_path],
+                ['%s'],
+                ['%s']
+            );
         }
 
-        $certificate_url = self::get_certificate_url($certificate_path);
-        $credits = self::get_credits_for_period($registration_id, strpos($period, 'January') !== false ? 'first_half' : 'second_half');
+        return $sent;
+    }
 
-        $to = $user->user_email;
-        $subject = sprintf(__('Your CE Credit Certificate - %s', 'gps-courses'), $period);
+    /**
+     * Email parts for seminar_certificate (catalog "parts").
+     *
+     * @param int    $registration_id
+     * @param string $certificate_path PDF path on disk.
+     * @param string $period           Label, e.g. "January - June 2026".
+     */
+    public static function email_parts($registration_id, $certificate_path, $period) {
+        $registration = Seminar_Registrations::get_registration($registration_id);
+        if (!$registration) {
+            return null;
+        }
+        $user = get_userdata($registration->user_id);
+        if (!$user) {
+            return null;
+        }
 
-        $message = '
-        <h2>Your CE Credit Certificate is Ready!</h2>
-        <p>Dear ' . esc_html($user->display_name) . ',</p>
-        <p>Congratulations! Your CE Credit certificate for the GPS Monthly Seminars program is now available.</p>
+        $period_key = strpos($period, 'January') !== false ? 'first_half' : 'second_half';
+        $credits = self::get_credits_for_period($registration_id, $period_key);
+        $sessions = self::get_sessions_for_period($registration_id, $period_key);
+        $seminar = Seminars::get_seminar($registration->seminar_id);
+        $title = ($seminar && !empty($seminar['title'])) ? $seminar['title'] : __('GPS Monthly Seminars', 'gps-courses');
+        $credits_label = Credits::format($credits) . ' ' . __('CE credits', 'gps-courses');
 
-        <h3>Certificate Details:</h3>
-        <ul>
-            <li><strong>Period:</strong> ' . esc_html($period) . '</li>
-            <li><strong>Credits Earned:</strong> ' . $credits . ' CE Credits</li>
-            <li><strong>Issue Date:</strong> ' . date('F j, Y') . '</li>
-        </ul>
+        $blocks = Emails::file_row(
+            $certificate_path ? basename($certificate_path) : __('Certificate.pdf', 'gps-courses'),
+            $credits_label . ' · ' . $period
+        );
+        $blocks .= Emails::panel($title, [
+            __('Period', 'gps-courses')            => esc_html($period),
+            __('Sessions attended', 'gps-courses') => esc_html((string) $sessions),
+            __('CE credits', 'gps-courses')        => '<strong>' . esc_html($credits_label) . '</strong>',
+        ]);
 
-        <p style="text-align: center; margin: 30px 0;">
-            <a href="' . esc_url($certificate_url) . '" style="display: inline-block; padding: 15px 30px; background: #2271b1; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
-                Download Your Certificate
-            </a>
-        </p>
-
-        <p>Keep up the excellent work in your continuing education!</p>
-        <p>Best regards,<br>GPS Dental Training</p>
-        ';
-
-        $headers = [
-            'Content-Type: text/html; charset=UTF-8',
-            'From: GPS Dental Training <noreply@gpsdentaltraining.com>',
+        $opts = [
+            'button_url'  => function_exists('wc_get_account_endpoint_url') ? wc_get_account_endpoint_url('gps-seminars') : home_url('/my-account/gps-seminars/'),
+            'attachments' => ($certificate_path && file_exists($certificate_path)) ? [$certificate_path] : [],
         ];
+        if ($certificate_path) {
+            $opts['secondary'] = [__('Download certificate', 'gps-courses'), self::get_certificate_url($certificate_path)];
+        }
 
-        return wp_mail($to, $subject, $message, $headers);
+        return [
+            'to'     => $user->user_email,
+            'vars'   => [
+                'first_name' => Emails::first_name($user),
+                'seminar'    => $title,
+                'period'     => $period,
+                'credits'    => Credits::format($credits),
+            ],
+            'blocks' => $blocks,
+            'opts'   => $opts,
+        ];
+    }
+
+    /**
+     * Sample for seminar_certificate (catalog "sample"): the latest seminar
+     * certificate on file. Read-only.
+     */
+    public static function email_sample() {
+        global $wpdb;
+        $row = $wpdb->get_row(
+            "SELECT c.certificate_path, c.generated_at, r.id AS registration_id
+             FROM {$wpdb->prefix}gps_certificates c
+             INNER JOIN {$wpdb->prefix}gps_seminar_registrations r ON r.user_id = c.user_id AND r.seminar_id = c.event_id
+             WHERE c.ticket_id IS NULL
+             ORDER BY c.generated_at DESC, r.id DESC LIMIT 1"
+        );
+        if (!$row) {
+            return null;
+        }
+        $year = date('Y');
+        $month = $row->generated_at ? (int) date('n', strtotime($row->generated_at)) : 12;
+        $period = $month <= 6 ? 'January - June ' . $year : 'July - December ' . $year;
+        return self::email_parts($row->registration_id, $row->certificate_path, $period);
+    }
+
+    /**
+     * Sessions attended during a period (same window as the credits).
+     */
+    private static function get_sessions_for_period($registration_id, $period) {
+        global $wpdb;
+
+        $current_year = date('Y');
+        if ($period === 'first_half') {
+            $start_date = $current_year . '-01-01';
+            $end_date = $current_year . '-06-30';
+        } else {
+            $start_date = $current_year . '-07-01';
+            $end_date = $current_year . '-12-31';
+        }
+
+        return (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*)
+             FROM {$wpdb->prefix}gps_seminar_attendance
+             WHERE registration_id = %d
+             AND checked_in_at BETWEEN %s AND %s",
+            $registration_id,
+            $start_date . ' 00:00:00',
+            $end_date . ' 23:59:59'
+        ));
     }
 
     /**

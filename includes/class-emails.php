@@ -9,20 +9,12 @@ if (!defined('ABSPATH')) exit;
 class Emails {
 
     public static function init() {
-        // Register custom WooCommerce email
-        // GPSC_Ticket_Email / GPSC_Credits_Email are no longer registered with
-        // WooCommerce: the ticket one was never triggered, and the credits one
-        // sent a second, empty email (its template file does not exist) next to
-        // send_credits_email() on every certificate.
-
+        add_action('admin_init', [__CLASS__, 'migrate_brand_once']);
         // Hook into order completion to send ticket emails
         add_action('gps_ticket_created', [__CLASS__, 'send_ticket_email'], 10, 2);
 
         // CE Credits awarded email
         add_action('gps_credits_awarded', [__CLASS__, 'send_credits_email'], 10, 3);
-
-        // Password reset from FluentForm
-        add_action('fluentform_before_insert_submission', [__CLASS__, 'handle_password_reset'], 10, 3);
 
         // Fluent Forms notifications (contact form) in the GPS email frame
         add_filter('fluentform/email_header', [__CLASS__, 'fluentform_email_header'], 10, 3);
@@ -63,11 +55,69 @@ class Emails {
      * ==================================================================== */
 
     /**
+     * The unified design: buttons were WordPress blue (#2271b1, the old
+     * default); they become the brand blue once. Any other saved color stays.
+     */
+    public static function migrate_brand_once() {
+        if (get_option('gps_email_brand_v2')) {
+            return;
+        }
+        $button = strtolower(trim((string) get_option('gps_email_button_bg_color', '')));
+        if ('' === $button || '#2271b1' === $button) {
+            update_option('gps_email_button_bg_color', '#0B52AC');
+        }
+        update_option('gps_email_brand_v2', 1, false);
+    }
+
+    /**
+     * Brand values for every email (Emails › Brand). Defaults are the GPS
+     * brand: navy header, gold accent line, brand-blue buttons.
+     */
+    public static function brand($key) {
+        $defaults = [
+            'header_bg'    => '#0d153f',
+            'header_text'  => '#ffffff',
+            'accent'       => '#DDC89D',
+            'button_bg'    => '#0B52AC',
+            'button_text'  => '#ffffff',
+            'panel_bg'     => '#f4f7fc',
+            'from_name'    => 'GPS Dental Training',
+            'from_email'   => 'info@gpsdentaltraining.com',
+            'address'      => '6320 Sugarloaf Parkway, Duluth, GA 30097',
+        ];
+        $options = [
+            'header_bg'   => 'gps_email_header_bg_color',
+            'header_text' => 'gps_email_header_text_color',
+            'accent'      => 'gps_email_accent_color',
+            'button_bg'   => 'gps_email_button_bg_color',
+            'button_text' => 'gps_email_button_text_color',
+            'panel_bg'    => 'gps_email_panel_bg_color',
+            'from_name'   => 'gps_email_from_name',
+            'from_email'  => 'gps_email_from_email',
+            'address'     => 'gps_email_footer_address',
+        ];
+        if (!isset($defaults[$key])) {
+            return '';
+        }
+        $value = trim((string) get_option($options[$key], ''));
+        if ('' === $value) {
+            return $defaults[$key];
+        }
+        if (in_array($key, ['header_bg', 'header_text', 'accent', 'button_bg', 'button_text', 'panel_bg'], true)) {
+            return sanitize_hex_color($value) ?: $defaults[$key];
+        }
+        if ('from_email' === $key) {
+            return is_email($value) ? $value : $defaults[$key];
+        }
+        return $value;
+    }
+
+    /**
      * Logo for the navy band. Gmail and Outlook don't show SVG, so an SVG
      * setting falls back to the white PNG logo.
      */
     public static function frame_logo() {
-        $logo = (string) Email_Settings::get('logo');
+        $logo = (string) get_option('gps_email_logo', '');
         if ($logo === '' || preg_match('/\.svg(\?|$)/i', $logo)) {
             $id   = (int) apply_filters('gps_email_png_logo_id', 7626);
             $png  = $id ? wp_get_attachment_image_url($id, 'full') : '';
@@ -84,46 +134,301 @@ class Emails {
      * @param string $body_align      left|center
      */
     public static function frame_open($heading, $body_cell_attrs = '', $body_align = 'left') {
-        $logo        = self::frame_logo();
-        $header_bg   = Email_Settings::get('header_bg_color');
-        $header_text = Email_Settings::get('header_text_color');
-        $width       = (int) Email_Settings::get('container_width');
-        if ($width < 320 || $width > 1200) {
-            $width = 600;
-        }
-        $align = $body_align === 'center' ? 'center' : 'left';
+        $logo   = self::frame_logo();
+        $navy   = self::brand('header_bg');
+        $white  = self::brand('header_text');
+        $accent = self::brand('accent');
+        $align  = $body_align === 'center' ? 'center' : 'left';
+        $name   = wp_specialchars_decode(get_bloginfo('name'), ENT_QUOTES);
 
         $html  = '<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />'
-               . '<meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>' . esc_html(get_bloginfo('name')) . '</title></head>'
-               . '<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:Arial,sans-serif;">'
-               . '<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background-color:#f5f5f5;"><tr><td align="center" style="padding:40px 20px;">'
-               . '<table width="' . $width . '" cellpadding="0" cellspacing="0" border="0" role="presentation" style="max-width:' . $width . 'px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">';
+               . '<meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>' . esc_html($name) . '</title>'
+               // Phones: less side padding (clients without media query support keep 40px)
+               . '<style>@media only screen and (max-width:480px){.gps-mail-outer{padding:20px 8px !important}.gps-mail-body{padding:24px 18px !important}}</style></head>'
+               . '<body style="margin:0;padding:0;background-color:#f2f3f5;font-family:Arial,Helvetica,sans-serif;">'
+               . '<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background-color:#f2f3f5;"><tr><td class="gps-mail-outer" align="center" style="padding:40px 16px;">'
+               . '<table width="600" cellpadding="0" cellspacing="0" border="0" role="presentation" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(13,21,63,0.10);">';
 
         if ($logo) {
-            $html .= '<tr><td align="center" style="padding:32px 30px 0;background-color:' . esc_attr($header_bg) . ';">'
-                   . '<img src="' . esc_url($logo) . '" alt="' . esc_attr(get_bloginfo('name')) . '" width="200" style="display:inline-block;width:200px;max-width:200px;height:auto;border:0;margin:0;"></td></tr>';
+            $html .= '<tr><td align="center" style="padding:32px 30px 0;background-color:' . esc_attr($navy) . ';">'
+                   . '<img src="' . esc_url($logo) . '" alt="' . esc_attr($name) . '" width="200" style="display:inline-block;width:200px;max-width:200px;height:auto;border:0;margin:0;"></td></tr>';
         }
 
-        $html .= '<tr><td align="center" style="background-color:' . esc_attr($header_bg) . ';padding:' . ($logo ? '24px 30px 36px' : '36px 30px') . ';">'
-               . '<h1 style="margin:0;text-align:center;font-family:Arial,sans-serif;font-size:26px;font-weight:bold;line-height:1.3;letter-spacing:normal;color:' . esc_attr($header_text) . ';">' . esc_html($heading) . '</h1></td></tr>'
-               . '<tr><td ' . $body_cell_attrs . ' style="padding:30px 40px;text-align:' . $align . ';font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#333333;background-color:#ffffff;">';
+        $html .= '<tr><td align="center" style="background-color:' . esc_attr($navy) . ';padding:' . ($logo ? '22px 30px 30px' : '34px 30px') . ';">'
+               . '<h1 style="margin:0;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:bold;line-height:1.3;letter-spacing:normal;color:' . esc_attr($white) . ';">' . esc_html($heading) . '</h1></td></tr>'
+               . '<tr><td style="height:4px;line-height:4px;font-size:0;background-color:' . esc_attr($accent) . ';">&nbsp;</td></tr>'
+               . '<tr><td class="gps-mail-body" ' . $body_cell_attrs . ' style="padding:32px 40px;text-align:' . $align . ';font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#2b2f36;background-color:#ffffff;">';
 
         return $html;
     }
 
     /**
-     * Closes the body cell and adds the grey footer with address and copyright.
+     * Closes the body cell and adds the footer: address, links, copyright and
+     * the sending address.
      */
     public static function frame_close() {
-        $footer_bg   = Email_Settings::get('footer_bg_color');
-        $footer_text = Email_Settings::get('footer_text_color');
-        $address     = Email_Settings::get('footer_address') ?: '6320 Sugarloaf Parkway, Duluth, GA 30097';
+        $name    = wp_specialchars_decode(get_bloginfo('name'), ENT_QUOTES);
+        $address = self::brand('address');
+        $link    = 'color:' . esc_attr(self::brand('button_bg')) . ';text-decoration:none;';
+        $links   = [];
+        if (function_exists('wc_get_page_permalink')) {
+            $links[] = '<a href="' . esc_url(wc_get_page_permalink('myaccount')) . '" style="' . $link . '">' . esc_html__('My account', 'gps-courses') . '</a>';
+        }
+        $links[] = '<a href="' . esc_url(home_url('/courses/')) . '" style="' . $link . '">' . esc_html__('Courses', 'gps-courses') . '</a>';
+        $links[] = '<a href="' . esc_url(home_url('/contact/')) . '" style="' . $link . '">' . esc_html__('Contact', 'gps-courses') . '</a>';
 
         return '</td></tr>'
-             . '<tr><td align="center" style="background-color:' . esc_attr($footer_bg) . ';color:' . esc_attr($footer_text) . ';padding:26px 30px;font-family:Arial,sans-serif;">'
-             . '<p style="margin:0;font-size:14px;color:' . esc_attr($footer_text) . ';">' . esc_html(get_bloginfo('name')) . '<br>' . nl2br(esc_html($address)) . '</p>'
-             . '<p style="margin:12px 0 0;font-size:12px;color:' . esc_attr($footer_text) . ';opacity:0.7;">&copy; ' . esc_html(date_i18n('Y')) . ' ' . esc_html(get_bloginfo('name')) . '</p>'
+             . '<tr><td align="center" style="background-color:#f6f7f9;padding:24px 30px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.6;color:#5b6472;">'
+             . '<p style="margin:0;"><strong style="color:#2b2f36;">' . esc_html($name) . '</strong><br>' . nl2br(esc_html($address)) . '</p>'
+             . '<p style="margin:8px 0 0;">' . implode(' &middot; ', $links) . '</p>'
+             . '<p style="margin:8px 0 0;font-size:12px;color:#737b88;">&copy; ' . esc_html(date_i18n('Y')) . ' ' . esc_html($name) . '. '
+             /* translators: %s: sending email address */
+             . esc_html(sprintf(__('Sent from %s', 'gps-courses'), self::brand('from_email'))) . '</p>'
              . '</td></tr></table></td></tr></table></body></html>';
+    }
+
+    /* ====================================================================
+     * Body components. Table-based with inline styles: email clients
+     * (Outlook above all) ignore flex, grid and <style> blocks.
+     * Every argument documented as "html" must already be escaped.
+     * ==================================================================== */
+
+    /** A paragraph. $html must be escaped. */
+    public static function paragraph($html, $muted = false) {
+        return '<p style="margin:0 0 18px;' . ($muted ? 'font-size:14px;color:#5b6472;' : '') . '">' . $html . '</p>';
+    }
+
+    /**
+     * Light panel with a bold title and label / value rows.
+     *
+     * @param string $title  Plain text (escaped here).
+     * @param array  $rows   [label => value]; values are html (escape them).
+     * @param string $badge  Plain text pill above the title (optional).
+     */
+    public static function panel($title, array $rows = [], $badge = '') {
+        $html = '<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0 0 18px;background-color:' . esc_attr(self::brand('panel_bg')) . ';border-radius:8px;"><tr><td style="padding:20px 22px;">';
+        if ('' !== $badge) {
+            $html .= '<span style="display:inline-block;margin:0 0 10px;padding:3px 10px;border-radius:999px;background-color:#f3efe4;color:#6f5822;font-size:12px;font-weight:bold;">' . esc_html($badge) . '</span><br>';
+        }
+        if ('' !== $title) {
+            $html .= '<div style="margin:0 0 10px;font-size:18px;font-weight:bold;line-height:1.35;color:#0d153f;">' . esc_html($title) . '</div>';
+        }
+        if ($rows) {
+            $html .= '<table cellpadding="0" cellspacing="0" border="0" role="presentation" style="font-size:14px;line-height:1.5;">';
+            foreach ($rows as $label => $value) {
+                $html .= '<tr><td valign="top" style="padding:3px 14px 3px 0;color:#5b6472;white-space:nowrap;">' . esc_html($label) . '</td><td valign="top" style="padding:3px 0;color:#2b2f36;">' . $value . '</td></tr>';
+            }
+            $html .= '</table>';
+        }
+        return $html . '</td></tr></table>';
+    }
+
+    /** Dashed box with an optional QR image (above, so it fits a phone) and a code. */
+    public static function code_box($label, $code, $note = '', $qr_url = '') {
+        $html = '<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0 0 18px;border:1px dashed #c8cfdb;border-radius:8px;">';
+        if ($qr_url) {
+            $html .= '<tr><td align="center" style="padding:22px 22px 0;"><img src="' . esc_url($qr_url) . '" alt="' . esc_attr__('QR code', 'gps-courses') . '" width="160" height="160" style="display:block;width:160px;height:160px;border:1px solid #e3e7ee;border-radius:6px;"></td></tr>';
+        }
+        $html .= '<tr><td align="center" style="padding:16px 22px 20px;text-align:center;">'
+               . '<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#5b6472;font-weight:bold;">' . esc_html($label) . '</div>'
+               . '<div style="margin:4px 0;font-family:\'Courier New\',monospace;font-size:17px;font-weight:bold;color:#0d153f;word-break:break-all;">' . esc_html($code) . '</div>';
+        if ('' !== $note) {
+            $html .= '<div style="font-size:13px;color:#5b6472;">' . esc_html($note) . '</div>';
+        }
+        return $html . '</td></tr></table>';
+    }
+
+    /** Big centered code (sign-up code). */
+    public static function big_code($code) {
+        return '<table cellpadding="0" cellspacing="0" border="0" role="presentation" align="center" style="margin:0 auto 18px;"><tr><td style="padding:18px 34px;background-color:' . esc_attr(self::brand('panel_bg')) . ';border-radius:8px;font-family:\'Courier New\',monospace;font-size:34px;font-weight:bold;letter-spacing:6px;color:#0d153f;text-align:center;">' . esc_html($code) . '</td></tr></table>';
+    }
+
+    /** Round gold badge with a number (credits) above a title and lines (centered: fits a phone). Lines are html. */
+    public static function credits_badge($number, $unit, $title, array $lines = []) {
+        $html = '<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0 0 18px;background-color:' . esc_attr(self::brand('panel_bg')) . ';border-radius:8px;"><tr>'
+              . '<td align="center" style="padding:22px 22px 0;">'
+              . '<table cellpadding="0" cellspacing="0" border="0" role="presentation" align="center"><tr><td align="center" valign="middle" width="98" height="98" style="width:98px;height:98px;border-radius:50%;background-color:#ffffff;border:3px solid ' . esc_attr(self::brand('accent')) . ';text-align:center;">'
+              . '<div style="font-size:32px;font-weight:bold;line-height:1;color:#0d153f;">' . esc_html($number) . '</div>'
+              . '<div style="font-size:12px;font-weight:bold;letter-spacing:.08em;color:#6f5822;">' . esc_html($unit) . '</div>'
+              . '</td></tr></table></td></tr>'
+              . '<tr><td align="center" style="padding:14px 22px 22px;text-align:center;">'
+              . '<div style="font-size:17px;font-weight:bold;line-height:1.35;color:#0d153f;">' . esc_html($title) . '</div>';
+        foreach ($lines as $line) {
+            $html .= '<div style="margin-top:4px;font-size:14px;color:#5b6472;">' . $line . '</div>';
+        }
+        return $html . '</td></tr></table>';
+    }
+
+    /** Amber (or green / red) notice. $html must be escaped. */
+    public static function notice($html, $tone = 'warn') {
+        $tones = [
+            'warn' => ['#fdf6e8', '#f0d9ae', '#6b3a00'],
+            'ok'   => ['#e7f4ed', '#bfe0cc', '#145c3a'],
+            'bad'  => ['#fbecea', '#f0c4be', '#9c2a23'],
+        ];
+        $t = isset($tones[$tone]) ? $tones[$tone] : $tones['warn'];
+        return '<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0 0 18px;background-color:' . $t[0] . ';border:1px solid ' . $t[1] . ';border-radius:8px;"><tr><td style="padding:14px 18px;font-size:14px;line-height:1.5;color:' . $t[2] . ';">' . $html . '</td></tr></table>';
+    }
+
+    /** Progress bar with a caption. */
+    public static function progress($percent, $caption) {
+        $percent = max(0, min(100, (int) $percent));
+        return '<div style="margin:0 0 18px;">'
+             . '<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#5b6472;font-weight:bold;margin-bottom:6px;">' . esc_html__('Your progress', 'gps-courses') . '</div>'
+             . '<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"><tr>'
+             . ($percent > 0 ? '<td width="' . $percent . '%" style="height:8px;line-height:8px;font-size:0;background-color:' . esc_attr(self::brand('button_bg')) . ';border-radius:4px 0 0 4px;">&nbsp;</td>' : '')
+             . ($percent < 100 ? '<td style="height:8px;line-height:8px;font-size:0;background-color:#e8ecf2;border-radius:0 4px 4px 0;">&nbsp;</td>' : '')
+             . '</tr></table>'
+             . '<div style="margin-top:6px;font-size:14px;color:#5b6472;">' . esc_html($caption) . '</div></div>';
+    }
+
+    /** One attached-file row (certificate, receipt). */
+    public static function file_row($filename, $meta = '') {
+        return '<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0 0 18px;border:1px solid #e3e7ee;border-radius:8px;"><tr>'
+             . '<td width="62" valign="middle" style="padding:16px 0 16px 18px;"><div style="width:44px;height:54px;line-height:54px;border-radius:4px;background-color:#fbecea;color:#9c2a23;font-size:12px;font-weight:bold;text-align:center;">PDF</div></td>'
+             . '<td valign="middle" style="padding:16px 18px;"><div style="font-weight:bold;color:#0d153f;">' . esc_html($filename) . '</div>'
+             . ('' !== $meta ? '<div style="font-size:13px;color:#5b6472;">' . esc_html($meta) . '</div>' : '')
+             . '</td></tr></table>';
+    }
+
+    /** Table of rows: [[cells...], ...]; first row is the header. Cells are html. */
+    public static function table(array $rows, array $align = []) {
+        $html = '<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0 0 18px;border:1px solid #e3e7ee;border-radius:8px;font-size:14px;">';
+        foreach (array_values($rows) as $i => $cells) {
+            $html .= '<tr>';
+            foreach (array_values($cells) as $c => $cell) {
+                $a = isset($align[$c]) ? $align[$c] : 'left';
+                $html .= 0 === $i
+                    ? '<td align="' . $a . '" style="padding:10px;background-color:#f6f7f9;font-size:11px;font-weight:bold;letter-spacing:.04em;text-transform:uppercase;color:#5b6472;">' . $cell . '</td>'
+                    : '<td align="' . $a . '" style="padding:10px;border-top:1px solid #eef0f4;word-break:break-word;overflow-wrap:anywhere;">' . $cell . '</td>';
+            }
+            $html .= '</tr>';
+        }
+        return $html . '</table>';
+    }
+
+    /** Button(s), centered. $secondary: [label, url] for an outlined second button. */
+    public static function button($label, $url, $secondary = null) {
+        $primary = '<a href="' . esc_url($url) . '" style="display:inline-block;margin:4px;background-color:' . esc_attr(self::brand('button_bg')) . ';color:' . esc_attr(self::brand('button_text')) . ';text-decoration:none;font-weight:bold;font-size:15px;padding:13px 26px;border-radius:6px;">' . esc_html($label) . '</a>';
+        $second  = '';
+        if (is_array($secondary) && !empty($secondary[0]) && !empty($secondary[1])) {
+            $second = '<a href="' . esc_url($secondary[1]) . '" style="display:inline-block;margin:4px;background-color:#ffffff;color:' . esc_attr(self::brand('button_bg')) . ';text-decoration:none;font-weight:bold;font-size:15px;padding:12px 24px;border-radius:6px;border:1px solid ' . esc_attr(self::brand('button_bg')) . ';">' . esc_html($secondary[0]) . '</a>';
+        }
+        return '<p style="margin:2px 0 16px;text-align:center;">' . $primary . $second . '</p>';
+    }
+
+    /* ====================================================================
+     * One way to build and send every email
+     * ==================================================================== */
+
+    /** "{course}" → value, for subject / heading / intro / button texts. */
+    protected static function fill($text, array $vars) {
+        return preg_replace_callback('/\{([a-z0-9_]+)\}/', function ($m) use ($vars) {
+            return array_key_exists($m[1], $vars) ? (string) $vars[$m[1]] : $m[0];
+        }, (string) $text);
+    }
+
+    /**
+     * Subject and HTML of an email from its catalog texts and its blocks.
+     *
+     * @param string $key    Email_Catalog key.
+     * @param array  $vars   Plain-text values for {placeholders} (first_name adds "Hi …,").
+     * @param string $blocks Body html between the intro and the button (escaped).
+     * @param array  $opts   button_url, secondary [label, url], after (html after the
+     *                       button), heading / subject (override), align (center).
+     * @return array{subject:string, html:string}
+     */
+    public static function render($key, array $vars, $blocks = '', array $opts = []) {
+        $texts = Email_Catalog::texts($key);
+        $vars  = array_map(function ($v) {
+            return html_entity_decode(wp_strip_all_tags((string) $v), ENT_QUOTES, 'UTF-8');
+        }, $vars);
+
+        $subject = isset($opts['subject']) ? (string) $opts['subject'] : self::fill($texts['subject'], $vars);
+        $heading = isset($opts['heading']) ? (string) $opts['heading'] : self::fill($texts['heading'], $vars);
+        $intro   = self::fill($texts['intro'], $vars);
+        $button  = self::fill($texts['button'], $vars);
+
+        $body = '';
+        if (!empty($vars['first_name']) && empty($opts['no_greeting'])) {
+            /* translators: %s: first name */
+            $body .= self::paragraph(esc_html(sprintf(__('Hi %s,', 'gps-courses'), $vars['first_name'])));
+        }
+        if ('' !== trim($intro)) {
+            foreach (preg_split("/\n\s*\n/", trim($intro)) as $para) {
+                $body .= self::paragraph(nl2br(esc_html($para)));
+            }
+        }
+        $body .= (string) $blocks;
+        if ('' !== $button && !empty($opts['button_url'])) {
+            $body .= self::button($button, $opts['button_url'], isset($opts['secondary']) ? $opts['secondary'] : null);
+        }
+        if (!empty($opts['after'])) {
+            $body .= $opts['after'];
+        }
+
+        $html = self::frame_open($heading, '', !empty($opts['align']) ? $opts['align'] : 'left') . $body . self::frame_close();
+        return ['subject' => wp_specialchars_decode($subject, ENT_QUOTES), 'html' => $html];
+    }
+
+    /** "From" for every email: Emails › Brand. */
+    public static function from_header() {
+        $name = str_replace(['"', "\r", "\n"], '', self::brand('from_name'));
+        return 'From: ' . $name . ' <' . self::brand('from_email') . '>';
+    }
+
+    /**
+     * Render and send. Returns false (and sends nothing) when the email is
+     * switched off in Emails › All emails, unless $opts['force'] (tests).
+     *
+     * $opts adds to render(): attachments (paths), reply_to, headers (extra).
+     */
+    public static function send($key, $to, array $vars, $blocks = '', array $opts = []) {
+        if (empty($opts['force']) && !Email_Catalog::enabled($key)) {
+            return false;
+        }
+        if (empty($to)) {
+            return false;
+        }
+        $mail    = self::render($key, $vars, $blocks, $opts);
+        $headers = array_merge(
+            ['Content-Type: text/html; charset=UTF-8', self::from_header()],
+            !empty($opts['reply_to']) ? ['Reply-To: ' . $opts['reply_to']] : [],
+            isset($opts['headers']) ? (array) $opts['headers'] : []
+        );
+        $sent = wp_mail($to, $mail['subject'], $mail['html'], $headers, isset($opts['attachments']) ? (array) $opts['attachments'] : []);
+        if ($sent && empty($opts['test'])) {
+            Email_Catalog::mark_sent($key);
+        }
+        if (!$sent) {
+            error_log('GPS Courses: email "' . $key . '" to ' . (is_array($to) ? implode(',', $to) : $to) . ' failed.');
+        }
+        return $sent;
+    }
+
+    /**
+     * Send the parts a catalog "parts" builder returned:
+     * ['to', 'vars', 'blocks', 'opts'].
+     */
+    public static function send_parts($key, $parts) {
+        if (!is_array($parts) || empty($parts['to'])) {
+            return false;
+        }
+        return self::send($key, $parts['to'], isset($parts['vars']) ? (array) $parts['vars'] : [], isset($parts['blocks']) ? (string) $parts['blocks'] : '', isset($parts['opts']) ? (array) $parts['opts'] : []);
+    }
+
+    /** First name for "Hi …," from a WP user, a full name, or an email. */
+    public static function first_name($user_or_name, $fallback = '') {
+        if ($user_or_name instanceof \WP_User) {
+            $first = trim((string) $user_or_name->first_name);
+            $first = $first ?: trim((string) strtok((string) $user_or_name->display_name, ' '));
+            return ('' !== $first && false === strpos($first, '@')) ? self::person_name($first) : $fallback;
+        }
+        $name = trim((string) $user_or_name);
+        if ('' === $name || false !== strpos($name, '@')) {
+            return $fallback;
+        }
+        return self::person_name((string) strtok($name, ' '));
     }
 
     /**
@@ -161,852 +466,274 @@ class Emails {
         return file_exists($ours) ? $ours : $template;
     }
 
-    /**
-     * Register custom email classes with WooCommerce
-     */
-    public static function register_email_classes($email_classes) {
-        require_once GPSC_PATH . 'includes/emails/class-ticket-email.php';
-        require_once GPSC_PATH . 'includes/emails/class-credits-email.php';
+    /* ====================================================================
+     * Course facts shared by the course emails (ticket, credits,
+     * certificate, waitlist). Plain text; escape when printing.
+     * ==================================================================== */
 
-        $email_classes['GPSC_Ticket_Email'] = new \GPSC_Ticket_Email();
-        $email_classes['GPSC_Credits_Email'] = new \GPSC_Credits_Email();
+    /** Title or meta as plain text (no tags, entities decoded). */
+    public static function plain($text) {
+        return trim(html_entity_decode(wp_strip_all_tags((string) $text), ENT_QUOTES, 'UTF-8'));
+    }
 
-        return $email_classes;
+    /** "Nov 13–14, 2026", "Nov 30 – Dec 1, 2026", "Nov 13, 2026"; '' without a start. */
+    public static function date_range_label($start, $end = '') {
+        $start = trim((string) $start);
+        if ('' === $start) {
+            return '';
+        }
+        $s = strtotime($start);
+        if (!$s) {
+            return '';
+        }
+        $e = trim((string) $end) !== '' ? strtotime($end) : $s;
+        if (!$e || $e <= $s) {
+            return date_i18n('M j, Y', $s);
+        }
+        if (date('Y-m', $s) === date('Y-m', $e)) {
+            return date_i18n('M j', $s) . '–' . date_i18n('j, Y', $e);
+        }
+        if (date('Y', $s) === date('Y', $e)) {
+            return date_i18n('M j', $s) . ' – ' . date_i18n('M j, Y', $e);
+        }
+        return date_i18n('M j, Y', $s) . ' – ' . date_i18n('M j, Y', $e);
+    }
+
+    /** "maria lopez" → "Maria Lopez"; names typed with capitals stay as typed. */
+    public static function person_name($name) {
+        $name = trim((string) $name);
+        return ($name !== '' && $name === strtolower($name)) ? ucwords($name, " \t-") : $name;
+    }
+
+    /** "8:30 AM – 5:30 PM" from "08:30" / "17:30" (or "8:30 AM"); '' without a start. */
+    public static function time_range_label($start, $end = '') {
+        $label = function ($time) {
+            $time = trim((string) $time);
+            if ('' === $time || !preg_match('/^\d{1,2}:\d{2}/', $time)) {
+                return '';
+            }
+            $ts = strtotime('2000-01-01 ' . $time);
+            return $ts ? date('g:i A', $ts) : '';
+        };
+        $s = $label($start);
+        if ('' === $s) {
+            return '';
+        }
+        $e = $label($end);
+        return ('' !== $e && $e !== $s) ? $s . ' – ' . $e : $s;
+    }
+
+    /** "16 CE credits", "1 CE credit"; '' for none. */
+    public static function credits_label($credits) {
+        $credits = (float) $credits;
+        if ($credits <= 0) {
+            return '';
+        }
+        /* translators: %s: number of CE credits */
+        return sprintf(1.0 === $credits ? __('%s CE credit', 'gps-courses') : __('%s CE credits', 'gps-courses'), Credits::format($credits));
     }
 
     /**
-     * Send ticket confirmation email with QR code
+     * What the course emails show about a course.
+     *
+     * @return array{title:string,url:string,dates:string,time:string,location:string,city:string,credits:float}
+     */
+    public static function course_facts($event_id) {
+        $event_id = (int) $event_id;
+        $meta     = function ($key) use ($event_id) {
+            return trim((string) get_post_meta($event_id, $key, true));
+        };
+        $venue = $meta('_gps_venue') ?: $meta('_gps_location');
+        $city  = trim($meta('_gps_city') . ('' !== $meta('_gps_state') ? ', ' . $meta('_gps_state') : ''), ', ');
+        $where = array_filter([self::plain($venue), $city], 'strlen');
+        // "Duluth, GA" inside the venue name already: don't repeat it
+        if (count($where) === 2 && '' !== $city && false !== stripos($where[0], $city)) {
+            $where = [$where[0]];
+        }
+        return [
+            'title'    => self::plain(get_the_title($event_id)),
+            'url'      => (string) get_permalink($event_id),
+            'dates'    => self::date_range_label($meta('_gps_start_date'), $meta('_gps_end_date')),
+            'time'     => self::time_range_label($meta('_gps_start_time'), $meta('_gps_end_time')),
+            'location' => implode(' · ', $where),
+            'city'     => $city,
+            'credits'  => (float) get_post_meta($event_id, '_gps_ce_credits', true),
+        ];
+    }
+
+    /** My Account endpoint URL (gps-tickets, gps-ce-credits, …). */
+    public static function account_url($endpoint) {
+        if (function_exists('wc_get_account_endpoint_url')) {
+            return (string) wc_get_account_endpoint_url($endpoint);
+        }
+        return home_url('/my-account/' . $endpoint . '/');
+    }
+
+    /* ====================================================================
+     * Ticket confirmation (catalog key "ticket")
+     * ==================================================================== */
+
+    /**
+     * Ticket email for a course ticket: to the effective attendee (the
+     * designated attendee, else the buyer / guest on the ticket).
+     *
+     * @param int|object $ticket_id gps_tickets id or row.
+     * @param int        $order_id  Order (defaults to the ticket's).
+     * @return array|null ['to','vars','blocks','opts']
+     */
+    public static function ticket_parts($ticket_id, $order_id = 0) {
+        global $wpdb;
+        $ticket = is_object($ticket_id) ? $ticket_id : $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}gps_tickets WHERE id = %d",
+            (int) $ticket_id
+        ));
+        if (!$ticket || !get_post((int) $ticket->event_id)) {
+            return null;
+        }
+
+        // Copy without the id: building an email never writes to the ticket
+        $copy = clone $ticket;
+        unset($copy->id);
+        $effective = Tickets_Admin::get_effective_attendee($copy);
+
+        $to    = '';
+        $first = '';
+        $user  = (int) $effective->user_id > 0 ? get_userdata((int) $effective->user_id) : false;
+        if ($user) {
+            $to    = $effective->email ?: $user->user_email;
+            $first = $effective->name ? self::first_name(self::person_name($effective->name)) : self::first_name($user);
+        } else {
+            $to    = (string) $effective->email;
+            $first = self::first_name(self::person_name($effective->name));
+        }
+        if ('' === trim((string) $to)) {
+            return null;
+        }
+
+        $f    = self::course_facts((int) $ticket->event_id);
+        $type = get_post((int) $ticket->ticket_type_id);
+
+        $rows = [];
+        if ('' !== $f['dates']) {
+            $rows[__('Dates', 'gps-courses')] = esc_html($f['dates']);
+        }
+        if ('' !== $f['time']) {
+            $rows[__('Time', 'gps-courses')] = esc_html($f['time']);
+        }
+        if ('' !== $f['location']) {
+            $rows[__('Location', 'gps-courses')] = esc_html($f['location']);
+        }
+        if ($type) {
+            $rows[__('Ticket type', 'gps-courses')] = esc_html(self::plain($type->post_title));
+        }
+        if ($f['credits'] > 0) {
+            $rows[__('CE credits', 'gps-courses')] = esc_html(self::credits_label($f['credits']));
+        }
+        $order_id = (int) $order_id ?: (int) $ticket->order_id;
+        $order    = $order_id && function_exists('wc_get_order') ? wc_get_order($order_id) : null;
+        if ($order) {
+            $rows[__('Order', 'gps-courses')] = esc_html('#' . $order->get_order_number());
+        }
+
+        $qr = !empty($ticket->qr_code_path) ? QRCodeGenerator::get_qr_code_url($ticket->qr_code_path) : '';
+
+        $blocks = self::panel($f['title'], $rows)
+                . self::code_box(__('Your ticket code', 'gps-courses'), (string) $ticket->ticket_code, __('Show this code at the front desk to check in.', 'gps-courses'), $qr);
+
+        return [
+            'to'     => $to,
+            'vars'   => [
+                'first_name' => $first,
+                'course'     => $f['title'],
+                'dates'      => $f['dates'],
+                'ce_credits' => $f['credits'] > 0 ? Credits::format($f['credits']) : '',
+            ],
+            'blocks' => $blocks,
+            'opts'   => ['button_url' => self::account_url('gps-tickets')],
+        ];
+    }
+
+    /** Preview / test: the latest valid course ticket. Read-only. */
+    public static function ticket_sample() {
+        global $wpdb;
+        $ticket = $wpdb->get_row("SELECT * FROM {$wpdb->prefix}gps_tickets WHERE status = 'valid' ORDER BY id DESC LIMIT 1");
+        return $ticket ? self::ticket_parts($ticket, (int) $ticket->order_id) : null;
+    }
+
+    /**
+     * Send ticket confirmation email with QR code (hooked to gps_ticket_created;
+     * also called by the Tickets admin "resend").
      */
     public static function send_ticket_email($ticket_id, $order_id) {
-        global $wpdb;
-
-        error_log('GPS Courses: Attempting to send ticket email for ticket #' . $ticket_id);
-
-        // Get ticket data
-        $ticket = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}gps_tickets WHERE id = %d",
-            $ticket_id
-        ));
-
-        if (!$ticket) {
-            error_log('GPS Courses: Ticket not found in database: #' . $ticket_id);
+        $parts = self::ticket_parts((int) $ticket_id, (int) $order_id);
+        if (!$parts) {
+            error_log('GPS Courses: ticket email not sent for ticket #' . (int) $ticket_id . ' (ticket, course or attendee email missing).');
+            return false;
+        }
+        if (!function_exists('wc_get_order') || !wc_get_order((int) $order_id)) {
+            error_log('GPS Courses: ticket email not sent for ticket #' . (int) $ticket_id . ': order #' . (int) $order_id . ' not found.');
             return false;
         }
 
-        // Get event data
-        $event = get_post($ticket->event_id);
-        if (!$event) {
-            error_log('GPS Courses: Event not found: #' . $ticket->event_id);
-            return false;
-        }
-        error_log('GPS Courses: Found event: ' . $event->post_title);
-
-        // Resolve effective attendee (designated or buyer)
-        $effective = Tickets_Admin::get_effective_attendee($ticket);
-        $user = null;
-        $recipient_email = '';
-        $recipient_name = '';
-
-        if ($effective->user_id > 0) {
-            $user = get_userdata($effective->user_id);
-            if (!$user) {
-                error_log('GPS Courses: User not found: #' . $effective->user_id);
-                // Fall back to ticket fields directly
-                $recipient_email = $effective->email;
-                $recipient_name = $effective->name ?: __('Guest', 'gps-courses');
-            } else {
-                error_log('GPS Courses: Found user: ' . $user->user_email);
-                $recipient_email = $effective->email ?: $user->user_email;
-                $recipient_name = $effective->name ?: $user->display_name;
-            }
-        } else {
-            // Guest checkout
-            error_log('GPS Courses: Guest checkout detected, using attendee info from ticket');
-            if (empty($effective->email)) {
-                error_log('GPS Courses: No attendee email found for guest checkout ticket');
-                return false;
-            }
-            $recipient_email = $effective->email;
-            $recipient_name = $effective->name ?: __('Guest', 'gps-courses');
-        }
-
-        // Get order
-        $order = wc_get_order($order_id);
-        if (!$order) {
-            error_log('GPS Courses: Order not found: #' . $order_id);
-            return false;
-        }
-        error_log('GPS Courses: Found order: #' . $order->get_order_number());
-
-        // Get event metadata. Date and time are stored in separate meta keys;
-        // combine them so the ticket shows the real event time (not midnight).
-        $event_start_date = get_post_meta($ticket->event_id, '_gps_start_date', true);
-        $event_end_date   = get_post_meta($ticket->event_id, '_gps_end_date', true);
-        $event_start_time = get_post_meta($ticket->event_id, '_gps_start_time', true);
-        $event_end_time   = get_post_meta($ticket->event_id, '_gps_end_time', true);
-
-        $event_start = trim($event_start_date . ' ' . $event_start_time);
-        $event_end   = trim($event_end_date . ' ' . $event_end_time);
-        $event_venue = get_post_meta($ticket->event_id, '_gps_venue', true);
-        $ce_credits = (float) get_post_meta($ticket->event_id, '_gps_ce_credits', true);
-
-        // Get ticket type
-        $ticket_type_post = get_post($ticket->ticket_type_id);
-        $ticket_type_name = $ticket_type_post ? $ticket_type_post->post_title : __('Ticket', 'gps-courses');
-        $ticket_price = get_post_meta($ticket->ticket_type_id, '_gps_ticket_price', true);
-
-        // Get QR code
-        $qr_code_url = QRCodeGenerator::get_qr_code_url($ticket->qr_code_path);
-        $qr_code_path = QRCodeGenerator::get_qr_code_path($ticket->qr_code_path);
-
-        // Debug QR code
-        if (empty($ticket->qr_code_path)) {
-            error_log('GPS Courses: No QR code path found for ticket #' . $ticket_id);
-        } else {
-            error_log('GPS Courses: QR code for ticket #' . $ticket_id . ': ' . $qr_code_url);
-            if (!empty($qr_code_path) && !file_exists($qr_code_path)) {
-                error_log('GPS Courses: QR code file does not exist: ' . $qr_code_path);
-            }
-        }
-
-        // Prepare email data
-        $email_data = [
-            'ticket' => $ticket,
-            'event' => $event,
-            'user' => $user,
-            'order' => $order,
-            'ticket_type_name' => $ticket_type_name,
-            'ticket_price' => $ticket_price,
-            'event_start' => $event_start,
-            'event_end' => $event_end,
-            'event_venue' => $event_venue,
-            'ce_credits' => $ce_credits,
-            'qr_code_url' => $qr_code_url,
-            'qr_code_path' => $qr_code_path,
-        ];
-
-        // Get email content
-        $subject = self::get_email_subject('ticket', $email_data);
-        $message = self::get_email_content('ticket', $email_data);
-
-        // Email headers
-        $headers = ['Content-Type: text/html; charset=UTF-8'];
-
-        error_log('GPS Courses: Sending ticket email to: ' . $recipient_email);
-        error_log('GPS Courses: Email subject: ' . $subject);
-
-        // Send email
-        $sent = wp_mail(
-            $recipient_email,
-            $subject,
-            $message,
-            $headers
-        );
-
-        if ($sent) {
-            error_log('GPS Courses: Ticket email sent successfully to ' . $recipient_email);
-        } else {
-            error_log('GPS Courses: Failed to send ticket email to ' . $recipient_email);
-        }
-
+        $sent = self::send_parts('ticket', $parts);
+        error_log('GPS Courses: ticket email for ticket #' . (int) $ticket_id . ($sent ? ' sent to ' : ' FAILED to ') . $parts['to']);
         return $sent;
     }
 
+    /* ====================================================================
+     * CE credits awarded (catalog key "credits")
+     * ==================================================================== */
+
     /**
-     * Send CE credits awarded email
+     * @return array|null ['to','vars','blocks','opts']
+     */
+    public static function credits_parts($user_id, $event_id, $credits) {
+        $user = get_userdata((int) $user_id);
+        if (!$user || !get_post((int) $event_id)) {
+            return null;
+        }
+        $f     = self::course_facts((int) $event_id);
+        $total = Credits::user_total((int) $user_id);
+
+        $lines = [];
+        $where = implode(' · ', array_filter([$f['dates'], $f['city']], 'strlen'));
+        if ('' !== $where) {
+            $lines[] = esc_html($where);
+        }
+        /* translators: %s: total CE credits */
+        $lines[] = esc_html(sprintf(__('Your total: %s CE credits', 'gps-courses'), Credits::format($total)));
+
+        $blocks = self::credits_badge(Credits::format($credits), 'CE', $f['title'], $lines)
+                . self::paragraph(esc_html__('Your certificate of completion is attached to a separate email and is always available in your account.', 'gps-courses'));
+
+        return [
+            'to'     => $user->user_email,
+            'vars'   => [
+                'first_name'    => self::first_name($user),
+                'course'        => $f['title'],
+                'credits'       => Credits::format($credits),
+                'total_credits' => Credits::format($total),
+            ],
+            'blocks' => $blocks,
+            'opts'   => ['button_url' => self::account_url('gps-ce-credits')],
+        ];
+    }
+
+    /** Preview / test: the latest course credits award. Read-only. */
+    public static function credits_sample() {
+        global $wpdb;
+        $row = $wpdb->get_row(
+            "SELECT l.user_id, l.event_id, l.credits FROM {$wpdb->prefix}gps_ce_ledger l
+             INNER JOIN {$wpdb->posts} p ON p.ID = l.event_id AND p.post_type = 'gps_event'
+             WHERE l.credits > 0 ORDER BY l.id DESC LIMIT 1"
+        );
+        return $row ? self::credits_parts((int) $row->user_id, (int) $row->event_id, (float) $row->credits) : null;
+    }
+
+    /**
+     * Send CE credits awarded email (hooked to gps_credits_awarded).
      */
     public static function send_credits_email($user_id, $event_id, $credits) {
-        $user = get_userdata($user_id);
-        if (!$user) {
-            return false;
-        }
-
-        $event = get_post($event_id);
-        if (!$event) {
-            return false;
-        }
-
-        // Get total credits
-        $total_credits = Credits::user_total($user_id);
-
-        // Prepare email data
-        $email_data = [
-            'user' => $user,
-            'event' => $event,
-            'credits' => $credits,
-            'total_credits' => $total_credits,
-        ];
-
-        // Get email content
-        $subject = self::get_email_subject('credits', $email_data);
-        $message = self::get_email_content('credits', $email_data);
-
-        // Email headers
-        $headers = ['Content-Type: text/html; charset=UTF-8'];
-
-        // Send email
-        return wp_mail(
-            $user->user_email,
-            $subject,
-            $message,
-            $headers
-        );
-    }
-
-    /**
-     * Get email subject
-     */
-    private static function get_email_subject($type, $data) {
-        switch ($type) {
-            case 'ticket':
-                return sprintf(
-                    __('Your Ticket for %s - Order #%s', 'gps-courses'),
-                    $data['event']->post_title,
-                    $data['order']->get_order_number()
-                );
-
-            case 'credits':
-                return sprintf(
-                    __('CE Credits Awarded: %1$s Credits from %2$s', 'gps-courses'),
-                    Credits::format($data['credits']),
-                    $data['event']->post_title
-                );
-
-            default:
-                return __('GPS Dental Training Notification', 'gps-courses');
-        }
-    }
-
-    /**
-     * Get email content HTML
-     */
-    private static function get_email_content($type, $data) {
-        ob_start();
-
-        // Load template
-        $template_path = GPSC_PATH . "templates/emails/{$type}.php";
-
-        if (file_exists($template_path)) {
-            // Extract data array so template can access variables directly
-            extract($data);
-            include $template_path;
-        } else {
-            // Fallback to inline template
-            if ($type === 'ticket') {
-                self::render_ticket_email_inline($data);
-            } elseif ($type === 'credits') {
-                self::render_credits_email_inline($data);
-            }
-        }
-
-        return ob_get_clean();
-    }
-
-    /**
-     * Render ticket email inline (fallback)
-     */
-    private static function render_ticket_email_inline($data) {
-        $ticket = $data['ticket'];
-        $effective = Tickets_Admin::get_effective_attendee($ticket);
-        $event = $data['event'];
-        $order = $data['order'];
-        ?>
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title><?php _e('Your Event Booking is Complete', 'gps-courses'); ?></title>
-        </head>
-        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f5f5f5;">
-                <tr>
-                    <td align="center" style="padding: 40px 20px;">
-                        <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-
-                            <!-- Header -->
-                            <tr>
-                                <td style="padding: 40px 40px 20px;">
-                                    <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: #1e293b;">
-                                        <?php _e('Your Event Booking is Complete.', 'gps-courses'); ?>
-                                    </h1>
-                                    <p style="margin: 10px 0 0; font-size: 16px; color: #64748b;">
-                                        <?php _e('You have purchased ticket(s). Attendee ticket details are as follows.', 'gps-courses'); ?>
-                                    </p>
-                                </td>
-                            </tr>
-
-                            <!-- Order Info -->
-                            <tr>
-                                <td style="padding: 20px 40px;">
-                                    <div style="background-color: #f8fafc; padding: 20px; border-radius: 6px;">
-                                        <p style="margin: 0; font-size: 18px; font-weight: 600; color: #1e293b;">
-                                            <?php echo sprintf(__('Order #%s', 'gps-courses'), $order->get_order_number()); ?>
-                                            <span style="float: right; font-weight: normal; color: #64748b;">
-                                                <?php echo date_i18n(get_option('date_format'), strtotime($order->get_date_created())); ?>
-                                            </span>
-                                        </p>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            <!-- Ticket Details -->
-                            <tr>
-                                <td style="padding: 20px 40px;">
-                                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                                        <tr>
-                                            <td style="padding-bottom: 10px;">
-                                                <p style="margin: 0; font-size: 14px; color: #64748b;">
-                                                    <?php echo esc_html($data['ticket_type_name']); ?> × 1
-                                                </p>
-                                            </td>
-                                            <td align="right" style="padding-bottom: 10px;">
-                                                <p style="margin: 0; font-size: 14px; color: #1e293b;">
-                                                    <?php echo wc_price($data['ticket_price']); ?>
-                                                </p>
-                                            </td>
-                                        </tr>
-                                        <tr style="border-top: 2px solid #e2e8f0;">
-                                            <td style="padding-top: 10px;">
-                                                <p style="margin: 0; font-size: 16px; font-weight: 600; color: #1e293b;">
-                                                    <?php _e('Total:', 'gps-courses'); ?>
-                                                </p>
-                                            </td>
-                                            <td align="right" style="padding-top: 10px;">
-                                                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #1e293b;">
-                                                    <?php echo $order->get_formatted_order_total(); ?>
-                                                </p>
-                                            </td>
-                                        </tr>
-                                    </table>
-
-                                    <p style="margin: 20px 0 5px; font-size: 14px; color: #64748b;">
-                                        <?php _e('Payment Method:', 'gps-courses'); ?>
-                                        <strong><?php echo esc_html($order->get_payment_method_title()); ?></strong>
-                                    </p>
-                                </td>
-                            </tr>
-
-                            <!-- Download Ticket Section -->
-                            <tr>
-                                <td style="padding: 20px 40px; border-top: 1px solid #e2e8f0;">
-                                    <h2 style="margin: 0 0 15px; font-size: 20px; font-weight: 600; color: #1e293b;">
-                                        <?php _e('Download Ticket', 'gps-courses'); ?>
-                                    </h2>
-                                    <p style="margin: 0 0 5px; font-size: 14px; color: #1e293b;">
-                                        <strong><?php _e('Ticket name:', 'gps-courses'); ?></strong>
-                                        <?php echo esc_html($data['ticket_type_name']); ?>
-                                    </p>
-                                    <p style="margin: 0; font-size: 14px; color: #1e293b;">
-                                        <strong><?php _e('Attendee:', 'gps-courses'); ?></strong>
-                                        <?php echo esc_html($effective->name); ?>
-                                    </p>
-
-                                    <div style="margin-top: 20px; text-align: center;">
-                                        <a href="<?php echo esc_url(home_url('/my-account/my-tickets/?ticket_id=' . $ticket->id)); ?>"
-                                           style="display: inline-block; padding: 12px 30px; background-color: #3b82f6; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">
-                                            <?php _e('Download Ticket', 'gps-courses'); ?>
-                                        </a>
-                                        <a href="<?php echo esc_url(home_url('/my-account/my-tickets/?ticket_id=' . $ticket->id)); ?>"
-                                           style="display: inline-block; padding: 12px 30px; background-color: transparent; color: #3b82f6; text-decoration: none; border: 2px solid #3b82f6; border-radius: 6px; font-weight: 600; font-size: 14px; margin-left: 10px;">
-                                            <?php _e('Edit Information', 'gps-courses'); ?>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            <!-- Event Details -->
-                            <tr>
-                                <td style="padding: 20px 40px; border-top: 1px solid #e2e8f0;">
-                                    <h2 style="margin: 0 0 15px; font-size: 20px; font-weight: 600; color: #1e293b;">
-                                        <?php echo esc_html($event->post_title); ?>
-                                    </h2>
-
-                                    <p style="margin: 0 0 10px; font-size: 14px; color: #64748b;">
-                                        <strong style="color: #1e293b;"><?php _e('Date:', 'gps-courses'); ?></strong><br>
-                                        <?php
-                                        if ($data['event_start']) {
-                                            echo date_i18n('F j, Y \a\t g:i a', strtotime($data['event_start']));
-                                            if ($data['event_end'] && $data['event_start'] !== $data['event_end']) {
-                                                echo ' - ' . date_i18n('g:i a', strtotime($data['event_end']));
-                                            }
-                                        }
-                                        ?>
-                                    </p>
-
-                                    <?php if ($data['event_venue']): ?>
-                                    <p style="margin: 0 0 10px; font-size: 14px; color: #64748b;">
-                                        <strong style="color: #1e293b;"><?php _e('Venue:', 'gps-courses'); ?></strong><br>
-                                        <?php echo esc_html($data['event_venue']); ?>
-                                    </p>
-                                    <?php endif; ?>
-
-                                    <?php if ($data['ce_credits'] > 0): ?>
-                                    <p style="margin: 0; font-size: 14px; color: #64748b;">
-                                        <strong style="color: #1e293b;"><?php _e('CE Credits:', 'gps-courses'); ?></strong>
-                                        <?php echo esc_html(Credits::format($data['ce_credits'])); ?>
-                                    </p>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-
-                            <!-- QR Code -->
-                            <?php if (!empty($data['qr_code_url'])): ?>
-                            <tr>
-                                <td style="padding: 20px 40px; text-align: center; border-top: 1px solid #e2e8f0;">
-                                    <h3 style="margin: 0 0 15px; font-size: 16px; font-weight: 600; color: #1e293b;">
-                                        <?php _e('Scan the QR Code:', 'gps-courses'); ?>
-                                    </h3>
-                                    <img src="<?php echo esc_url($data['qr_code_url']); ?>"
-                                         alt="<?php _e('Ticket QR Code', 'gps-courses'); ?>"
-                                         style="max-width: 200px; height: auto; border: 2px solid #e2e8f0; border-radius: 8px;">
-                                    <p style="margin: 15px 0 0; font-size: 12px; color: #94a3b8;">
-                                        <?php _e('Present this QR code at the event entrance', 'gps-courses'); ?>
-                                    </p>
-                                </td>
-                            </tr>
-                            <?php endif; ?>
-
-                            <!-- Footer -->
-                            <tr>
-                                <td style="padding: 30px 40px; background-color: #f8fafc; border-radius: 0 0 8px 8px;">
-                                    <p style="margin: 0; font-size: 14px; color: #64748b; text-align: center;">
-                                        <?php _e('Thank you!', 'gps-courses'); ?>
-                                    </p>
-                                    <p style="margin: 10px 0 0; font-size: 12px; color: #94a3b8; text-align: center;">
-                                        © <?php echo date('Y'); ?> <?php echo get_bloginfo('name'); ?>
-                                    </p>
-                                </td>
-                            </tr>
-
-                        </table>
-                    </td>
-                </tr>
-            </table>
-        </body>
-        </html>
-        <?php
-    }
-
-    /**
-     * Render CE credits email inline (fallback)
-     */
-    private static function render_credits_email_inline($data) {
-        $user = $data['user'];
-        $event = $data['event'];
-        $credits = $data['credits'];
-        $total_credits = $data['total_credits'];
-        ?>
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title><?php _e('CE Credits Awarded', 'gps-courses'); ?></title>
-        </head>
-        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f5f5f5;">
-                <tr>
-                    <td align="center" style="padding: 40px 20px;">
-                        <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-
-                            <!-- Header -->
-                            <tr>
-                                <td style="padding: 40px 40px 20px; text-align: center;">
-                                    <div style="width: 80px; height: 80px; margin: 0 auto 20px; background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                                        <span style="color: #ffffff; font-size: 36px; font-weight: bold;">🏆</span>
-                                    </div>
-                                    <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: #1e293b;">
-                                        <?php _e('Congratulations!', 'gps-courses'); ?>
-                                    </h1>
-                                    <p style="margin: 10px 0 0; font-size: 16px; color: #64748b;">
-                                        <?php _e('You have earned CE credits', 'gps-courses'); ?>
-                                    </p>
-                                </td>
-                            </tr>
-
-                            <!-- Credits Info -->
-                            <tr>
-                                <td style="padding: 20px 40px;">
-                                    <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); padding: 30px; border-radius: 8px; text-align: center;">
-                                        <p style="margin: 0 0 10px; font-size: 14px; color: #0369a1; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
-                                            <?php _e('Credits Earned', 'gps-courses'); ?>
-                                        </p>
-                                        <p style="margin: 0; font-size: 48px; font-weight: bold; color: #0c4a6e;">
-                                            <?php echo esc_html(Credits::format($credits)); ?>
-                                        </p>
-                                        <p style="margin: 5px 0 0; font-size: 16px; color: #0369a1;">
-                                            <?php _e('CE Credits', 'gps-courses'); ?>
-                                        </p>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            <!-- Event Details -->
-                            <tr>
-                                <td style="padding: 20px 40px;">
-                                    <h2 style="margin: 0 0 15px; font-size: 18px; font-weight: 600; color: #1e293b;">
-                                        <?php _e('From Course:', 'gps-courses'); ?>
-                                    </h2>
-                                    <p style="margin: 0; font-size: 16px; color: #475569;">
-                                        <?php echo esc_html($event->post_title); ?>
-                                    </p>
-                                </td>
-                            </tr>
-
-                            <!-- Total Credits -->
-                            <tr>
-                                <td style="padding: 20px 40px; background-color: #f8fafc;">
-                                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                                        <tr>
-                                            <td>
-                                                <p style="margin: 0; font-size: 16px; font-weight: 600; color: #1e293b;">
-                                                    <?php _e('Your Total CE Credits:', 'gps-courses'); ?>
-                                                </p>
-                                            </td>
-                                            <td align="right">
-                                                <p style="margin: 0; font-size: 24px; font-weight: bold; color: #3b82f6;">
-                                                    <?php echo esc_html(Credits::format($total_credits)); ?>
-                                                </p>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </td>
-                            </tr>
-
-                            <!-- CTA -->
-                            <tr>
-                                <td style="padding: 30px 40px; text-align: center;">
-                                    <a href="<?php echo esc_url(wc_get_account_endpoint_url('gps-ce-credits')); ?>"
-                                       style="display: inline-block; padding: 14px 40px; background-color: #3b82f6; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
-                                        <?php _e('View All My Credits', 'gps-courses'); ?>
-                                    </a>
-                                </td>
-                            </tr>
-
-                            <!-- Footer -->
-                            <tr>
-                                <td style="padding: 30px 40px; background-color: #f8fafc; border-radius: 0 0 8px 8px;">
-                                    <p style="margin: 0; font-size: 14px; color: #64748b; text-align: center;">
-                                        <?php _e('Keep up the great work!', 'gps-courses'); ?>
-                                    </p>
-                                    <p style="margin: 10px 0 0; font-size: 12px; color: #94a3b8; text-align: center;">
-                                        © <?php echo date('Y'); ?> <?php echo get_bloginfo('name'); ?>
-                                    </p>
-                                </td>
-                            </tr>
-
-                        </table>
-                    </td>
-                </tr>
-            </table>
-        </body>
-        </html>
-        <?php
-    }
-
-    /**
-     * Send bulk email to attendees
-     */
-    public static function send_bulk_email($event_id, $subject, $message, $recipient_type = 'all') {
-        global $wpdb;
-
-        $results = [
-            'sent' => 0,
-            'failed' => 0,
-            'emails' => []
-        ];
-
-        // Get attendees based on type
-        $sql = "SELECT DISTINCT t.attendee_email, t.attendee_name, t.user_id
-                FROM {$wpdb->prefix}gps_tickets t
-                WHERE t.event_id = %d AND t.status = 'valid'";
-
-        if ($recipient_type === 'checked_in') {
-            $sql .= " AND EXISTS (
-                SELECT 1 FROM {$wpdb->prefix}gps_attendance a
-                WHERE a.ticket_id = t.id
-            )";
-        } elseif ($recipient_type === 'not_checked_in') {
-            $sql .= " AND NOT EXISTS (
-                SELECT 1 FROM {$wpdb->prefix}gps_attendance a
-                WHERE a.ticket_id = t.id
-            )";
-        }
-
-        $attendees = $wpdb->get_results($wpdb->prepare($sql, $event_id));
-
-        // Email headers
-        $headers = ['Content-Type: text/html; charset=UTF-8'];
-
-        foreach ($attendees as $attendee) {
-            $email = $attendee->attendee_email;
-
-            if (empty($email)) {
-                $user = get_userdata($attendee->user_id);
-                $email = $user ? $user->user_email : '';
-            }
-
-            if (empty($email) || !is_email($email)) {
-                $results['failed']++;
-                continue;
-            }
-
-            // Personalize message
-            $personalized_message = str_replace(
-                ['{{name}}', '{{email}}'],
-                [$attendee->attendee_name, $email],
-                $message
-            );
-
-            $sent = wp_mail($email, $subject, $personalized_message, $headers);
-
-            if ($sent) {
-                $results['sent']++;
-                $results['emails'][] = $email;
-            } else {
-                $results['failed']++;
-            }
-        }
-
-        return $results;
-    }
-
-    /**
-     * Handle password reset from FluentForm submission
-     *
-     * @param array $insertData Data to be inserted
-     * @param array $data Form data
-     * @param object $form Form object
-     */
-    public static function handle_password_reset($insertData, $data, $form) {
-        // Check if this is the password reset form (form ID 5)
-        if ($form->id != 5) {
-            return;
-        }
-
-        $redirectUrl = home_url();
-
-        // Check if user is already logged in
-        if (get_current_user_id()) {
-            wp_send_json_success([
-                'result' => [
-                    'redirectUrl' => $redirectUrl,
-                    'message' => __('You are already logged in. Redirecting now...', 'gps-courses')
-                ]
-            ]);
-        }
-
-        // Get email from form submission
-        $email = \FluentForm\Framework\Helpers\ArrayHelper::get($data, 'email');
-
-        if (!$email) {
-            wp_send_json_error([
-                'errors' => [__('Please provide email', 'gps-courses')]
-            ], 423);
-        }
-
-        // Get user by email
-        $user = get_user_by('email', $email);
-
-        if ($user && !is_wp_error($user)) {
-            // Send the password reset email
-            $sent = self::send_password_reset_email($user);
-
-            if ($sent) {
-                wp_send_json_success([
-                    'result' => [
-                        'message' => __('Your password reset link has been sent to your email.', 'gps-courses')
-                    ]
-                ]);
-            } else {
-                wp_send_json_error([
-                    'errors' => [__('Could not send email. Please contact support.', 'gps-courses')]
-                ], 423);
-            }
-        } else {
-            // Don't reveal if email exists or not (security best practice)
-            wp_send_json_success([
-                'result' => [
-                    'message' => __('If that email address is in our system, you will receive a password reset link.', 'gps-courses')
-                ]
-            ]);
-        }
-    }
-
-    /**
-     * Send password reset email with GPS branded template
-     *
-     * @param WP_User $user User object
-     * @return bool True if email sent successfully
-     */
-    public static function send_password_reset_email($user) {
-        // Use WordPress's own reset key: wp-login.php?action=rp validates the key
-        // against user_activation_key (check_password_reset_key), so a key kept
-        // anywhere else (the old `password_reset_key` user meta) is always rejected.
-        $key = get_password_reset_key($user);
-        if (is_wp_error($key)) {
-            error_log('GPS Courses: could not create password reset key for user #' . $user->ID . ': ' . $key->get_error_message());
-            return false;
-        }
-
-        $reset_url = network_site_url(
-            'wp-login.php?action=rp&key=' . rawurlencode($key) . '&login=' . rawurlencode($user->user_login),
-            'login'
-        );
-
-        // Get user's display name
-        $user_name = !empty($user->display_name) ? $user->display_name : $user->user_login;
-
-        // Build email content
-        $subject = sprintf(__('Password Reset Request - %s', 'gps-courses'), get_bloginfo('name'));
-        $message = self::get_password_reset_template($user_name, $reset_url);
-
-        // Set email headers
-        $headers = [
-            'Content-Type: text/html; charset=UTF-8',
-            'From: ' . get_bloginfo('name') . ' <noreply@gpsdentaltraining.com>'
-        ];
-
-        // Send email
-        return wp_mail($user->user_email, $subject, $message, $headers);
-    }
-
-    /**
-     * Get HTML email template for password reset
-     *
-     * @param string $user_name User's display name
-     * @param string $reset_url Password reset URL
-     * @return string HTML email content
-     */
-    private static function get_password_reset_template($user_name, $reset_url) {
-        ob_start();
-        ?>
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title><?php _e('Password Reset', 'gps-courses'); ?></title>
-        </head>
-        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
-
-            <!-- Email Container -->
-            <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f5f5;" cellpadding="0" cellspacing="0">
-                <tr>
-                    <td align="center" style="padding: 40px 20px;">
-
-                        <!-- Email Card -->
-                        <table role="presentation" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 24px rgba(12, 32, 68, 0.08);" cellpadding="0" cellspacing="0">
-
-                            <!-- Header with GPS Branding -->
-                            <tr>
-                                <td style="background: linear-gradient(135deg, #0B52AC 0%, #173D84 100%); padding: 40px 30px; text-align: center; border-radius: 12px 12px 0 0;">
-                                    <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">
-                                        <?php echo esc_html(get_bloginfo('name')); ?>
-                                    </h1>
-                                    <p style="margin: 10px 0 0 0; color: #DDC89D; font-size: 14px; font-weight: 500;">
-                                        <?php _e('Dental Training Excellence', 'gps-courses'); ?>
-                                    </p>
-                                </td>
-                            </tr>
-
-                            <!-- Body Content -->
-                            <tr>
-                                <td style="padding: 40px 30px;">
-
-                                    <!-- Icon -->
-                                    <table role="presentation" style="width: 100%; margin-bottom: 30px;" cellpadding="0" cellspacing="0">
-                                        <tr>
-                                            <td align="center">
-                                                <div style="width: 64px; height: 64px; background: linear-gradient(135deg, rgba(11, 82, 172, 0.1) 0%, rgba(11, 82, 172, 0.05) 100%); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;">
-                                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                        <path d="M12 2C9.243 2 7 4.243 7 7v3H6c-1.103 0-2 .897-2 2v8c0 1.103.897 2 2 2h12c1.103 0 2-.897 2-2v-8c0-1.103-.897-2-2-2h-1V7c0-2.757-2.243-5-5-5zm6 10 .002 8H6v-8h12zm-9-2V7c0-1.654 1.346-3 3-3s3 1.346 3 3v3H9z" fill="#0B52AC"/>
-                                                        <circle cx="12" cy="16" r="1.5" fill="#DDC89D"/>
-                                                    </svg>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    </table>
-
-                                    <!-- Greeting -->
-                                    <h2 style="margin: 0 0 20px 0; color: #0C2044; font-size: 24px; font-weight: 600; line-height: 1.3;">
-                                        <?php printf(__('Hi %s,', 'gps-courses'), esc_html($user_name)); ?>
-                                    </h2>
-
-                                    <!-- Message -->
-                                    <p style="margin: 0 0 20px 0; color: #4a5568; font-size: 16px; line-height: 1.6;">
-                                        <?php _e('We received a request to reset your password. Click the button below to choose a new password:', 'gps-courses'); ?>
-                                    </p>
-
-                                    <!-- Reset Button -->
-                                    <table role="presentation" style="width: 100%; margin: 30px 0;" cellpadding="0" cellspacing="0">
-                                        <tr>
-                                            <td align="center">
-                                                <a href="<?php echo esc_url($reset_url); ?>"
-                                                   style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #0B52AC 0%, #173D84 100%); color: #DDC89D; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px; box-shadow: 0 4px 12px rgba(11, 82, 172, 0.3); transition: all 0.3s ease;">
-                                                    <?php _e('Reset Password', 'gps-courses'); ?>
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    </table>
-
-                                    <!-- Alternative Link -->
-                                    <p style="margin: 30px 0 0 0; padding: 20px; background-color: #f8f9fa; border-left: 4px solid #DDC89D; border-radius: 4px; color: #4a5568; font-size: 13px; line-height: 1.6;">
-                                        <strong style="color: #0C2044;"><?php _e('Or copy this link:', 'gps-courses'); ?></strong><br>
-                                        <a href="<?php echo esc_url($reset_url); ?>" style="color: #0B52AC; word-break: break-all;">
-                                            <?php echo esc_url($reset_url); ?>
-                                        </a>
-                                    </p>
-
-                                    <!-- Security Notice -->
-                                    <div style="margin-top: 30px; padding: 16px; background-color: #fff9e6; border: 1px solid #ffeaa7; border-radius: 8px;">
-                                        <p style="margin: 0; color: #856404; font-size: 14px; line-height: 1.5;">
-                                            <strong>⚠️ <?php _e('Security Notice:', 'gps-courses'); ?></strong><br>
-                                            <?php _e('If you didn\'t request this password reset, please ignore this email. Your password will remain unchanged.', 'gps-courses'); ?>
-                                        </p>
-                                    </div>
-
-                                    <!-- Expiration Notice -->
-                                    <p style="margin: 20px 0 0 0; color: #718096; font-size: 13px; line-height: 1.5; text-align: center;">
-                                        <?php _e('This password reset link will expire in 24 hours.', 'gps-courses'); ?>
-                                    </p>
-
-                                </td>
-                            </tr>
-
-                            <!-- Footer -->
-                            <tr>
-                                <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-radius: 0 0 12px 12px; border-top: 1px solid #e2e8f0;">
-
-                                    <!-- Support Info -->
-                                    <p style="margin: 0 0 15px 0; color: #718096; font-size: 14px; line-height: 1.5;">
-                                        <?php _e('Need help? Contact our support team:', 'gps-courses'); ?><br>
-                                        <a href="mailto:info@gpsdentaltraining.com" style="color: #0B52AC; text-decoration: none; font-weight: 500;">
-                                            info@gpsdentaltraining.com
-                                        </a>
-                                    </p>
-
-                                    <!-- Divider -->
-                                    <div style="margin: 20px 0; height: 1px; background-color: #e2e8f0;"></div>
-
-                                    <!-- Copyright -->
-                                    <p style="margin: 0; color: #a0aec0; font-size: 12px;">
-                                        &copy; <?php echo date('Y'); ?> <?php echo esc_html(get_bloginfo('name')); ?>. <?php _e('All rights reserved.', 'gps-courses'); ?>
-                                    </p>
-
-                                </td>
-                            </tr>
-
-                        </table>
-
-                    </td>
-                </tr>
-            </table>
-
-        </body>
-        </html>
-        <?php
-        return ob_get_clean();
+        return self::send_parts('credits', self::credits_parts($user_id, $event_id, $credits));
     }
 }

@@ -139,7 +139,7 @@ class QR_Promotional {
                         <?php
                         printf(
                             esc_html__('No logo available. Upload one in %s.', 'gps-courses'),
-                            '<a href="' . esc_url(admin_url('admin.php?page=gps-email-settings')) . '">' . esc_html__('Email Settings', 'gps-courses') . '</a>'
+                            '<a href="' . esc_url(admin_url('admin.php?page=gps-email-brand')) . '">' . esc_html__('Emails › Brand', 'gps-courses') . '</a>'
                         );
                         ?>
                     </span>

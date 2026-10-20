@@ -177,6 +177,11 @@ class Seminar_Waitlist {
             return false;
         }
 
+        // Email switched off (Emails › All emails): don't start a hold nobody hears about
+        if (!Email_Catalog::enabled('seminar_waitlist_spot')) {
+            return false;
+        }
+
         // Send notification email with 48-hour expiration
         $expires_at = date('Y-m-d H:i:s', strtotime('+48 hours'));
 
@@ -659,58 +664,101 @@ class Seminar_Waitlist {
      * Send waitlist confirmation email
      */
     private static function send_waitlist_confirmation($waitlist_id) {
-        $entry = self::get_waitlist_entry($waitlist_id);
-        if (!$entry) {
-            return false;
-        }
-
-        $seminar = get_post($entry->seminar_id);
-        $year = get_post_meta($entry->seminar_id, '_gps_seminar_year', true);
-
-        $to = $entry->email;
-        $subject = sprintf(__('Waitlist Confirmation - %s', 'gps-courses'), $seminar->post_title);
-
-        $message = sprintf(
-            __("Hello %s,\n\nYou have been added to the waitlist for:\n\n%s (%s)\n\nYour position: %d\n\nWe will notify you by email if a spot becomes available. You will have 48 hours to complete your registration once notified.\n\nThank you for your interest!\n\nGPS Dental Training", 'gps-courses'),
-            $entry->first_name ?: 'there',
-            $seminar->post_title,
-            $year,
-            $entry->position
-        );
-
-        // Plain-text body inside the HTML email wrapper: keep its line breaks and link
-        return Seminar_Notifications::send_email($to, $subject, wpautop(make_clickable(esc_html($message))));
+        return Emails::send_parts('seminar_waitlist_joined', self::email_joined_parts($waitlist_id));
     }
 
     /**
      * Send spot available notification
      */
     private static function send_spot_available_notification($waitlist_id) {
+        return Emails::send_parts('seminar_waitlist_spot', self::email_spot_parts($waitlist_id));
+    }
+
+    /**
+     * Email parts for seminar_waitlist_joined (catalog "parts").
+     */
+    public static function email_joined_parts($waitlist_id) {
         $entry = self::get_waitlist_entry($waitlist_id);
-        if (!$entry) {
-            return false;
+        $seminar = $entry ? get_post($entry->seminar_id) : null;
+        if (!$entry || !$seminar) {
+            return null;
         }
 
-        $seminar = get_post($entry->seminar_id);
+        $rows = [];
         $year = get_post_meta($entry->seminar_id, '_gps_seminar_year', true);
+        if ($year && false === strpos($seminar->post_title, (string) $year)) {
+            $rows[__('Year', 'gps-courses')] = esc_html($year);
+        }
+        $rows[__('Your position', 'gps-courses')] = '<strong>#' . (int) $entry->position . '</strong>';
+
+        return [
+            'to'     => $entry->email,
+            'vars'   => [
+                'first_name' => Emails::first_name((string) $entry->first_name),
+                'seminar'    => $seminar->post_title,
+                'position'   => (int) $entry->position,
+            ],
+            'blocks' => Emails::panel($seminar->post_title, $rows),
+            'opts'   => [],
+        ];
+    }
+
+    /**
+     * Email parts for seminar_waitlist_spot (catalog "parts").
+     */
+    public static function email_spot_parts($waitlist_id) {
+        $entry = self::get_waitlist_entry($waitlist_id);
+        $seminar = $entry ? get_post($entry->seminar_id) : null;
+        if (!$entry || !$seminar) {
+            return null;
+        }
+
         $product_id = get_post_meta($entry->seminar_id, '_gps_seminar_product_id', true);
-        $product_url = $product_id ? get_permalink($product_id) : '';
+        $register_url = $product_id ? get_permalink($product_id) : '';
+        $expires = $entry->expires_at ? date('F j, Y g:i A', strtotime($entry->expires_at)) : '';
 
-        $expires = date('F j, Y g:i A', strtotime($entry->expires_at));
+        $rows = [];
+        $year = get_post_meta($entry->seminar_id, '_gps_seminar_year', true);
+        if ($year && false === strpos($seminar->post_title, (string) $year)) {
+            $rows[__('Year', 'gps-courses')] = esc_html($year);
+        }
 
-        $to = $entry->email;
-        $subject = sprintf(__('Spot Available - %s', 'gps-courses'), $seminar->post_title);
+        $blocks = Emails::panel($seminar->post_title, $rows);
+        if ('' !== $expires) {
+            $blocks .= Emails::notice(sprintf(
+                /* translators: %s: date and time */
+                esc_html__('Your spot is held until %s.', 'gps-courses'),
+                '<strong>' . esc_html($expires) . '</strong>'
+            ));
+        }
 
-        $message = sprintf(
-            __("Hello %s,\n\nGreat news! A spot has become available in:\n\n%s (%s)\n\nYou have until %s to complete your registration.\n\n%s\n\nIf you do not register within 48 hours, the spot will be offered to the next person on the waitlist.\n\nThank you!\n\nGPS Dental Training", 'gps-courses'),
-            $entry->first_name ?: 'there',
-            $seminar->post_title,
-            $year,
-            $expires,
-            $product_url ? "Register here: $product_url" : ''
-        );
+        return [
+            'to'     => $entry->email,
+            'vars'   => [
+                'first_name' => Emails::first_name((string) $entry->first_name),
+                'seminar'    => $seminar->post_title,
+                'expires'    => $expires,
+            ],
+            'blocks' => $blocks,
+            'opts'   => $register_url ? ['button_url' => $register_url] : [],
+        ];
+    }
 
-        // Plain-text body inside the HTML email wrapper: keep its line breaks and link
-        return Seminar_Notifications::send_email($to, $subject, wpautop(make_clickable(esc_html($message))));
+    /**
+     * Sample for seminar_waitlist_joined: the latest waitlist entry. Read-only.
+     */
+    public static function email_joined_sample() {
+        global $wpdb;
+        $id = (int) $wpdb->get_var("SELECT id FROM {$wpdb->prefix}gps_seminar_waitlist ORDER BY id DESC LIMIT 1");
+        return $id ? self::email_joined_parts($id) : null;
+    }
+
+    /**
+     * Sample for seminar_waitlist_spot: the latest notified entry. Read-only.
+     */
+    public static function email_spot_sample() {
+        global $wpdb;
+        $id = (int) $wpdb->get_var("SELECT id FROM {$wpdb->prefix}gps_seminar_waitlist WHERE expires_at IS NOT NULL ORDER BY notified_at DESC, id DESC LIMIT 1");
+        return $id ? self::email_spot_parts($id) : null;
     }
 }

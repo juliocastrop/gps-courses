@@ -876,7 +876,8 @@ class Woo {
     }
 
     /**
-     * Handle test email request (admin only)
+     * Handle test email request (admin only): sends the order status email for
+     * the latest GPS order to the notification recipients.
      */
     public static function handle_test_email() {
         if (!isset($_GET['gps_test_email']) || $_GET['gps_test_email'] !== '1') {
@@ -893,67 +894,7 @@ class Woo {
             wp_die('Invalid nonce');
         }
 
-        // Send test email
-        $current_user = wp_get_current_user();
-        $subject = '[GPS Test] Order Notification System Test';
-
-        $message = "
-<html>
-<head>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .header { background: #0B52AC; color: white; padding: 20px; text-align: center; }
-        .content { padding: 20px; }
-        .success { background: #dff0d8; padding: 15px; border-left: 4px solid #5cb85c; margin: 15px 0; border-radius: 4px; }
-        .info { background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 15px 0; }
-        .footer { background: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666; margin-top: 20px; }
-    </style>
-</head>
-<body>
-    <div class='header'>
-        <h1>✅ Email Test Successful</h1>
-    </div>
-    <div class='content'>
-        <div class='success'>
-            <strong>Great news!</strong> Your GPS order notification system is working correctly.
-        </div>
-
-        <div class='info'>
-            <h3>Test Details</h3>
-            <table style='width: 100%;'>
-                <tr><td><strong>Triggered by:</strong></td><td>{$current_user->display_name} ({$current_user->user_email})</td></tr>
-                <tr><td><strong>Timestamp:</strong></td><td>" . current_time('mysql') . "</td></tr>
-                <tr><td><strong>Recipients:</strong></td><td>" . implode(', ', self::get_admin_notification_emails()) . "</td></tr>
-            </table>
-        </div>
-
-        <h3>What This Means</h3>
-        <p>When GPS orders change status, you will receive email notifications like this one. The notifications include:</p>
-        <ul>
-            <li>Visual status change indicators (from → to)</li>
-            <li>Customer details and order information</li>
-            <li>GPS product list (courses, seminars)</li>
-            <li>Direct link to view the order in admin</li>
-        </ul>
-
-        <p style='margin-top: 20px; color: #666;'>
-            <em>This is a test email. No actual order was created.</em>
-        </p>
-    </div>
-    <div class='footer'>
-        <p>GPS Dental Training - Order Tracking System</p>
-    </div>
-</body>
-</html>";
-
-        $headers = [
-            'Content-Type: text/html; charset=UTF-8',
-            'From: GPS Dental Training <noreply@gpsdentaltraining.com>',
-        ];
-
-        // Send to all admin emails
-        $emails = implode(', ', self::get_admin_notification_emails());
-        $sent = wp_mail($emails, $subject, $message, $headers);
+        $sent = self::send_order_status_test();
 
         // Redirect with result
         $redirect_url = admin_url('edit.php?post_type=shop_order');
@@ -968,43 +909,73 @@ class Woo {
     }
 
     /**
+     * Send the order status email for the latest GPS order to the notification
+     * recipients, marked as a test (sent even when the email is switched off).
+     *
+     * @return bool
+     */
+    public static function send_order_status_test() {
+        $parts = self::email_order_status_sample();
+        if (!$parts) {
+            // No GPS order yet: a short test so the recipients can still be checked
+            $parts = [
+                'vars'   => ['order_number' => '0000', 'status' => __('Completed', 'gps-courses'), 'customer' => ''],
+                'blocks' => '',
+                'opts'   => [],
+            ];
+            $note = __('This is a test of the order notification email. There are no GPS orders yet, so it has no order details.', 'gps-courses');
+        } else {
+            $note = __('This is a test of the order notification email, using the latest GPS order. Nothing changed on the order.', 'gps-courses');
+        }
+        $texts   = Email_Catalog::texts('admin_order_status');
+        $subject = strtr((string) $texts['subject'], [
+            '{order_number}' => $parts['vars']['order_number'],
+            '{status}'       => $parts['vars']['status'],
+            '{customer}'     => $parts['vars']['customer'],
+        ]);
+        $opts = array_merge((array) $parts['opts'], [
+            'force'   => true,
+            'test'    => true,
+            'subject' => '[Test] ' . $subject,
+        ]);
+
+        return Emails::send(
+            'admin_order_status',
+            self::get_admin_notification_emails(),
+            $parts['vars'],
+            Emails::notice(esc_html($note), 'warn') . $parts['blocks'],
+            $opts
+        );
+    }
+
+    /**
+     * What kind of GPS product this is ('' when it isn't one).
+     */
+    private static function gps_product_kind($product_id) {
+        if (self::get_ticket_type_for_product($product_id)) {
+            return __('Course ticket', 'gps-courses');
+        }
+        if (get_post_meta($product_id, '_gps_seminar_id', true)) {
+            return __('Monthly seminar', 'gps-courses');
+        }
+        if (Session_Tickets::is_session_product($product_id)) {
+            return __('Individual session', 'gps-courses');
+        }
+        return '';
+    }
+
+    /**
      * Track ALL order status changes and send email notifications
      */
     public static function track_order_status_change($order_id, $old_status, $new_status, $order) {
-        // Check if order contains GPS products
-        $gps_products = [];
+        // Only track orders with GPS products
         $has_gps_products = false;
-
         foreach ($order->get_items() as $item) {
-            $product_id = $item->get_product_id();
-            $product_name = $item->get_name();
-            $quantity = $item->get_quantity();
-
-            // Check if this is a GPS ticket product
-            $ticket_type_id = self::get_ticket_type_for_product($product_id);
-            if ($ticket_type_id) {
+            if ('' !== self::gps_product_kind($item->get_product_id())) {
                 $has_gps_products = true;
-                $gps_products[] = $quantity . 'x ' . $product_name . ' (Course Ticket)';
-                continue;
-            }
-
-            // Check if this is a GPS seminar product
-            $seminar_id = get_post_meta($product_id, '_gps_seminar_id', true);
-            if ($seminar_id) {
-                $has_gps_products = true;
-                $gps_products[] = $quantity . 'x ' . $product_name . ' (Monthly Seminar)';
-                continue;
-            }
-
-            // Check if this is an individual session product
-            if (Session_Tickets::is_session_product($product_id)) {
-                $has_gps_products = true;
-                $gps_products[] = $quantity . 'x ' . $product_name . ' (Individual Session)';
-                continue;
+                break;
             }
         }
-
-        // Only track orders with GPS products
         if (!$has_gps_products) {
             return;
         }
@@ -1012,125 +983,197 @@ class Woo {
         // Log status change
         error_log("GPS Courses: Order #{$order_id} status changed from '{$old_status}' to '{$new_status}'");
 
-        // Define status colors and labels
-        $status_config = [
-            'pending'    => ['color' => '#777777', 'label' => 'Pending Payment', 'icon' => '⏳'],
-            'processing' => ['color' => '#F0AD4E', 'label' => 'Processing', 'icon' => '🔄'],
-            'on-hold'    => ['color' => '#F0AD4E', 'label' => 'On Hold', 'icon' => '⏸️'],
-            'completed'  => ['color' => '#5CB85C', 'label' => 'Completed', 'icon' => '✅'],
-            'cancelled'  => ['color' => '#D9534F', 'label' => 'Cancelled', 'icon' => '❌'],
-            'refunded'   => ['color' => '#D9534F', 'label' => 'Refunded', 'icon' => '💸'],
-            'failed'     => ['color' => '#D9534F', 'label' => 'Failed', 'icon' => '⚠️'],
-        ];
-
-        $old_config = $status_config[$old_status] ?? ['color' => '#777777', 'label' => ucfirst($old_status), 'icon' => '•'];
-        $new_config = $status_config[$new_status] ?? ['color' => '#777777', 'label' => ucfirst($new_status), 'icon' => '•'];
-
-        // Build email content
-        $customer_name = $order->get_billing_first_name() . ' ' . $order->get_billing_last_name();
-        $customer_email = $order->get_billing_email();
-        $order_total = $order->get_formatted_order_total();
-        $payment_method = $order->get_payment_method_title();
-        $order_date = $order->get_date_created() ? $order->get_date_created()->date_i18n('F j, Y \a\t g:i A') : 'N/A';
-        $order_url = admin_url('post.php?post=' . $order_id . '&action=edit');
-
-        $subject = "[GPS Order #{$order_id}] {$new_config['icon']} Status: {$old_config['label']} → {$new_config['label']}";
-
-        $tickets_created = $order->get_meta('_gps_tickets_created') ? 'Yes ✓' : 'Not yet';
-
-        $message = "
-<html>
-<head>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .header { background: {$new_config['color']}; color: white; padding: 20px; text-align: center; }
-        .content { padding: 20px; }
-        .status-change { background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 15px 0; text-align: center; }
-        .status-box { display: inline-block; padding: 10px 20px; border-radius: 5px; margin: 5px; font-weight: bold; }
-        .old-status { background: {$old_config['color']}; color: white; }
-        .new-status { background: {$new_config['color']}; color: white; }
-        .arrow { font-size: 24px; margin: 0 10px; }
-        .order-details { background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 5px; margin: 15px 0; }
-        .products { background: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; }
-        .product-item { padding: 8px 0; border-bottom: 1px solid #eee; }
-        .product-item:last-child { border-bottom: none; }
-        .button { display: inline-block; background: #0B52AC; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin-top: 15px; }
-        .footer { background: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666; margin-top: 20px; }
-        .highlight { background: #fffbcc; padding: 10px; border-left: 4px solid #f0ad4e; margin: 15px 0; }
-        .success { background: #dff0d8; padding: 10px; border-left: 4px solid #5cb85c; margin: 15px 0; }
-    </style>
-</head>
-<body>
-    <div class='header'>
-        <h1>{$new_config['icon']} Order Status Update</h1>
-        <p>Order #{$order_id}</p>
-    </div>
-    <div class='content'>
-        <div class='status-change'>
-            <span class='status-box old-status'>{$old_config['label']}</span>
-            <span class='arrow'>→</span>
-            <span class='status-box new-status'>{$new_config['label']}</span>
-        </div>";
-
-        // Add contextual message based on status
-        if ($new_status === 'completed') {
-            $message .= "<div class='success'><strong>✅ Order Completed!</strong> Tickets/registrations should now be created automatically.</div>";
-        } elseif ($new_status === 'processing') {
-            $message .= "<div class='highlight'><strong>🔄 Payment Received!</strong> Order is being processed. If auto-complete is enabled, it should complete shortly.</div>";
-        } elseif ($new_status === 'failed') {
-            $message .= "<div class='highlight' style='border-color: #d9534f; background: #f2dede;'><strong>⚠️ Payment Failed!</strong> Please check the payment gateway for details.</div>";
-        } elseif ($new_status === 'cancelled') {
-            $message .= "<div class='highlight' style='border-color: #d9534f; background: #f2dede;'><strong>❌ Order Cancelled!</strong> No tickets will be created.</div>";
-        }
-
-        $message .= "
-        <div class='order-details'>
-            <h3>Order Details</h3>
-            <table style='width: 100%; border-collapse: collapse;'>
-                <tr><td style='padding: 8px 0;'><strong>Customer:</strong></td><td>{$customer_name}</td></tr>
-                <tr><td style='padding: 8px 0;'><strong>Email:</strong></td><td>{$customer_email}</td></tr>
-                <tr><td style='padding: 8px 0;'><strong>Order Date:</strong></td><td>{$order_date}</td></tr>
-                <tr><td style='padding: 8px 0;'><strong>Payment Method:</strong></td><td>{$payment_method}</td></tr>
-                <tr><td style='padding: 8px 0;'><strong>Order Total:</strong></td><td>{$order_total}</td></tr>
-                <tr><td style='padding: 8px 0;'><strong>Tickets Created:</strong></td><td>{$tickets_created}</td></tr>
-            </table>
-        </div>
-
-        <div class='products'>
-            <h3>GPS Products</h3>";
-
-        foreach ($gps_products as $product) {
-            $message .= "<div class='product-item'>• {$product}</div>";
-        }
-
-        $message .= "
-        </div>
-
-        <center>
-            <a href='{$order_url}' class='button'>View Order in Admin</a>
-        </center>
-    </div>
-    <div class='footer'>
-        <p>GPS Dental Training - Order Tracking System</p>
-        <p>Timestamp: " . current_time('mysql') . "</p>
-    </div>
-</body>
-</html>";
-
-        $headers = [
-            'Content-Type: text/html; charset=UTF-8',
-            'From: GPS Dental Training <noreply@gpsdentaltraining.com>',
-        ];
-
-        // Send to all admin emails
-        $emails = implode(', ', self::get_admin_notification_emails());
-        $sent = wp_mail($emails, $subject, $message, $headers);
+        $sent = Emails::send_parts('admin_order_status', self::email_order_status_parts($order, $old_status, $new_status));
 
         if ($sent) {
-            error_log("GPS Courses: Status change notification sent for order #{$order_id} ({$old_status} → {$new_status})");
+            error_log("GPS Courses: Status change notification sent for order #{$order_id} ({$old_status} -> {$new_status})");
         } else {
-            error_log("GPS Courses: Failed to send status change notification for order #{$order_id}");
+            error_log("GPS Courses: Status change notification not sent for order #{$order_id} (failed or switched off)");
         }
+    }
+
+    /**
+     * Parts of the admin order status email (catalog key admin_order_status).
+     *
+     * @param \WC_Order|int $order
+     * @param string        $old_status Previous status slug ('' = unknown).
+     * @param string        $new_status New status slug ('' = the order's current status).
+     * @return array|null Null when the order is missing or has no GPS products.
+     */
+    public static function email_order_status_parts($order, $old_status = '', $new_status = '') {
+        global $wpdb;
+
+        if (!is_object($order)) {
+            $order = function_exists('wc_get_order') ? wc_get_order((int) $order) : null;
+        }
+        if (!$order || !is_a($order, 'WC_Order')) {
+            return null;
+        }
+        $order_id   = $order->get_id();
+        $old_status = (string) $old_status;
+        $new_status = '' !== (string) $new_status ? (string) $new_status : (string) $order->get_status();
+
+        // Items
+        $rows         = [[esc_html__('Item', 'gps-courses'), esc_html__('Qty', 'gps-courses'), esc_html__('Total', 'gps-courses')]];
+        $has_gps      = false;
+        $has_course   = false;
+        $has_seminar  = false;
+        $ticket_types = [];
+        foreach ($order->get_items() as $item) {
+            $product_id = $item->get_product_id();
+            $kind       = self::gps_product_kind($product_id);
+            if ('' !== $kind) {
+                $has_gps = true;
+            }
+            $type_id = self::get_ticket_type_for_product($product_id);
+            if ($type_id) {
+                $has_course = true;
+                $ticket_types[(int) $type_id] = $item->get_name();
+            } elseif (get_post_meta($product_id, '_gps_seminar_id', true)) {
+                $has_seminar = true;
+            }
+            $rows[] = [
+                '<span style="color:#0d153f;font-weight:bold;">' . esc_html($item->get_name()) . '</span>'
+                    . ('' !== $kind ? '<br><span style="font-size:13px;color:#5b6472;">' . esc_html($kind) . '</span>' : ''),
+                (string) (int) $item->get_quantity(),
+                wc_price($order->get_line_total($item, true), ['currency' => $order->get_currency()]),
+            ];
+        }
+        if (!$has_gps) {
+            return null;
+        }
+        $method = (string) $order->get_payment_method_title();
+        $rows[] = [
+            '<strong>' . esc_html__('Total', 'gps-courses') . '</strong>'
+                . ('' !== $method ? '<br><span style="font-size:13px;color:#5b6472;">' . esc_html(sprintf(
+                    /* translators: %s: payment method */
+                    __('Payment: %s', 'gps-courses'),
+                    $method
+                )) . '</span>' : ''),
+            '',
+            '<strong>' . wp_kses_post($order->get_formatted_order_total()) . '</strong>',
+        ];
+
+        // Status line: old -> new
+        $status_line = ('' !== $old_status ? self::status_pill($old_status, false) . ' <span style="color:#5b6472;">&rarr;</span> ' : '') . self::status_pill($new_status, true);
+        $blocks      = '<p style="margin:0 0 18px;">' . $status_line . '</p>';
+
+        if ('failed' === $new_status) {
+            $blocks .= Emails::notice(esc_html__('The payment failed. Check the payment gateway for details.', 'gps-courses'), 'bad');
+        } elseif ('processing' === $new_status) {
+            $blocks .= Emails::notice(esc_html__('Payment received. GPS orders complete automatically, so this one should be Completed shortly.', 'gps-courses'), 'warn');
+        }
+
+        $blocks .= Emails::table($rows, ['left', 'center', 'right']);
+
+        // Details panel
+        $customer = trim($order->get_billing_first_name() . ' ' . $order->get_billing_last_name());
+        $email    = (string) $order->get_billing_email();
+        $panel    = [];
+        $panel[__('Customer', 'gps-courses')] = esc_html('' !== $customer ? $customer : __('Guest', 'gps-courses'))
+            . ('' !== $email ? ' &middot; <a href="mailto:' . esc_attr($email) . '" style="color:#0B52AC;">' . esc_html($email) . '</a>' : '');
+        if ($order->get_date_created()) {
+            $panel[__('Order date', 'gps-courses')] = esc_html($order->get_date_created()->date_i18n(get_option('date_format') . ' ' . get_option('time_format')));
+        }
+
+        $tickets = $wpdb->get_row($wpdb->prepare(
+            "SELECT COUNT(*) AS total,
+                    SUM(CASE WHEN designated_attendee_email IS NOT NULL AND designated_attendee_email <> '' THEN 1 ELSE 0 END) AS designated
+             FROM {$wpdb->prefix}gps_tickets WHERE order_id = %d",
+            $order_id
+        ));
+        $ticket_count = $tickets ? (int) $tickets->total : 0;
+        if ($has_course || $ticket_count) {
+            $designated = $tickets ? (int) $tickets->designated : 0;
+            $value      = 0 === $ticket_count ? esc_html__('None yet', 'gps-courses') : esc_html((string) $ticket_count);
+            if ($designated) {
+                $value .= ' <span style="color:#5b6472;">(' . esc_html(sprintf(
+                    /* translators: %d: tickets with a designated attendee */
+                    _n('%d for a designated attendee', '%d for designated attendees', $designated, 'gps-courses'),
+                    $designated
+                )) . ')</span>';
+            }
+            $panel[__('Tickets created', 'gps-courses')] = $value;
+        }
+        if ($has_seminar) {
+            $regs = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}gps_seminar_registrations WHERE order_id = %d",
+                $order_id
+            ));
+            $panel[__('Seminar registrations', 'gps-courses')] = 0 === $regs ? esc_html__('None yet', 'gps-courses') : esc_html((string) $regs);
+        }
+
+        // Seats left per course ticket type (unlimited ones skipped)
+        $seats = [];
+        foreach ($ticket_types as $type_id => $name) {
+            $stock = Tickets::get_ticket_stock($type_id);
+            if (empty($stock['unlimited'])) {
+                $seats[] = esc_html(sprintf(
+                    /* translators: 1: seats left, 2: seats total */
+                    __('%1$d of %2$d', 'gps-courses'),
+                    (int) $stock['available'],
+                    (int) $stock['total']
+                )) . (count($ticket_types) > 1 ? ' <span style="color:#5b6472;">(' . esc_html($name) . ')</span>' : '');
+            }
+        }
+        if ($seats) {
+            $panel[__('Seats left', 'gps-courses')] = implode('<br>', $seats);
+        }
+
+        $blocks .= Emails::panel('', $panel);
+
+        return [
+            'to'     => self::get_admin_notification_emails(),
+            'vars'   => [
+                'order_number' => (string) $order->get_order_number(),
+                'status'       => wc_get_order_status_name($new_status),
+                'customer'     => '' !== $customer ? $customer : $email,
+            ],
+            'blocks' => $blocks,
+            'opts'   => [
+                'button_url' => $order->get_edit_order_url(),
+                'after'      => Emails::paragraph(esc_html__('Sent to the order notification recipients set in GPS Courses › Settings.', 'gps-courses'), true),
+            ],
+        ];
+    }
+
+    /** Small status pill for the order status email. */
+    private static function status_pill($status, $strong) {
+        $colors = [
+            'completed'  => ['#e7f4ed', '#145c3a'],
+            'processing' => ['#e8f0fb', '#0b52ac'],
+            'on-hold'    => ['#fdf6e8', '#6b3a00'],
+            'pending'    => ['#f1f2f4', '#5b6472'],
+            'cancelled'  => ['#fbecea', '#9c2a23'],
+            'refunded'   => ['#fbecea', '#9c2a23'],
+            'failed'     => ['#fbecea', '#9c2a23'],
+        ];
+        $c = isset($colors[$status]) ? $colors[$status] : ['#f1f2f4', '#5b6472'];
+        return '<span style="display:inline-block;padding:3px 10px;border-radius:999px;background-color:' . $c[0] . ';color:' . $c[1] . ';font-size:13px;' . ($strong ? 'font-weight:bold;' : '') . '">' . esc_html(wc_get_order_status_name($status)) . '</span>';
+    }
+
+    /**
+     * Sample (read-only): the latest order that has GPS products.
+     *
+     * @return array|null
+     */
+    public static function email_order_status_sample() {
+        if (!function_exists('wc_get_orders')) {
+            return null;
+        }
+        $orders = wc_get_orders([
+            'limit'   => 25,
+            'orderby' => 'date',
+            'order'   => 'DESC',
+            'type'    => 'shop_order',
+        ]);
+        foreach ((array) $orders as $order) {
+            $parts = self::email_order_status_parts($order);
+            if ($parts) {
+                return $parts;
+            }
+        }
+        return null;
     }
 
     /**

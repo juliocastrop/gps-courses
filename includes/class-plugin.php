@@ -16,9 +16,9 @@ class Plugin {
         require_once GPSC_PATH . 'includes/class-tickets-admin.php';
         require_once GPSC_PATH . 'includes/class-schedules.php';
         require_once GPSC_PATH . 'includes/class-qrcode.php';
+        require_once GPSC_PATH . 'includes/class-email-catalog.php';
         require_once GPSC_PATH . 'includes/class-emails.php';
-        require_once GPSC_PATH . 'includes/class-email-settings.php';
-        require_once GPSC_PATH . 'includes/class-email-template-manager.php';
+        require_once GPSC_PATH . 'includes/class-email-hub.php';
         require_once GPSC_PATH . 'includes/class-waitlist.php';
         require_once GPSC_PATH . 'includes/class-elementor.php';
         require_once GPSC_PATH . 'includes/class-attendance.php';
@@ -87,8 +87,9 @@ class Plugin {
         Order_Cancellations::init();
         Schedules::init();
         Emails::init();
-        Email_Settings::init();
-        Email_Template_Manager::init();
+        // Emails › All emails / Brand / Schedule replace Email Branding, Email
+        // Templates and Seminar Notifications (old URLs redirect there)
+        Email_Hub::init();
         Waitlist::init();
         Elementor_Integration::init();
         Attendance::init();

@@ -182,9 +182,9 @@ class Admin_Menu {
                 ['label' => __('Certificate Design', 'gps-courses'), 'url' => 'admin.php?page=gps-certificate-settings', 'cap' => 'manage_options', 'page' => 'gps-certificate-settings'],
             ]],
             'emails' => ['label' => __('Emails', 'gps-courses'), 'tabs' => [
-                ['label' => __('Email Branding', 'gps-courses'), 'url' => 'admin.php?page=gps-email-settings', 'cap' => 'manage_options', 'page' => 'gps-email-settings'],
-                ['label' => __('Email Templates', 'gps-courses'), 'url' => 'admin.php?page=gps-email-templates', 'cap' => 'manage_options', 'page' => 'gps-email-templates'],
-                ['label' => __('Seminar Notifications', 'gps-courses'), 'url' => 'admin.php?page=gps-seminar-notifications', 'cap' => 'manage_options', 'page' => 'gps-seminar-notifications'],
+                ['label' => __('All emails', 'gps-courses'), 'url' => 'admin.php?page=gps-emails', 'cap' => 'manage_options', 'page' => 'gps-emails'],
+                ['label' => __('Brand', 'gps-courses'), 'url' => 'admin.php?page=gps-email-brand', 'cap' => 'manage_options', 'page' => 'gps-email-brand'],
+                ['label' => __('Schedule', 'gps-courses'), 'url' => 'admin.php?page=gps-email-schedule', 'cap' => 'manage_options', 'page' => 'gps-email-schedule'],
             ]],
             'reports' => ['label' => __('Reports', 'gps-courses'), 'tabs' => [
                 ['label' => __('Course Reports', 'gps-courses'), 'url' => 'admin.php?page=gps-reports', 'cap' => 'manage_options', 'page' => 'gps-reports'],

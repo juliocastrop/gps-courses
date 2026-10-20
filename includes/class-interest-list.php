@@ -465,6 +465,11 @@ class Interest_List {
         $event_id = (int) $event_id;
         $limit    = max(1, (int) $limit);
 
+        // Switched off in Emails › All emails: rows keep waiting (nothing is claimed)
+        if (!Email_Catalog::enabled('interest_new_dates')) {
+            return 0;
+        }
+
         Course_Stage::reset();
         if ('publish' !== get_post_status($event_id) || 'open' !== Course_Stage::get($event_id)) {
             return 0;
@@ -619,6 +624,9 @@ class Interest_List {
         if (!$row || self::TICKET !== (int) $row->ticket_type_id) {
             return new \WP_Error('not_found', __('Entry not found.', 'gps-courses'));
         }
+        if (!Email_Catalog::enabled('interest_new_dates')) {
+            return new \WP_Error('switched_off', __('The "New dates announced" email is switched off in Emails › All emails.', 'gps-courses'));
+        }
         $target = self::target_for((int) $row->event_id);
         if (!$target) {
             return new \WP_Error('no_open_dates', __('There are no open dates to announce for this course yet. Publish a new edition (same program) with a ticket on sale first.', 'gps-courses'));
@@ -633,13 +641,7 @@ class Interest_List {
     /** Email one row about $target_id (already claimed). Failures are marked 'failed'. */
     protected static function send($row, $target_id) {
         global $wpdb;
-        $subject = sprintf(
-            /* translators: %s: course title */
-            __('New dates for %s', 'gps-courses'),
-            html_entity_decode(wp_strip_all_tags(get_the_title($target_id)), ENT_QUOTES, 'UTF-8')
-        );
-        $html = self::email_html($row, $target_id);
-        $sent = wp_mail($row->email, $subject, $html, ['Content-Type: text/html; charset=UTF-8']);
+        $sent = Emails::send_parts('interest_new_dates', self::email_parts($row, $target_id));
 
         if ($sent) {
             error_log(sprintf('GPS Courses: next-dates email sent to %s for course #%d (interest #%d, signed up on course #%d)', $row->email, $target_id, $row->id, $row->event_id));
@@ -656,57 +658,58 @@ class Interest_List {
         return (bool) $sent;
     }
 
-    /** "New dates" email in the shared GPS frame. */
-    public static function email_html($row, $target_id) {
-        $title = html_entity_decode(wp_strip_all_tags(get_the_title($target_id)), ENT_QUOTES, 'UTF-8');
-        $when  = html_entity_decode(Course_Stage::date_range($target_id), ENT_QUOTES, 'UTF-8');
-        $ce    = (float) get_post_meta($target_id, '_gps_ce_credits', true);
-        $venue = trim((string) get_post_meta($target_id, '_gps_venue', true));
-        $city  = trim((string) get_post_meta($target_id, '_gps_city', true));
-        $state = trim((string) get_post_meta($target_id, '_gps_state', true));
-        $place = implode(', ', array_filter([$venue, $city, $state], 'strlen'));
-        $url   = (string) get_permalink($target_id) . '#registration';
-        $name  = trim((string) $row->first_name);
+    /**
+     * "New dates" email (catalog key "interest_new_dates") for one row about
+     * the open course $target_id.
+     *
+     * @return array|null ['to','vars','blocks','opts']
+     */
+    public static function email_parts($row, $target_id) {
+        $target_id = (int) $target_id;
+        if (!$row || empty($row->email) || !$target_id || !get_post($target_id)) {
+            return null;
+        }
+        $f    = Emails::course_facts($target_id);
+        $when = Emails::plain(Course_Stage::date_range($target_id));
 
-        $details = [];
+        $rows = [];
         if ('' !== $when) {
-            $details[__('Dates', 'gps-courses')] = $when;
+            $rows[__('Dates', 'gps-courses')] = esc_html($when);
         }
-        if ($ce > 0) {
-            $credits = class_exists(__NAMESPACE__ . '\\Credits') && method_exists(__NAMESPACE__ . '\\Credits', 'format') ? Credits::format($ce) : (string) $ce;
-            $details[__('CE credits', 'gps-courses')] = $credits;
+        if ('' !== $f['location']) {
+            $rows[__('Location', 'gps-courses')] = esc_html($f['location']);
         }
-        if ('' !== $place) {
-            $details[__('Location', 'gps-courses')] = $place;
+        if ($f['credits'] > 0) {
+            $rows[__('CE credits', 'gps-courses')] = esc_html(Emails::credits_label($f['credits']));
         }
 
-        $other = (int) $row->event_id !== (int) $target_id;
-        $intro = $other
-            ? __('You asked us to let you know when this course was scheduled again. New dates are now open for registration:', 'gps-courses')
-            : __('You asked us to let you know about the dates of this course. Registration is now open:', 'gps-courses');
+        return [
+            'to'     => (string) $row->email,
+            'vars'   => [
+                'first_name' => Emails::first_name(Emails::person_name($row->first_name)),
+                'course'     => $f['title'],
+                'dates'      => $when,
+            ],
+            'blocks' => Emails::panel($f['title'], $rows),
+            'opts'   => [
+                'button_url' => $f['url'] . '#registration',
+                'after'      => Emails::paragraph(esc_html__('You are receiving this one-time email because you asked to be notified about new dates for this course on our website.', 'gps-courses'), true),
+            ],
+        ];
+    }
 
-        $body  = '<p style="margin:0 0 16px;">' . esc_html('' !== $name ? sprintf(__('Hi %s,', 'gps-courses'), $name) : __('Hello,', 'gps-courses')) . '</p>';
-        $body .= '<p style="margin:0 0 20px;">' . esc_html($intro) . '</p>';
-        $body .= '<p style="margin:0 0 12px;font-size:19px;line-height:1.35;font-weight:bold;color:#193463;">' . esc_html($title) . '</p>';
-        if ($details) {
-            $body .= '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 26px;border-collapse:collapse;background:#f7f9fc;border-left:4px solid #DDC89D;">';
-            foreach ($details as $label => $value) {
-                $body .= '<tr><td style="padding:10px 14px;font-size:13px;color:#5b6880;width:110px;vertical-align:top;">' . esc_html($label) . '</td>'
-                       . '<td style="padding:10px 14px 10px 0;font-size:15px;color:#1b2436;font-weight:bold;">' . esc_html($value) . '</td></tr>';
-            }
-            $body .= '</table>';
+    /** Preview / test: the latest interest-list row and the course it would announce. Read-only. */
+    public static function email_sample() {
+        global $wpdb;
+        $row = $wpdb->get_row(
+            "SELECT * FROM " . self::table() . " WHERE ticket_type_id = 0
+             ORDER BY (status = 'notified') DESC, id DESC LIMIT 1"
+        );
+        if (!$row) {
+            return null;
         }
-        $body .= '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 26px;"><tr>'
-               . '<td align="center" bgcolor="#DDC89D" style="border-radius:8px;">'
-               . '<a href="' . esc_url($url) . '" style="display:inline-block;padding:14px 34px;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;color:#193463;text-decoration:none;border-radius:8px;background-color:#DDC89D;">'
-               . esc_html__('Register now', 'gps-courses') . '</a></td></tr></table>';
-        $body .= '<p style="margin:0;font-size:12.5px;color:#5b6880;">' . esc_html__('You are receiving this one-time email because you asked to be notified about new dates for this course on our website.', 'gps-courses') . '</p>';
-
-        $heading = __('New dates are open', 'gps-courses');
-        if (class_exists(__NAMESPACE__ . '\\Emails') && method_exists(__NAMESPACE__ . '\\Emails', 'frame_open')) {
-            return Emails::frame_open($heading) . $body . Emails::frame_close();
-        }
-        return '<html><body style="font-family:Arial,sans-serif;">' . $body . '</body></html>';
+        $target = self::target_for((int) $row->event_id) ?: (int) $row->event_id;
+        return self::email_parts($row, $target);
     }
 
     /* ============================================================

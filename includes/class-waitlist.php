@@ -254,122 +254,6 @@ class Waitlist {
     }
 
     /**
-     * Get email settings from Email_Settings
-     */
-    private static function get_email_settings() {
-        return [
-            'logo' => get_option('gps_email_logo', ''),
-            'from_name' => get_option('gps_email_from_name', get_bloginfo('name')),
-            'from_email' => get_option('gps_email_from_email', get_bloginfo('admin_email')),
-            'header_bg_color' => get_option('gps_email_header_bg_color', '#0B52AC'),
-            'header_text_color' => get_option('gps_email_header_text_color', '#ffffff'),
-            'body_bg_color' => get_option('gps_email_body_bg_color', '#f5f5f5'),
-            'body_text_color' => get_option('gps_email_body_text_color', '#333333'),
-            'footer_text' => get_option('gps_email_footer_text', ''),
-            'button_bg_color' => get_option('gps_email_button_bg_color', '#0B52AC'),
-            'button_text_color' => get_option('gps_email_button_text_color', '#ffffff'),
-        ];
-    }
-
-    /**
-     * Wrap content in branded email template
-     */
-    private static function wrap_email_template($content, $title = '', $is_test = false) {
-        $settings = self::get_email_settings();
-
-        $logo_html = '';
-        if (!empty($settings['logo'])) {
-            $logo_html = '<img src="' . esc_url($settings['logo']) . '" alt="' . esc_attr($settings['from_name']) . '" style="max-width: 200px; height: auto;">';
-        }
-
-        $footer_text = !empty($settings['footer_text']) ? $settings['footer_text'] : __('Thank you for your interest!', 'gps-courses');
-
-        ob_start();
-        ?>
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title><?php echo esc_html($title); ?></title>
-        </head>
-        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: <?php echo esc_attr($settings['body_bg_color']); ?>;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: <?php echo esc_attr($settings['body_bg_color']); ?>;">
-                <tr>
-                    <td align="center" style="padding: 40px 20px;">
-                        <?php if ($is_test): ?>
-                        <div style="background: #fef3c7; padding: 10px 20px; border-radius: 6px; margin-bottom: 20px; max-width: 600px;">
-                            <strong style="color: #92400e;">⚠️ <?php _e('This is a TEST email', 'gps-courses'); ?></strong>
-                        </div>
-                        <?php endif; ?>
-
-                        <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-
-                            <!-- Header with Logo -->
-                            <tr>
-                                <td style="padding: 30px 40px; text-align: center; background-color: <?php echo esc_attr($settings['header_bg_color']); ?>; border-radius: 8px 8px 0 0;">
-                                    <?php if (!empty($logo_html)): ?>
-                                        <?php echo $logo_html; ?>
-                                    <?php else: ?>
-                                        <h2 style="margin: 0; color: <?php echo esc_attr($settings['header_text_color']); ?>; font-size: 24px;">
-                                            <?php echo esc_html($settings['from_name']); ?>
-                                        </h2>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-
-                            <!-- Content -->
-                            <tr>
-                                <td style="padding: 40px; color: <?php echo esc_attr($settings['body_text_color']); ?>;">
-                                    <?php echo $content; ?>
-                                </td>
-                            </tr>
-
-                            <!-- Footer -->
-                            <tr>
-                                <td style="padding: 25px 40px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; border-radius: 0 0 8px 8px;">
-                                    <p style="margin: 0; font-size: 14px; color: #64748b; text-align: center;">
-                                        <?php echo esc_html($footer_text); ?>
-                                    </p>
-                                    <p style="margin: 10px 0 0; font-size: 12px; color: #94a3b8; text-align: center;">
-                                        © <?php echo date('Y'); ?> <?php echo esc_html($settings['from_name']); ?>
-                                    </p>
-                                </td>
-                            </tr>
-
-                        </table>
-                    </td>
-                </tr>
-            </table>
-        </body>
-        </html>
-        <?php
-        return ob_get_clean();
-    }
-
-    /**
-     * Send email helper with proper headers
-     */
-    private static function send_email($to, $subject, $content, $title = '', $is_test = false) {
-        $settings = self::get_email_settings();
-
-        $headers = [
-            'Content-Type: text/html; charset=UTF-8',
-            'From: ' . $settings['from_name'] . ' <' . $settings['from_email'] . '>',
-        ];
-
-        $wrapped_message = self::wrap_email_template($content, $title, $is_test);
-
-        $result = wp_mail($to, $subject, $wrapped_message, $headers);
-
-        if (!$result) {
-            error_log('GPS Courses Waitlist: Failed to send email to ' . $to);
-        }
-
-        return $result;
-    }
-
-    /**
      * Get next position in waitlist
      */
     public static function get_next_position($ticket_id, $event_id) {
@@ -491,10 +375,12 @@ class Waitlist {
             return false;
         }
 
-        $ticket = get_post($entry->ticket_type_id);
-        $event = get_post($entry->event_id);
+        if (!get_post($entry->ticket_type_id) || !get_post($entry->event_id)) {
+            return false;
+        }
 
-        if (!$ticket || !$event) {
+        // Switched off in Emails › All emails: don't start a 48-hour hold nobody hears about
+        if (!Email_Catalog::enabled('waitlist_spot')) {
             return false;
         }
 
@@ -514,67 +400,9 @@ class Waitlist {
             ['%d']
         );
 
-        // Send email
-        $settings = self::get_email_settings();
-        $event_url = get_permalink($entry->event_id);
-        $expires_formatted = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($expires_at));
-        $name = $entry->first_name ?: __('there', 'gps-courses');
-        $event_date = get_post_meta($entry->event_id, '_gps_start_date', true);
-        $event_date_formatted = $event_date ? date_i18n(get_option('date_format'), strtotime($event_date)) : '';
-
-        $subject = sprintf(
-            __('A Spot is Available! - %s', 'gps-courses'),
-            $event->post_title
-        );
-
-        // Build email content (will be wrapped in template)
-        ob_start();
-        ?>
-        <h1 style="margin: 0 0 10px; font-size: 28px; font-weight: bold; color: #1e293b;">
-            🎉 <?php _e('Great News! A Spot is Available', 'gps-courses'); ?>
-        </h1>
-        <p style="margin: 0 0 25px; font-size: 16px; color: #64748b;">
-            <?php printf(__('Hello %s, a spot has just opened up for a course you\'re interested in!', 'gps-courses'), esc_html($name)); ?>
-        </p>
-
-        <!-- Course Info -->
-        <div style="background-color: #f0fdf4; padding: 25px; border-radius: 8px; border-left: 4px solid #22c55e; margin-bottom: 25px;">
-            <h2 style="margin: 0 0 10px; font-size: 20px; font-weight: 600; color: #1e293b;">
-                <?php echo esc_html($event->post_title); ?>
-            </h2>
-            <?php if ($event_date_formatted): ?>
-            <p style="margin: 0 0 5px; font-size: 14px; color: #64748b;">
-                <strong><?php _e('Date:', 'gps-courses'); ?></strong> <?php echo esc_html($event_date_formatted); ?>
-            </p>
-            <?php endif; ?>
-            <p style="margin: 0; font-size: 14px; color: #64748b;">
-                <strong><?php _e('Ticket Type:', 'gps-courses'); ?></strong> <?php echo esc_html($ticket->post_title); ?>
-            </p>
-        </div>
-
-        <!-- Urgency Notice -->
-        <div style="background-color: #fef2f2; padding: 20px; border-radius: 8px; border: 1px solid #fecaca; margin-bottom: 25px;">
-            <p style="margin: 0; font-size: 16px; color: #dc2626; font-weight: 600;">
-                ⏰ <?php _e('Act Fast! This offer expires:', 'gps-courses'); ?>
-            </p>
-            <p style="margin: 10px 0 0; font-size: 18px; color: #1e293b; font-weight: bold;">
-                <?php echo esc_html($expires_formatted); ?>
-            </p>
-            <p style="margin: 10px 0 0; font-size: 14px; color: #64748b;">
-                <?php _e('If you don\'t complete your purchase in time, the spot will be offered to the next person on the waitlist.', 'gps-courses'); ?>
-            </p>
-        </div>
-
-        <!-- CTA Button -->
-        <p style="margin: 0; text-align: center;">
-            <a href="<?php echo esc_url($event_url); ?>" style="display: inline-block; padding: 16px 40px; background-color: #22c55e; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 18px; font-weight: 600;">
-                <?php _e('Get Your Ticket Now', 'gps-courses'); ?>
-            </a>
-        </p>
-        <?php
-        $content = ob_get_clean();
-
-        $sent = self::send_email($entry->email, $subject, $content, __('A Spot is Available!', 'gps-courses'));
+        $entry->status     = 'notified';
+        $entry->expires_at = $expires_at;
+        $sent = Emails::send_parts('waitlist_spot', self::email_spot_parts($entry));
 
         if ($sent) {
             error_log('GPS Courses: Spot available notification sent to ' . $entry->email . ' for waitlist #' . $waitlist_id);
@@ -587,74 +415,133 @@ class Waitlist {
      * Send waitlist confirmation email
      */
     private static function send_waitlist_confirmation($waitlist_id) {
-        $entry = self::get_waitlist_entry($waitlist_id);
-        if (!$entry || (int) $entry->ticket_type_id <= 0) {
-            return false;
+        return Emails::send_parts('waitlist_joined', self::email_joined_parts($waitlist_id));
+    }
+
+    /* ============================================================
+     * Email parts (Emails › All emails: waitlist_joined, waitlist_spot)
+     * ============================================================ */
+
+    /** Waitlist row (id or row) with its ticket type and course, or null. */
+    protected static function email_entry($entry) {
+        if (!is_object($entry)) {
+            $entry = self::get_waitlist_entry((int) $entry);
+        }
+        if (!$entry || (int) $entry->ticket_type_id <= 0 || empty($entry->email)) {
+            return null;
+        }
+        $ticket = get_post((int) $entry->ticket_type_id);
+        $event  = get_post((int) $entry->event_id);
+        return ($ticket && $event) ? [$entry, $ticket] : null;
+    }
+
+    /**
+     * "You're on the waitlist" (catalog key "waitlist_joined").
+     *
+     * @param int|object $entry Waitlist id or row.
+     * @return array|null ['to','vars','blocks','opts']
+     */
+    public static function email_joined_parts($entry) {
+        $found = self::email_entry($entry);
+        if (!$found) {
+            return null;
+        }
+        list($entry, $ticket) = $found;
+        $f = Emails::course_facts((int) $entry->event_id);
+
+        $rows = [];
+        if ('' !== $f['dates']) {
+            $rows[__('Dates', 'gps-courses')] = esc_html($f['dates']);
+        }
+        if ('' !== $f['location']) {
+            $rows[__('Location', 'gps-courses')] = esc_html($f['location']);
+        }
+        $rows[__('Ticket type', 'gps-courses')] = esc_html(Emails::plain($ticket->post_title));
+        if (!empty($entry->position)) {
+            $rows[__('Your place', 'gps-courses')] = esc_html('#' . (int) $entry->position);
         }
 
-        $ticket = get_post($entry->ticket_type_id);
-        $event = get_post($entry->event_id);
+        $blocks = Emails::panel($f['title'], $rows)
+                . Emails::paragraph(esc_html__('When a seat opens, you will have 48 hours to complete your registration before it is offered to the next person.', 'gps-courses'), true);
 
-        if (!$ticket || !$event) {
-            return false;
+        return [
+            'to'     => (string) $entry->email,
+            'vars'   => [
+                'first_name' => Emails::first_name(Emails::person_name($entry->first_name)),
+                'course'     => $f['title'],
+                'position'   => !empty($entry->position) ? (string) (int) $entry->position : '',
+            ],
+            'blocks' => $blocks,
+            'opts'   => ['button_url' => $f['url']],
+        ];
+    }
+
+    /**
+     * "A spot just opened" (catalog key "waitlist_spot").
+     *
+     * @param int|object $entry Waitlist id or row (expires_at set when notified).
+     * @return array|null ['to','vars','blocks','opts']
+     */
+    public static function email_spot_parts($entry) {
+        $found = self::email_entry($entry);
+        if (!$found) {
+            return null;
+        }
+        list($entry, $ticket) = $found;
+        $f = Emails::course_facts((int) $entry->event_id);
+
+        $expires_ts = !empty($entry->expires_at) ? strtotime($entry->expires_at) : strtotime('+48 hours');
+        $expires    = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), $expires_ts);
+
+        $rows = [];
+        if ('' !== $f['dates']) {
+            $rows[__('Dates', 'gps-courses')] = esc_html($f['dates']);
+        }
+        if ('' !== $f['location']) {
+            $rows[__('Location', 'gps-courses')] = esc_html($f['location']);
+        }
+        $rows[__('Ticket type', 'gps-courses')] = esc_html(Emails::plain($ticket->post_title));
+        $price = get_post_meta((int) $ticket->ID, '_gps_ticket_price', true);
+        if ('' !== (string) $price && is_numeric($price) && (float) $price > 0) {
+            $rows[__('Price', 'gps-courses')] = function_exists('wc_price') ? wp_kses_post(wc_price((float) $price)) : esc_html('$' . number_format_i18n((float) $price, 2));
         }
 
-        $settings = self::get_email_settings();
-        $name = $entry->first_name ?: __('there', 'gps-courses');
-        $event_url = get_permalink($entry->event_id);
-        $event_date = get_post_meta($entry->event_id, '_gps_start_date', true);
-        $event_date_formatted = $event_date ? date_i18n(get_option('date_format'), strtotime($event_date)) : '';
+        $blocks = Emails::panel($f['title'], $rows)
+                . Emails::notice(
+                    '<strong>' . esc_html(sprintf(
+                        /* translators: %s: date and time */
+                        __('Held for you until %s.', 'gps-courses'),
+                        $expires
+                    )) . '</strong> ' . esc_html__('After that, the seat is offered to the next person on the waitlist.', 'gps-courses')
+                );
 
-        $subject = sprintf(
-            __('You\'re on the Waitlist - %s', 'gps-courses'),
-            $event->post_title
+        return [
+            'to'     => (string) $entry->email,
+            'vars'   => [
+                'first_name' => Emails::first_name(Emails::person_name($entry->first_name)),
+                'course'     => $f['title'],
+                'expires'    => $expires,
+            ],
+            'blocks' => $blocks,
+            'opts'   => ['button_url' => $f['url'] ? $f['url'] . '#registration' : home_url('/courses/')],
+        ];
+    }
+
+    /** Preview / test: the latest course waitlist row. Read-only. */
+    public static function email_joined_sample() {
+        global $wpdb;
+        $entry = $wpdb->get_row("SELECT * FROM {$wpdb->prefix}gps_waitlist WHERE ticket_type_id > 0 ORDER BY id DESC LIMIT 1");
+        return $entry ? self::email_joined_parts($entry) : null;
+    }
+
+    /** Preview / test: the latest notified course waitlist row (else the latest row). Read-only. */
+    public static function email_spot_sample() {
+        global $wpdb;
+        $entry = $wpdb->get_row(
+            "SELECT * FROM {$wpdb->prefix}gps_waitlist WHERE ticket_type_id > 0
+             ORDER BY (status = 'notified') DESC, id DESC LIMIT 1"
         );
-
-        // Build email content (will be wrapped in template)
-        ob_start();
-        ?>
-        <h1 style="margin: 0 0 10px; font-size: 28px; font-weight: bold; color: #1e293b;">
-            <?php _e('You\'re on the Waitlist!', 'gps-courses'); ?>
-        </h1>
-        <p style="margin: 0 0 25px; font-size: 16px; color: #64748b;">
-            <?php printf(__('Hello %s, we\'ve added you to the waitlist for this course.', 'gps-courses'), esc_html($name)); ?>
-        </p>
-
-        <!-- Course Info -->
-        <div style="background-color: #f8fafc; padding: 25px; border-radius: 8px; border-left: 4px solid <?php echo esc_attr($settings['header_bg_color']); ?>; margin-bottom: 25px;">
-            <h2 style="margin: 0 0 10px; font-size: 20px; font-weight: 600; color: #1e293b;">
-                <?php echo esc_html($event->post_title); ?>
-            </h2>
-            <?php if ($event_date_formatted): ?>
-            <p style="margin: 0 0 5px; font-size: 14px; color: #64748b;">
-                <strong><?php _e('Date:', 'gps-courses'); ?></strong> <?php echo esc_html($event_date_formatted); ?>
-            </p>
-            <?php endif; ?>
-            <p style="margin: 0; font-size: 14px; color: #64748b;">
-                <strong><?php _e('Ticket Type:', 'gps-courses'); ?></strong> <?php echo esc_html($ticket->post_title); ?>
-            </p>
-        </div>
-
-        <!-- What Happens Next -->
-        <h3 style="margin: 0 0 15px; font-size: 18px; font-weight: 600; color: #1e293b;">
-            <?php _e('What happens next?', 'gps-courses'); ?>
-        </h3>
-        <ul style="margin: 0 0 25px; padding: 0 0 0 20px; color: #475569; font-size: 14px; line-height: 1.8;">
-            <li><?php _e('We\'ll notify you by email as soon as a spot becomes available.', 'gps-courses'); ?></li>
-            <li><?php _e('You\'ll have 48 hours to complete your purchase once notified.', 'gps-courses'); ?></li>
-            <li><?php _e('If you don\'t complete the purchase in time, the spot will be offered to the next person on the waitlist.', 'gps-courses'); ?></li>
-        </ul>
-
-        <!-- CTA Button -->
-        <p style="margin: 0;">
-            <a href="<?php echo esc_url($event_url); ?>" style="display: inline-block; padding: 14px 30px; background-color: <?php echo esc_attr($settings['button_bg_color']); ?>; color: <?php echo esc_attr($settings['button_text_color']); ?>; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: 600;">
-                <?php _e('View Course Details', 'gps-courses'); ?>
-            </a>
-        </p>
-        <?php
-        $content = ob_get_clean();
-
-        return self::send_email($entry->email, $subject, $content, __('You\'re on the Waitlist', 'gps-courses'));
+        return $entry ? self::email_spot_parts($entry) : null;
     }
 
     /**
@@ -967,7 +854,9 @@ class Waitlist {
     }
 
     /**
-     * Admin AJAX - Send test email
+     * Admin AJAX - Send test email: the real email (same parts as the live
+     * one) for the latest waitlist row, or for a recent course when the
+     * waitlist is empty.
      */
     public static function ajax_test_email() {
         check_ajax_referer('gps_waitlist_admin', 'nonce');
@@ -983,59 +872,52 @@ class Waitlist {
             wp_send_json_error(['message' => __('Please enter a valid email address.', 'gps-courses')]);
         }
 
-        // Create mock data for test email
-        $mock_entry = (object) [
-            'id' => 0,
-            'first_name' => 'Test',
-            'last_name' => 'User',
-            'email' => $email,
-            'phone' => '(555) 123-4567',
-            'ticket_type_id' => 0,
-            'event_id' => 0,
-            'position' => 1,
-            'status' => 'waiting',
-            'created_at' => current_time('mysql'),
-            'notified_at' => null,
-            'expires_at' => date('Y-m-d H:i:s', strtotime('+48 hours')),
-        ];
+        $key   = $type === 'confirmation' ? 'waitlist_joined' : 'waitlist_spot';
+        $parts = $key === 'waitlist_joined' ? self::email_joined_sample() : self::email_spot_sample();
 
-        // Get a real event for the test if one exists
-        $sample_event = get_posts([
-            'post_type' => 'gps_event',
-            'posts_per_page' => 1,
-            'post_status' => 'publish',
-        ]);
-
-        if (!empty($sample_event)) {
-            $event = $sample_event[0];
-            $mock_entry->event_id = $event->ID;
-
-            // Get a ticket for this event
-            $sample_ticket = get_posts([
-                'post_type' => 'gps_ticket',
-                'posts_per_page' => 1,
-                'meta_query' => [
-                    ['key' => '_gps_event_id', 'value' => $event->ID],
-                ],
+        if (!$parts) {
+            // Empty waitlist: an in-memory row on a recent course with a ticket type
+            $mock = (object) [
+                'id' => 0,
+                'first_name' => 'Test',
+                'last_name' => 'User',
+                'email' => $email,
+                'ticket_type_id' => 0,
+                'event_id' => 0,
+                'position' => 1,
+                'status' => 'waiting',
+                'expires_at' => date('Y-m-d H:i:s', strtotime('+48 hours')),
+            ];
+            $events = get_posts([
+                'post_type' => 'gps_event',
+                'posts_per_page' => 5,
+                'post_status' => 'publish',
             ]);
-
-            if (!empty($sample_ticket)) {
-                $mock_entry->ticket_type_id = $sample_ticket[0]->ID;
+            foreach ($events as $event) {
+                $tickets = get_posts([
+                    'post_type' => 'gps_ticket',
+                    'posts_per_page' => 1,
+                    'post_status' => 'any',
+                    'meta_query' => [
+                        ['key' => '_gps_event_id', 'value' => $event->ID],
+                    ],
+                ]);
+                if ($tickets) {
+                    $mock->event_id = $event->ID;
+                    $mock->ticket_type_id = $tickets[0]->ID;
+                    break;
+                }
             }
+            $parts = $key === 'waitlist_joined' ? self::email_joined_parts($mock) : self::email_spot_parts($mock);
         }
 
-        // If no real event, create mock data
-        if (empty($mock_entry->event_id)) {
-            // Send with mock data
-            $sent = self::send_test_email_with_mock_data($email, $type);
-        } else {
-            // Send with real event data
-            if ($type === 'confirmation') {
-                $sent = self::send_test_waitlist_confirmation($mock_entry);
-            } else {
-                $sent = self::send_test_spot_available($mock_entry);
-            }
+        if (!$parts) {
+            wp_send_json_error(['message' => __('There is no course with a ticket type to build a test email from yet.', 'gps-courses')]);
         }
+
+        $parts['to'] = $email;
+        $parts['opts'] = array_merge((array) $parts['opts'], ['force' => true, 'test' => true]);
+        $sent = Emails::send_parts($key, $parts);
 
         if ($sent) {
             wp_send_json_success([
@@ -1046,237 +928,6 @@ class Waitlist {
                 'message' => __('Failed to send test email. Please check your email configuration.', 'gps-courses'),
             ]);
         }
-    }
-
-    /**
-     * Send test waitlist confirmation email
-     */
-    private static function send_test_waitlist_confirmation($entry) {
-        $ticket = get_post($entry->ticket_type_id);
-        $event = get_post($entry->event_id);
-
-        if (!$ticket || !$event) {
-            return self::send_test_email_with_mock_data($entry->email, 'confirmation');
-        }
-
-        $settings = self::get_email_settings();
-        $name = $entry->first_name ?: __('there', 'gps-courses');
-        $event_url = get_permalink($entry->event_id);
-        $event_date = get_post_meta($entry->event_id, '_gps_start_date', true);
-        $event_date_formatted = $event_date ? date_i18n(get_option('date_format'), strtotime($event_date)) : '';
-
-        $subject = sprintf(
-            __('[TEST] You\'re on the Waitlist - %s', 'gps-courses'),
-            $event->post_title
-        );
-
-        // Build email content (will be wrapped in template)
-        ob_start();
-        ?>
-        <h1 style="margin: 0 0 10px; font-size: 28px; font-weight: bold; color: #1e293b;">
-            <?php _e('You\'re on the Waitlist!', 'gps-courses'); ?>
-        </h1>
-        <p style="margin: 0 0 25px; font-size: 16px; color: #64748b;">
-            <?php printf(__('Hello %s, we\'ve added you to the waitlist for this course.', 'gps-courses'), esc_html($name)); ?>
-        </p>
-
-        <!-- Course Info -->
-        <div style="background-color: #f8fafc; padding: 25px; border-radius: 8px; border-left: 4px solid <?php echo esc_attr($settings['header_bg_color']); ?>; margin-bottom: 25px;">
-            <h2 style="margin: 0 0 10px; font-size: 20px; font-weight: 600; color: #1e293b;">
-                <?php echo esc_html($event->post_title); ?>
-            </h2>
-            <?php if ($event_date_formatted): ?>
-            <p style="margin: 0 0 5px; font-size: 14px; color: #64748b;">
-                <strong><?php _e('Date:', 'gps-courses'); ?></strong> <?php echo esc_html($event_date_formatted); ?>
-            </p>
-            <?php endif; ?>
-            <p style="margin: 0; font-size: 14px; color: #64748b;">
-                <strong><?php _e('Ticket Type:', 'gps-courses'); ?></strong> <?php echo esc_html($ticket->post_title); ?>
-            </p>
-        </div>
-
-        <!-- What Happens Next -->
-        <h3 style="margin: 0 0 15px; font-size: 18px; font-weight: 600; color: #1e293b;">
-            <?php _e('What happens next?', 'gps-courses'); ?>
-        </h3>
-        <ul style="margin: 0 0 25px; padding: 0 0 0 20px; color: #475569; font-size: 14px; line-height: 1.8;">
-            <li><?php _e('We\'ll notify you by email as soon as a spot becomes available.', 'gps-courses'); ?></li>
-            <li><?php _e('You\'ll have 48 hours to complete your purchase once notified.', 'gps-courses'); ?></li>
-        </ul>
-
-        <!-- CTA Button -->
-        <p style="margin: 0;">
-            <a href="<?php echo esc_url($event_url); ?>" style="display: inline-block; padding: 14px 30px; background-color: <?php echo esc_attr($settings['button_bg_color']); ?>; color: <?php echo esc_attr($settings['button_text_color']); ?>; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: 600;">
-                <?php _e('View Course Details', 'gps-courses'); ?>
-            </a>
-        </p>
-        <?php
-        $content = ob_get_clean();
-
-        return self::send_email($entry->email, $subject, $content, __('You\'re on the Waitlist', 'gps-courses'), true);
-    }
-
-    /**
-     * Send test spot available email
-     */
-    private static function send_test_spot_available($entry) {
-        $ticket = get_post($entry->ticket_type_id);
-        $event = get_post($entry->event_id);
-
-        if (!$ticket || !$event) {
-            return self::send_test_email_with_mock_data($entry->email, 'spot_available');
-        }
-
-        $settings = self::get_email_settings();
-        $name = $entry->first_name ?: __('there', 'gps-courses');
-        $event_url = get_permalink($entry->event_id);
-        $event_date = get_post_meta($entry->event_id, '_gps_start_date', true);
-        $event_date_formatted = $event_date ? date_i18n(get_option('date_format'), strtotime($event_date)) : '';
-        $expires_formatted = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($entry->expires_at));
-
-        $subject = sprintf(
-            __('[TEST] A Spot is Available! - %s', 'gps-courses'),
-            $event->post_title
-        );
-
-        // Build email content (will be wrapped in template)
-        ob_start();
-        ?>
-        <h1 style="margin: 0 0 10px; font-size: 28px; font-weight: bold; color: #1e293b;">
-            🎉 <?php _e('Great News! A Spot is Available', 'gps-courses'); ?>
-        </h1>
-        <p style="margin: 0 0 25px; font-size: 16px; color: #64748b;">
-            <?php printf(__('Hello %s, a spot has just opened up for a course you\'re interested in!', 'gps-courses'), esc_html($name)); ?>
-        </p>
-
-        <!-- Course Info -->
-        <div style="background-color: #f0fdf4; padding: 25px; border-radius: 8px; border-left: 4px solid #22c55e; margin-bottom: 25px;">
-            <h2 style="margin: 0 0 10px; font-size: 20px; font-weight: 600; color: #1e293b;">
-                <?php echo esc_html($event->post_title); ?>
-            </h2>
-            <?php if ($event_date_formatted): ?>
-            <p style="margin: 0 0 5px; font-size: 14px; color: #64748b;">
-                <strong><?php _e('Date:', 'gps-courses'); ?></strong> <?php echo esc_html($event_date_formatted); ?>
-            </p>
-            <?php endif; ?>
-            <p style="margin: 0; font-size: 14px; color: #64748b;">
-                <strong><?php _e('Ticket Type:', 'gps-courses'); ?></strong> <?php echo esc_html($ticket->post_title); ?>
-            </p>
-        </div>
-
-        <!-- Urgency Notice -->
-        <div style="background-color: #fef2f2; padding: 20px; border-radius: 8px; border: 1px solid #fecaca; margin-bottom: 25px;">
-            <p style="margin: 0; font-size: 16px; color: #dc2626; font-weight: 600;">
-                ⏰ <?php _e('Act Fast! This offer expires:', 'gps-courses'); ?>
-            </p>
-            <p style="margin: 10px 0 0; font-size: 18px; color: #1e293b; font-weight: bold;">
-                <?php echo esc_html($expires_formatted); ?>
-            </p>
-        </div>
-
-        <!-- CTA Button -->
-        <p style="margin: 0; text-align: center;">
-            <a href="<?php echo esc_url($event_url); ?>" style="display: inline-block; padding: 16px 40px; background-color: #22c55e; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 18px; font-weight: 600;">
-                <?php _e('Get Your Ticket Now', 'gps-courses'); ?>
-            </a>
-        </p>
-        <?php
-        $content = ob_get_clean();
-
-        return self::send_email($entry->email, $subject, $content, __('A Spot is Available!', 'gps-courses'), true);
-    }
-
-    /**
-     * Send test email with mock data (when no real events exist)
-     */
-    private static function send_test_email_with_mock_data($email, $type) {
-        $settings = self::get_email_settings();
-        $subject = $type === 'confirmation'
-            ? __('[TEST] You\'re on the Waitlist - Sample Course', 'gps-courses')
-            : __('[TEST] A Spot is Available! - Sample Course', 'gps-courses');
-
-        $expires_formatted = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime('+48 hours'));
-
-        ob_start();
-        if ($type === 'confirmation') {
-            ?>
-            <h1 style="margin: 0 0 10px; font-size: 28px; font-weight: bold; color: #1e293b;">
-                <?php _e('You\'re on the Waitlist!', 'gps-courses'); ?>
-            </h1>
-            <p style="margin: 0 0 25px; font-size: 16px; color: #64748b;">
-                <?php _e('Hello Test User, this is a sample waitlist email.', 'gps-courses'); ?>
-            </p>
-
-            <div style="background-color: #f8fafc; padding: 25px; border-radius: 8px; border-left: 4px solid <?php echo esc_attr($settings['header_bg_color']); ?>; margin-bottom: 25px;">
-                <h2 style="margin: 0 0 10px; font-size: 20px; font-weight: 600; color: #1e293b;">
-                    Sample Course: Mastering Dental Implants
-                </h2>
-                <p style="margin: 0 0 5px; font-size: 14px; color: #64748b;">
-                    <strong><?php _e('Date:', 'gps-courses'); ?></strong> <?php echo date_i18n(get_option('date_format'), strtotime('+30 days')); ?>
-                </p>
-                <p style="margin: 0; font-size: 14px; color: #64748b;">
-                    <strong><?php _e('Ticket Type:', 'gps-courses'); ?></strong> Early Bird
-                </p>
-            </div>
-
-            <h3 style="margin: 0 0 15px; font-size: 18px; font-weight: 600; color: #1e293b;">
-                <?php _e('What happens next?', 'gps-courses'); ?>
-            </h3>
-            <ul style="margin: 0 0 25px; padding: 0 0 0 20px; color: #475569; font-size: 14px; line-height: 1.8;">
-                <li><?php _e('We\'ll notify you by email as soon as a spot becomes available.', 'gps-courses'); ?></li>
-                <li><?php _e('You\'ll have 48 hours to complete your purchase once notified.', 'gps-courses'); ?></li>
-            </ul>
-
-            <p style="margin: 0;">
-                <a href="<?php echo home_url(); ?>" style="display: inline-block; padding: 14px 30px; background-color: <?php echo esc_attr($settings['button_bg_color']); ?>; color: <?php echo esc_attr($settings['button_text_color']); ?>; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: 600;">
-                    <?php _e('View Course Details', 'gps-courses'); ?>
-                </a>
-            </p>
-            <?php
-        } else {
-            ?>
-            <h1 style="margin: 0 0 10px; font-size: 28px; font-weight: bold; color: #1e293b;">
-                🎉 <?php _e('Great News! A Spot is Available', 'gps-courses'); ?>
-            </h1>
-            <p style="margin: 0 0 25px; font-size: 16px; color: #64748b;">
-                <?php _e('Hello Test User, this is a sample waitlist notification.', 'gps-courses'); ?>
-            </p>
-
-            <div style="background-color: #f0fdf4; padding: 25px; border-radius: 8px; border-left: 4px solid #22c55e; margin-bottom: 25px;">
-                <h2 style="margin: 0 0 10px; font-size: 20px; font-weight: 600; color: #1e293b;">
-                    Sample Course: Mastering Dental Implants
-                </h2>
-                <p style="margin: 0 0 5px; font-size: 14px; color: #64748b;">
-                    <strong><?php _e('Date:', 'gps-courses'); ?></strong> <?php echo date_i18n(get_option('date_format'), strtotime('+30 days')); ?>
-                </p>
-                <p style="margin: 0; font-size: 14px; color: #64748b;">
-                    <strong><?php _e('Ticket Type:', 'gps-courses'); ?></strong> Early Bird
-                </p>
-            </div>
-
-            <div style="background-color: #fef2f2; padding: 20px; border-radius: 8px; border: 1px solid #fecaca; margin-bottom: 25px;">
-                <p style="margin: 0; font-size: 16px; color: #dc2626; font-weight: 600;">
-                    ⏰ <?php _e('Act Fast! This offer expires:', 'gps-courses'); ?>
-                </p>
-                <p style="margin: 10px 0 0; font-size: 18px; color: #1e293b; font-weight: bold;">
-                    <?php echo esc_html($expires_formatted); ?>
-                </p>
-            </div>
-
-            <p style="margin: 0; text-align: center;">
-                <a href="<?php echo home_url(); ?>" style="display: inline-block; padding: 16px 40px; background-color: #22c55e; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 18px; font-weight: 600;">
-                    <?php _e('Get Your Ticket Now', 'gps-courses'); ?>
-                </a>
-            </p>
-            <?php
-        }
-        $content = ob_get_clean();
-
-        $title = $type === 'confirmation'
-            ? __('You\'re on the Waitlist', 'gps-courses')
-            : __('A Spot is Available!', 'gps-courses');
-
-        return self::send_email($email, $subject, $content, $title, true);
     }
 
     /**

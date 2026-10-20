@@ -557,127 +557,94 @@ class Session_Tickets {
      * Send purchase confirmation email for individual session purchase
      */
     private static function send_purchase_confirmation($order_id) {
-        $order = wc_get_order($order_id);
+        return Emails::send_parts('session_ticket', self::email_parts($order_id));
+    }
+
+    /**
+     * Session ticket email (catalog key "session_ticket"): every individual
+     * session ticket of an order, to the buyer.
+     *
+     * @return array|null ['to','vars','blocks','opts']
+     */
+    public static function email_parts($order_id) {
+        $order = function_exists('wc_get_order') ? wc_get_order((int) $order_id) : null;
         if (!$order) {
-            return;
+            return null;
         }
 
         global $wpdb;
-
-        // Get session tickets for this order
         $tickets = $wpdb->get_results($wpdb->prepare(
             "SELECT st.*, ss.session_number, ss.session_date, ss.session_time_start,
                     ss.session_time_end, ss.topic, p.post_title as seminar_title
              FROM {$wpdb->prefix}gps_session_tickets st
              INNER JOIN {$wpdb->prefix}gps_seminar_sessions ss ON st.session_id = ss.id
              INNER JOIN {$wpdb->posts} p ON st.seminar_id = p.ID
-             WHERE st.order_id = %d",
-            $order_id
+             WHERE st.order_id = %d
+             ORDER BY ss.session_date ASC, st.id ASC",
+            (int) $order_id
         ));
-
-        if (empty($tickets)) {
-            return;
+        $to = (string) $order->get_billing_email();
+        if (empty($tickets) || '' === $to) {
+            return null;
         }
 
-        $to = $order->get_billing_email();
-        $name = $order->get_billing_first_name();
-
-        $subject = sprintf(
-            __('Your Session Ticket%s - GPS Dental Training', 'gps-courses'),
-            count($tickets) > 1 ? 's' : ''
-        );
-
-        // Build ticket list HTML
-        $tickets_html = '';
-        foreach ($tickets as $ticket) {
-            $tickets_html .= sprintf(
-                '<tr>
-                    <td style="padding: 10px; border-bottom: 1px solid #eee;">
-                        <strong>%s</strong><br>
-                        <small>Session #%d - %s</small>
-                    </td>
-                    <td style="padding: 10px; border-bottom: 1px solid #eee;">%s</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #eee;">%s - %s</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #eee;">%s CE</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><code>%s</code></td>
-                </tr>',
-                esc_html($ticket->seminar_title),
-                (int) $ticket->session_number,
-                esc_html($ticket->topic),
-                date_i18n('F j, Y', strtotime($ticket->session_date)),
-                date('g:i A', strtotime($ticket->session_time_start)),
-                date('g:i A', strtotime($ticket->session_time_end)),
-                number_format($ticket->ce_credits, 1),
-                esc_html($ticket->ticket_code)
-            );
+        $blocks = '';
+        foreach ($tickets as $t) {
+            $seminar = Emails::plain($t->seminar_title);
+            $rows    = [];
+            if (!empty($t->topic)) {
+                $rows[__('Topic', 'gps-courses')] = esc_html(Emails::plain($t->topic));
+            }
+            if (!empty($t->session_date)) {
+                $rows[__('Date', 'gps-courses')] = esc_html(date_i18n('l, F j, Y', strtotime($t->session_date)));
+            }
+            $time = Emails::time_range_label($t->session_time_start, $t->session_time_end);
+            if ('' !== $time) {
+                $rows[__('Time', 'gps-courses')] = esc_html($time);
+            }
+            $location = (string) apply_filters('gps_seminar_location', 'GPS Dental Training Center · 6320 Sugarloaf Parkway, Duluth, GA 30097', (int) $t->seminar_id);
+            if ('' !== $location) {
+                $rows[__('Location', 'gps-courses')] = esc_html($location);
+            }
+            if ((float) $t->ce_credits > 0) {
+                $rows[__('CE credits', 'gps-courses')] = esc_html(Emails::credits_label($t->ce_credits));
+            }
+            /* translators: %d: session number */
+            $badge  = sprintf(__('Session %d', 'gps-courses'), (int) $t->session_number);
+            $qr     = !empty($t->qr_code_path) ? QRCodeGenerator::get_qr_code_url($t->qr_code_path) : '';
+            $blocks .= Emails::panel($seminar, $rows, $badge)
+                     . Emails::code_box(__('Your ticket code', 'gps-courses'), (string) $t->ticket_code, __('Show this code at the front desk to check in.', 'gps-courses'), $qr);
         }
+        $blocks .= Emails::paragraph(esc_html__('CE credits are awarded when you check in at the session.', 'gps-courses'), true);
 
-        $message = sprintf('
-        <html>
-        <head>
-            <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                .header { background: #0B52AC; color: white; padding: 20px; text-align: center; }
-                .content { padding: 20px; }
-                .footer { background: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666; }
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <h1>%s</h1>
-            </div>
-            <div class="content">
-                <p>%s %s,</p>
-                <p>%s</p>
-                <table style="width: 100%%; border-collapse: collapse; margin: 20px 0;">
-                    <thead>
-                        <tr style="background: #f8f9fa;">
-                            <th style="padding: 10px; text-align: left;">%s</th>
-                            <th style="padding: 10px; text-align: left;">%s</th>
-                            <th style="padding: 10px; text-align: left;">%s</th>
-                            <th style="padding: 10px; text-align: left;">%s</th>
-                            <th style="padding: 10px; text-align: left;">%s</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        %s
-                    </tbody>
-                </table>
-                <p>%s</p>
-                <p style="text-align: center; margin: 30px 0;">
-                    <a href="%s" style="display: inline-block; padding: 15px 30px; background: #0B52AC; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
-                        %s
-                    </a>
-                </p>
-                <p>%s<br>GPS Dental Training</p>
-            </div>
-            <div class="footer">
-                <p>GPS Dental Training Center | 6320 Sugarloaf Parkway, Duluth, GA 30097</p>
-            </div>
-        </body>
-        </html>',
-            __('Session Ticket Confirmation', 'gps-courses'),
-            __('Dear', 'gps-courses'),
-            esc_html($name),
-            __('Thank you for your purchase! Here are your individual session ticket details:', 'gps-courses'),
-            __('Session', 'gps-courses'),
-            __('Date', 'gps-courses'),
-            __('Time', 'gps-courses'),
-            __('Credits', 'gps-courses'),
-            __('Ticket Code', 'gps-courses'),
-            $tickets_html,
-            __('Please present your ticket code or QR code at check-in. CE credits will be awarded upon attendance.', 'gps-courses'),
-            wc_get_account_endpoint_url('gps-seminars'),
-            __('View My Seminars', 'gps-courses'),
-            __('Best regards,', 'gps-courses')
-        );
+        $first = $tickets[0];
+        $label = count($tickets) > 1
+            /* translators: %d: number of sessions */
+            ? sprintf(__('%d seminar sessions', 'gps-courses'), count($tickets))
+            /* translators: 1: seminar title, 2: session number */
+            : sprintf(__('%1$s, session %2$d', 'gps-courses'), Emails::plain($first->seminar_title), (int) $first->session_number);
 
-        $headers = [
-            'Content-Type: text/html; charset=UTF-8',
-            'From: GPS Dental Training <noreply@gpsdentaltraining.com>',
+        return [
+            'to'     => $to,
+            'vars'   => [
+                'first_name' => Emails::first_name(Emails::person_name($order->get_billing_first_name())),
+                'session'    => $label,
+                'date'       => !empty($first->session_date) ? date_i18n('F j, Y', strtotime($first->session_date)) : '',
+            ],
+            'blocks' => $blocks,
+            'opts'   => ['button_url' => Emails::account_url('gps-seminars')],
         ];
+    }
 
-        wp_mail($to, $subject, $message, $headers);
+    /** Preview / test: the latest order with an individual session ticket. Read-only. */
+    public static function email_sample() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'gps_session_tickets';
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)) !== $table) {
+            return null;
+        }
+        $order_id = (int) $wpdb->get_var("SELECT order_id FROM {$table} WHERE order_id > 0 ORDER BY id DESC LIMIT 1");
+        return $order_id ? self::email_parts($order_id) : null;
     }
 
     /* ============================================================

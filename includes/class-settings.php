@@ -49,14 +49,7 @@ class Settings {
             'sanitize_callback' => [__CLASS__, 'sanitize_notification_emails'],
         ]);
 
-        // Email Settings
-        // Own group: sharing 'gps_email_settings' with Email Branding made each
-        // form's save blank the other form's options (options.php nulls every
-        // option of the group that is not posted). From name and footer text
-        // belong to Email Branding.
-        register_setting('gps_legacy_email_settings', 'gps_email_from_address');
-        register_setting('gps_legacy_email_settings', 'gps_email_header_image');
-        register_setting('gps_legacy_email_settings', 'gps_email_primary_color');
+        // Email settings live in Emails › Brand (Email_Hub)
 
         // Ticket Settings
         register_setting('gps_ticket_settings', 'gps_ticket_logo');
@@ -157,7 +150,8 @@ class Settings {
                         self::render_general_tab();
                         break;
                     case 'email':
-                        self::render_email_tab();
+                        // Moved to GPS Courses › Emails › Brand
+                        echo '<div class="notice notice-info inline"><p>' . esc_html__('Email settings moved to Emails › Brand.', 'gps-courses') . ' <a href="' . esc_url(admin_url('admin.php?page=gps-email-brand')) . '">' . esc_html__('Open Brand', 'gps-courses') . '</a></p></div>';
                         break;
                     case 'tickets':
                         self::render_tickets_tab();
@@ -263,77 +257,6 @@ class Settings {
                         <p class="description">
                             <?php _e('Email addresses that receive notifications when courses, seminars, or session tickets are purchased. Enter one email per line.', 'gps-courses'); ?>
                         </p>
-                    </td>
-                </tr>
-            </table>
-
-            <?php submit_button(); ?>
-        </form>
-        <?php
-    }
-
-    /**
-     * Render Email tab
-     */
-    private static function render_email_tab() {
-        ?>
-        <form method="post" action="options.php">
-            <?php settings_fields('gps_legacy_email_settings'); ?>
-
-            <table class="form-table">
-                <tr>
-                    <th scope="row">
-                        <label for="gps_email_from_name"><?php _e('From Name', 'gps-courses'); ?></label>
-                    </th>
-                    <td>
-                        <input type="text" id="gps_email_from_name" name="gps_email_from_name" value="<?php echo esc_attr(get_option('gps_email_from_name', get_option('gps_company_name', 'GPS Dental Training'))); ?>" class="regular-text">
-                        <p class="description"><?php _e('The name emails will appear from.', 'gps-courses'); ?></p>
-                    </td>
-                </tr>
-
-                <tr>
-                    <th scope="row">
-                        <label for="gps_email_from_address"><?php _e('From Email', 'gps-courses'); ?></label>
-                    </th>
-                    <td>
-                        <input type="email" id="gps_email_from_address" name="gps_email_from_address" value="<?php echo esc_attr(get_option('gps_email_from_address', get_option('admin_email'))); ?>" class="regular-text">
-                        <p class="description"><?php _e('The email address emails will appear from.', 'gps-courses'); ?></p>
-                    </td>
-                </tr>
-
-                <tr>
-                    <th scope="row">
-                        <label for="gps_email_header_image"><?php _e('Header Image', 'gps-courses'); ?></label>
-                    </th>
-                    <td>
-                        <input type="text" id="gps_email_header_image" name="gps_email_header_image" value="<?php echo esc_url(get_option('gps_email_header_image')); ?>" class="regular-text">
-                        <button type="button" class="button gps-upload-button" data-target="gps_email_header_image"><?php _e('Select Image', 'gps-courses'); ?></button>
-                        <p class="description"><?php _e('Logo displayed at the top of email templates.', 'gps-courses'); ?></p>
-                        <?php if (get_option('gps_email_header_image')): ?>
-                            <div class="gps-image-preview">
-                                <img src="<?php echo esc_url(get_option('gps_email_header_image')); ?>" style="max-width: 300px; margin-top: 10px;">
-                            </div>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-
-                <tr>
-                    <th scope="row">
-                        <label for="gps_email_primary_color"><?php _e('Primary Color', 'gps-courses'); ?></label>
-                    </th>
-                    <td>
-                        <input type="text" id="gps_email_primary_color" name="gps_email_primary_color" value="<?php echo esc_attr(get_option('gps_email_primary_color', '#2271b1')); ?>" class="gps-color-picker">
-                        <p class="description"><?php _e('Primary color for email templates (buttons, headers, etc).', 'gps-courses'); ?></p>
-                    </td>
-                </tr>
-
-                <tr>
-                    <th scope="row">
-                        <label for="gps_email_footer_text"><?php _e('Footer Text', 'gps-courses'); ?></label>
-                    </th>
-                    <td>
-                        <textarea id="gps_email_footer_text" name="gps_email_footer_text" rows="3" class="large-text"><?php echo esc_textarea(get_option('gps_email_footer_text')); ?></textarea>
-                        <p class="description"><?php _e('Text displayed at the bottom of email templates.', 'gps-courses'); ?></p>
                     </td>
                 </tr>
             </table>
