@@ -1,6 +1,7 @@
 /**
  * GPS course catalog (/courses/). Tokens from gps-forms.css; #gps-catalog
- * scopes everything so theme styles don't leak in.
+ * scopes everything so theme styles don't leak in. Course cards (.gps-ccard)
+ * also render inside .gps-home (GPS Upcoming Courses widget, gps-home.css).
  */
 
 #gps-catalog {
@@ -87,7 +88,7 @@
 }
 
 /* card */
-#gps-catalog .gps-ccard {
+:is(#gps-catalog, .gps-home) .gps-ccard {
     display: grid;
     grid-template-rows: auto 1fr;
     min-width: 0;
@@ -97,7 +98,7 @@
     box-shadow: 0 1px 0 var(--gps-line), 0 14px 30px -22px rgba(18, 38, 74, .55);
 }
 
-#gps-catalog .gps-ccard__cover {
+:is(#gps-catalog, .gps-home) .gps-ccard__cover {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -110,12 +111,12 @@
     text-decoration: none;
 }
 
-#gps-catalog .gps-ccard__cover--0 { background-image: linear-gradient(135deg, #1d3f73, #0B52AC); }
-#gps-catalog .gps-ccard__cover--1 { background-image: linear-gradient(135deg, #12264a, #2b4a7e); }
-#gps-catalog .gps-ccard__cover--2 { background-image: linear-gradient(135deg, #5a4520, #BC9D67); }
-#gps-catalog .gps-ccard__cover[style*="--gps-cover"] { background-image: linear-gradient(180deg, rgba(18, 38, 74, .1), rgba(18, 38, 74, .7)), var(--gps-cover); }
+:is(#gps-catalog, .gps-home) .gps-ccard__cover--0 { background-image: linear-gradient(135deg, #1d3f73, #0B52AC); }
+:is(#gps-catalog, .gps-home) .gps-ccard__cover--1 { background-image: linear-gradient(135deg, #12264a, #2b4a7e); }
+:is(#gps-catalog, .gps-home) .gps-ccard__cover--2 { background-image: linear-gradient(135deg, #5a4520, #BC9D67); }
+:is(#gps-catalog, .gps-home) .gps-ccard__cover[style*="--gps-cover"] { background-image: linear-gradient(180deg, rgba(18, 38, 74, .1), rgba(18, 38, 74, .7)), var(--gps-cover); }
 
-#gps-catalog .gps-ccard__cat {
+:is(#gps-catalog, .gps-home) .gps-ccard__cat {
     padding: 4px 8px;
     border-radius: 6px;
     background: rgba(18, 38, 74, .6);
@@ -126,7 +127,7 @@
     color: #fff;
 }
 
-#gps-catalog .gps-ccard__ce {
+:is(#gps-catalog, .gps-home) .gps-ccard__ce {
     padding: 4px 8px;
     border-radius: 6px;
     background: var(--gps-gold);
@@ -137,21 +138,21 @@
     margin-left: auto;
 }
 
-#gps-catalog .gps-ccard__body {
+:is(#gps-catalog, .gps-home) .gps-ccard__body {
     display: flex;
     flex-direction: column;
     gap: 10px;
     padding: 18px;
 }
 
-#gps-catalog .gps-ccard__when {
+:is(#gps-catalog, .gps-home) .gps-ccard__when {
     margin: 0;
     font-size: 13px;
     font-weight: 600;
     color: var(--gps-blue);
 }
 
-#gps-catalog .gps-ccard h3 {
+:is(#gps-catalog, .gps-home) .gps-ccard h3 {
     margin: 0;
     font-family: var(--gps-font);
     font-size: 18px;
@@ -159,23 +160,23 @@
     line-height: 1.3;
 }
 
-#gps-catalog .gps-ccard h3 a {
+:is(#gps-catalog, .gps-home) .gps-ccard h3 a {
     color: var(--gps-ink);
     text-decoration: none;
 }
 
-#gps-catalog .gps-ccard h3 a:hover {
+:is(#gps-catalog, .gps-home) .gps-ccard h3 a:hover {
     color: var(--gps-blue);
 }
 
-#gps-catalog .gps-ccard__excerpt {
+:is(#gps-catalog, .gps-home) .gps-ccard__excerpt {
     margin: 0;
     font-size: 14px;
     line-height: 1.55;
     color: var(--gps-muted);
 }
 
-#gps-catalog .gps-ccard__foot {
+:is(#gps-catalog, .gps-home) .gps-ccard__foot {
     margin-top: auto;
     display: flex;
     flex-wrap: wrap;
@@ -184,24 +185,24 @@
     gap: 8px;
 }
 
-#gps-catalog .gps-ccard__status {
+:is(#gps-catalog, .gps-home) .gps-ccard__status {
     padding: 4px 10px;
     border-radius: 999px;
     font-size: 12px;
     font-weight: 700;
 }
 
-#gps-catalog .gps-ccard__status--open { background: #e7f4ed; color: var(--gps-ok); }
-#gps-catalog .gps-ccard__status--sold_out { background: #fdf3e2; color: #9a5b0b; }
-#gps-catalog .gps-ccard__status--soon { background: var(--gps-field); color: var(--gps-muted); box-shadow: inset 0 0 0 1px var(--gps-line); }
+:is(#gps-catalog, .gps-home) .gps-ccard__status--open { background: #e7f4ed; color: var(--gps-ok); }
+:is(#gps-catalog, .gps-home) .gps-ccard__status--sold_out { background: #fdf3e2; color: #9a5b0b; }
+:is(#gps-catalog, .gps-home) .gps-ccard__status--soon { background: var(--gps-field); color: var(--gps-muted); box-shadow: inset 0 0 0 1px var(--gps-line); }
 
-#gps-catalog .gps-ccard__price {
+:is(#gps-catalog, .gps-home) .gps-ccard__price {
     font-size: 14px;
     font-weight: 700;
     color: var(--gps-navy);
 }
 
-#gps-catalog .gps-ccard__btn {
+:is(#gps-catalog, .gps-home) .gps-ccard__btn {
     display: block;
     padding: 12px 16px;
     border-radius: 8px;
@@ -214,13 +215,13 @@
     transition: background-color .15s ease;
 }
 
-#gps-catalog .gps-ccard__btn:hover,
-#gps-catalog .gps-ccard__btn:focus {
+:is(#gps-catalog, .gps-home) .gps-ccard__btn:hover,
+:is(#gps-catalog, .gps-home) .gps-ccard__btn:focus {
     background: var(--gps-blue);
     color: #fff;
 }
 
-#gps-catalog .gps-ccard__btn--inline {
+:is(#gps-catalog, .gps-home) .gps-ccard__btn--inline {
     display: inline-block;
     margin-right: 14px;
 }

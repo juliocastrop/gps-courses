@@ -11,11 +11,6 @@ $gps_term     = is_tax(Course_Catalog::TAXONOMIES) ? get_queried_object() : null
 $gps_upcoming = Course_Catalog::courses('upcoming', 50, $gps_term);
 $gps_past     = Course_Catalog::courses('past', 12, $gps_term);
 $gps_title    = $gps_term ? $gps_term->name : __('Courses', 'gps-courses');
-$gps_status   = [
-    'open'     => __('Registration open', 'gps-courses'),
-    'sold_out' => __('Sold out · Join the waitlist', 'gps-courses'),
-    'soon'     => __('Registration opens soon', 'gps-courses'),
-];
 
 get_header();
 ?>
@@ -41,31 +36,7 @@ get_header();
             <?php if ($gps_upcoming) : ?>
                 <div class="gps-catalog__grid">
                     <?php foreach ($gps_upcoming as $i => $c) : ?>
-                        <article class="gps-ccard">
-                            <a class="gps-ccard__cover gps-ccard__cover--<?php echo (int) $i % 3; ?>" href="<?php echo esc_url($c['url']); ?>" tabindex="-1" aria-hidden="true"<?php echo $c['image'] ? ' style="--gps-cover:url(\'' . esc_url(str_replace(["'", '(', ')'], ['%27', '%28', '%29'], $c['image'])) . '\')"' : ''; ?>>
-                                <?php if ($c['category']) : ?><span class="gps-ccard__cat"><?php echo esc_html($c['category']); ?></span><?php endif; ?>
-                                <?php if ($c['ce'] > 0) : ?><span class="gps-ccard__ce"><?php echo esc_html(Credits::format($c['ce'])); ?> CE</span><?php endif; ?>
-                            </a>
-                            <div class="gps-ccard__body">
-                                <p class="gps-ccard__when"><?php echo esc_html(implode(' · ', array_filter([$c['when'], $c['city']]))); ?></p>
-                                <h3><a href="<?php echo esc_url($c['url']); ?>"><?php echo esc_html($c['title']); ?></a></h3>
-                                <?php if ($c['excerpt']) : ?><p class="gps-ccard__excerpt"><?php echo esc_html($c['excerpt']); ?></p><?php endif; ?>
-                                <div class="gps-ccard__foot">
-                                    <span class="gps-ccard__status gps-ccard__status--<?php echo esc_attr($c['status']); ?>"><?php echo esc_html($gps_status[$c['status']]); ?></span>
-                                    <?php if (null !== $c['price'] && 'sold_out' !== $c['status']) : ?>
-                                        <span class="gps-ccard__price"><?php
-                                            /* translators: %s: price */
-                                            if ($c['price'] <= 0) {
-                                                esc_html_e('Free', 'gps-courses');
-                                            } else {
-                                                printf(esc_html__('From %s', 'gps-courses'), wp_kses_post(function_exists('wc_price') ? wc_price($c['price']) : '$' . number_format_i18n($c['price'], 2)));
-                                            }
-                                        ?></span>
-                                    <?php endif; ?>
-                                </div>
-                                <a class="gps-ccard__btn" href="<?php echo esc_url($c['url']); ?>"><?php echo 'sold_out' === $c['status'] ? esc_html__('Join the waitlist', 'gps-courses') : esc_html__('View course', 'gps-courses'); ?></a>
-                            </div>
-                        </article>
+                        <?php Course_Catalog::render_card($c, $i); ?>
                     <?php endforeach; ?>
                 </div>
             <?php else : ?>

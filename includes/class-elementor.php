@@ -102,6 +102,11 @@ class Elementor_Integration {
             'hero-slider',
             // Upcoming editions of the same course (Course_Stage programs)
             'other-dates',
+            // Home page sections below the hero (GPSC\Home_Sections, gps-home.css)
+            'section-heading',
+            'seminar-promo',
+            'upcoming-courses',
+            'sponsors',
         ];
 
         foreach ($widgets as $widget) {

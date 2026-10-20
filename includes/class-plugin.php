@@ -59,6 +59,7 @@ class Plugin {
         require_once GPSC_PATH . 'includes/class-event-calendar.php';
         require_once GPSC_PATH . 'includes/class-interest-list.php';
         require_once GPSC_PATH . 'includes/class-hero-slider.php';
+        require_once GPSC_PATH . 'includes/class-home-sections.php';
         require_once GPSC_PATH . 'includes/class-course-page.php';
         require_once GPSC_PATH . 'includes/class-seminar-page.php';
         require_once GPSC_PATH . 'includes/class-contact-page.php';
@@ -134,6 +135,7 @@ class Plugin {
         Event_Calendar::init();
         Interest_List::init();
         Hero_Slider::init();
+        Home_Sections::init();
         Course_Page::init();
         Seminar_Page::init();
         Contact_Page::init();
