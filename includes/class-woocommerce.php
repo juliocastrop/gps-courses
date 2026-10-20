@@ -1703,6 +1703,13 @@ class Woo {
     public static function admin_order_item_values($_product, $item, $item_id) {
         global $wpdb;
 
+        // Refund rows (WC_Order_Refund) and fee / shipping lines come through
+        // here too; they have no tickets (and no get_order_id()).
+        if (!($item instanceof \WC_Order_Item_Product)) {
+            echo '<td class="gps-tickets"></td>';
+            return;
+        }
+
         echo '<td class="gps-tickets">';
 
         $order_id = $item->get_order_id();
