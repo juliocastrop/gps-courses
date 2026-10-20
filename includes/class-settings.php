@@ -50,11 +50,13 @@ class Settings {
         ]);
 
         // Email Settings
-        register_setting('gps_email_settings', 'gps_email_from_name');
-        register_setting('gps_email_settings', 'gps_email_from_address');
-        register_setting('gps_email_settings', 'gps_email_header_image');
-        register_setting('gps_email_settings', 'gps_email_footer_text');
-        register_setting('gps_email_settings', 'gps_email_primary_color');
+        // Own group: sharing 'gps_email_settings' with Email Branding made each
+        // form's save blank the other form's options (options.php nulls every
+        // option of the group that is not posted). From name and footer text
+        // belong to Email Branding.
+        register_setting('gps_legacy_email_settings', 'gps_email_from_address');
+        register_setting('gps_legacy_email_settings', 'gps_email_header_image');
+        register_setting('gps_legacy_email_settings', 'gps_email_primary_color');
 
         // Ticket Settings
         register_setting('gps_ticket_settings', 'gps_ticket_logo');
@@ -276,7 +278,7 @@ class Settings {
     private static function render_email_tab() {
         ?>
         <form method="post" action="options.php">
-            <?php settings_fields('gps_email_settings'); ?>
+            <?php settings_fields('gps_legacy_email_settings'); ?>
 
             <table class="form-table">
                 <tr>

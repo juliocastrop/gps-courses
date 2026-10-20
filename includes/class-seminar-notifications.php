@@ -671,7 +671,8 @@ class Seminar_Notifications {
     /**
      * Send email helper
      */
-    private static function send_email($to, $subject, $message) {
+    /** Also used by Seminar_Waitlist (it was private: those emails fataled). */
+    public static function send_email($to, $subject, $message) {
         error_log("GPS Seminars: Sending email - To: $to, Subject: $subject");
 
         $settings = self::get_email_settings();

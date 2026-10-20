@@ -75,7 +75,8 @@ class Woo {
         add_action('gps_seminar_registered', [__CLASS__, 'clear_user_cache'], 10, 2);
         add_action('gps_ticket_created', [__CLASS__, 'clear_user_cache'], 10, 2);
         add_action('gps_attendance_recorded', [__CLASS__, 'clear_user_cache'], 10, 2);
-        add_action('gps_credits_awarded', [__CLASS__, 'clear_user_cache'], 10, 2);
+        // gps_credits_awarded passes ($user_id, $event_id, $credits): the user is the first argument
+        add_action('gps_credits_awarded', [__CLASS__, 'clear_credits_cache'], 10, 1);
 
         // Link guest orders when user creates account or logs in
         add_action('user_register', [__CLASS__, 'link_guest_orders_on_register'], 10, 1);
@@ -164,6 +165,10 @@ class Woo {
     /**
      * Clear user's cached My Account content
      */
+    public static function clear_credits_cache($user_id) {
+        self::clear_user_cache(0, (int) $user_id);
+    }
+
     public static function clear_user_cache($id, $user_id) {
         // Clear all My Account page caches for this user
         delete_transient('gps_my_courses_' . $user_id);

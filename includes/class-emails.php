@@ -10,7 +10,10 @@ class Emails {
 
     public static function init() {
         // Register custom WooCommerce email
-        add_filter('woocommerce_email_classes', [__CLASS__, 'register_email_classes']);
+        // GPSC_Ticket_Email / GPSC_Credits_Email are no longer registered with
+        // WooCommerce: the ticket one was never triggered, and the credits one
+        // sent a second, empty email (its template file does not exist) next to
+        // send_credits_email() on every certificate.
 
         // Hook into order completion to send ticket emails
         add_action('gps_ticket_created', [__CLASS__, 'send_ticket_email'], 10, 2);

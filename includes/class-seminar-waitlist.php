@@ -678,7 +678,8 @@ class Seminar_Waitlist {
             $entry->position
         );
 
-        return Seminar_Notifications::send_email($to, $subject, $message);
+        // Plain-text body inside the HTML email wrapper: keep its line breaks and link
+        return Seminar_Notifications::send_email($to, $subject, wpautop(make_clickable(esc_html($message))));
     }
 
     /**
@@ -709,6 +710,7 @@ class Seminar_Waitlist {
             $product_url ? "Register here: $product_url" : ''
         );
 
-        return Seminar_Notifications::send_email($to, $subject, $message);
+        // Plain-text body inside the HTML email wrapper: keep its line breaks and link
+        return Seminar_Notifications::send_email($to, $subject, wpautop(make_clickable(esc_html($message))));
     }
 }

@@ -342,11 +342,13 @@ class Session_Tickets {
                 'notes'            => $notes,
                 'awarded_at'       => current_time('mysql'),
             ],
-            ['%d', '%d', '%d', '%s', '%s', '%s', '%s']
+            ['%d', '%d', '%f', '%s', '%s', '%s', '%s'] // credits can be fractional (1.5)
         );
 
-        // Fire action for cache invalidation
-        do_action('gps_credits_awarded', $session_id, $user_id);
+        // Refresh My Account. (This used to fire gps_credits_awarded with two
+        // arguments in the wrong order; its email handler needs three, so the
+        // check-in ended in a fatal ArgumentCountError on PHP 8.)
+        Woo::clear_user_cache(0, $user_id);
     }
 
     /* ============================================================
