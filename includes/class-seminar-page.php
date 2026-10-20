@@ -44,6 +44,7 @@ class Seminar_Page {
     public static function init() {
         add_filter('template_include', [__CLASS__, 'template'], 99);
         add_action('template_redirect', [__CLASS__, 'no_cache_preview'], 1);
+        add_action('template_redirect', [__CLASS__, 'redirect_seminar_posts'], 5);
         add_action('wp_enqueue_scripts', [__CLASS__, 'enqueue_assets'], 110);
         add_action('wp_enqueue_scripts', [__CLASS__, 'skip_elementor_post_css'], 999);
         add_action('wp_head', [__CLASS__, 'print_json_ld'], 30);
@@ -59,6 +60,45 @@ class Seminar_Page {
     /* ============================================================
      * Routing
      * ============================================================ */
+
+    /**
+     * /monthly-seminars/ (the gps_seminar archive) and single gps_seminar
+     * posts have no design of their own: send them to the seminar's product
+     * page, which is the designed seminar page. Links to /monthly-seminars/
+     * (hero slider, menus, empty cart) keep working.
+     */
+    public static function redirect_seminar_posts() {
+        if (is_admin() || is_preview() || !(is_post_type_archive('gps_seminar') || is_singular('gps_seminar'))) {
+            return;
+        }
+        $seminar_id = is_singular('gps_seminar') ? (int) get_queried_object_id() : 0;
+        if (!$seminar_id) {
+            // Archive: the newest published seminar that has a product
+            $ids = get_posts([
+                'post_type'      => 'gps_seminar',
+                'post_status'    => 'publish',
+                'posts_per_page' => 5,
+                'fields'         => 'ids',
+                'no_found_rows'  => true,
+                'orderby'        => 'date',
+                'order'          => 'DESC',
+            ]);
+            foreach ($ids as $id) {
+                $product = (int) get_post_meta($id, '_gps_seminar_product_id', true);
+                if ($product && 'publish' === get_post_status($product)) {
+                    $seminar_id = (int) $id;
+                    break;
+                }
+            }
+        }
+        $product = $seminar_id ? (int) get_post_meta($seminar_id, '_gps_seminar_product_id', true) : 0;
+        $url     = ($product && 'publish' === get_post_status($product)) ? get_permalink($product) : home_url('/product/gps-monthly-seminars/');
+        $url     = (string) apply_filters('gpsc_seminar_redirect_url', $url, $seminar_id);
+        if ($url) {
+            wp_safe_redirect($url, 301);
+            exit;
+        }
+    }
 
     public static function site_mode() {
         return 'gps' === get_option(self::OPT_TEMPLATE, 'elementor') ? 'gps' : 'elementor';
