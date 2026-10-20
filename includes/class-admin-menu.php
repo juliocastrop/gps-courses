@@ -29,6 +29,109 @@ class Admin_Menu {
         add_filter('submenu_file', [__CLASS__, 'submenu_file'], 10, 2);
         add_action('all_admin_notices', [__CLASS__, 'tabs'], 1);
         add_action('admin_head', [__CLASS__, 'styles']);
+        add_action('in_admin_header', [__CLASS__, 'hold_other_notices'], 999);
+    }
+
+    /* ============================================================
+     * Other plugins' notices
+     * ============================================================ */
+
+    /** A class list holding a notice box class as a whole word ("pys-notice" is not one). */
+    const NOTICE_CLASS = '/\s(notice|updated|error|update-nag)\s/';
+
+    /** Notice callbacks of other plugins, held back on hub screens. */
+    protected static $held = [];
+
+    /** A callback that belongs to this plugin (or to WordPress core). */
+    protected static function own_callback($cb) {
+        if (is_array($cb)) {
+            $cb = is_object($cb[0]) ? get_class($cb[0]) : (string) $cb[0];
+            return 0 === strpos(ltrim($cb, '\\'), 'GPSC\\');
+        }
+        if (is_string($cb)) {
+            if (0 === strpos(ltrim($cb, '\\'), 'GPSC\\')) {
+                return true;
+            }
+            if (false !== strpos($cb, '::')) {
+                return false;
+            }
+            try {
+                $file = (new \ReflectionFunction($cb))->getFileName();
+            } catch (\ReflectionException $e) {
+                return false;
+            }
+            return $file && false === strpos(wp_normalize_path($file), wp_normalize_path(WP_CONTENT_DIR));
+        }
+        if ($cb instanceof \Closure) {
+            $file = (new \ReflectionFunction($cb))->getFileName();
+            return $file && false !== strpos(wp_normalize_path($file), wp_normalize_path(GPSC_PATH));
+        }
+        return false;
+    }
+
+    /**
+     * On hub screens, other plugins' notices (marketing, setup nags) go into
+     * one collapsed "Other plugins' notices (N)" row under the tab bar,
+     * instead of pushing the screen down. Nothing is removed: they print in
+     * full when the row is opened. This plugin's and WordPress's own notices
+     * are not touched.
+     */
+    public static function hold_other_notices() {
+        if (!self::current() || self::block_editor()) {
+            return;
+        }
+        global $wp_filter;
+        foreach (['admin_notices', 'all_admin_notices'] as $hook) {
+            if (empty($wp_filter[$hook])) {
+                continue;
+            }
+            foreach ($wp_filter[$hook]->callbacks as $priority => $callbacks) {
+                foreach ($callbacks as $cb) {
+                    if (self::own_callback($cb['function'])) {
+                        continue;
+                    }
+                    self::$held[] = $cb['function'];
+                    remove_action($hook, $cb['function'], $priority);
+                }
+            }
+        }
+        if (self::$held) {
+            add_action('all_admin_notices', [__CLASS__, 'print_other_notices'], PHP_INT_MAX);
+        }
+    }
+
+    public static function print_other_notices() {
+        ob_start();
+        foreach (self::$held as $cb) {
+            try {
+                call_user_func($cb);
+            } catch (\Throwable $e) {
+                // A broken notice must not break the screen
+            }
+        }
+        $html = trim((string) ob_get_clean());
+        if ('' === $html) {
+            return;
+        }
+        // WordPress moves .notice / .updated / .error boxes under the title;
+        // "inline" keeps them inside the collapsed row.
+        $html = preg_replace_callback('/<div\b([^>]*)\bclass=(["\'])([^"\']*)\2/i', function ($m) {
+            if (!preg_match(self::NOTICE_CLASS, ' ' . $m[3] . ' ') || preg_match('/(?<![\w-])inline(?![\w-])/', $m[3])) {
+                return $m[0];
+            }
+            return '<div' . $m[1] . 'class=' . $m[2] . $m[3] . ' inline' . $m[2];
+        }, $html);
+        $count = 0;
+        if (preg_match_all('/<div\b[^>]*\bclass=(["\'])([^"\']*)\1/i', $html, $classes)) {
+            foreach ($classes[2] as $class) {
+                $count += preg_match(self::NOTICE_CLASS, ' ' . $class . ' ');
+            }
+        }
+        $count = max(1, $count);
+        echo '<details class="gps-other-notices"><summary>';
+        /* translators: %d: number of notices */
+        echo esc_html(sprintf(_n("Other plugins' notice (%d)", "Other plugins' notices (%d)", $count, 'gps-courses'), $count));
+        echo '</summary><div class="gps-other-notices__body">' . $html . '</div></details>'; // other plugins' own markup
     }
 
     /* ============================================================
@@ -248,6 +351,11 @@ class Admin_Menu {
         .gps-hub-nav__tab:hover,.gps-hub-nav__tab:focus{background:#f0f0f1;color:#193463}
         .gps-hub-nav__tab.is-current{background:#193463;color:#fff}
         .gps-hub-nav__tab.is-current:hover,.gps-hub-nav__tab.is-current:focus{background:#12264a;color:#fff}
+        .gps-other-notices{margin:10px 20px 0 2px}
+        .gps-other-notices>summary{display:inline-flex;align-items:center;min-height:28px;cursor:pointer;color:#50575e;font-size:12px}
+        .gps-other-notices>summary:hover,.gps-other-notices>summary:focus{color:#193463}
+        .gps-other-notices__body{margin-top:6px}
+        .gps-other-notices__body .notice{margin:6px 0}
         </style>
         <?php
     }

@@ -22,13 +22,13 @@
                 }
             });
 
-            // Hide the postbox container that would normally show metaboxes
-            $('#postbox-container-1, #postbox-container-2').hide();
-
-            // Move the submitdiv (publish box) above the tabs
-            if ($('#submitdiv').length) {
-                $('#submitdiv').prependTo('#post-body');
-                $('#submitdiv').addClass('gps-publish-box');
+            // "Page layout" heading over the Elementor / WordPress editor switch
+            var $switch = $('#elementor-switch-mode');
+            if ($switch.length && !$('.gps-layout-head').length) {
+                $('<div class="gps-layout-head"><h2></h2><p></p></div>')
+                    .find('h2').text(gpsEventAdmin.layoutTitle).end()
+                    .find('p').text(gpsEventAdmin.layoutText).end()
+                    .insertBefore($switch);
             }
         }
 

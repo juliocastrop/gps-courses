@@ -19,6 +19,8 @@ class Posttypes {
         add_action('edit_form_after_title', [__CLASS__, 'custom_event_edit_screen']);
         add_filter('screen_layout_columns', [__CLASS__, 'event_screen_layout_columns']);
         add_filter('get_user_option_screen_layout_gps_event', [__CLASS__, 'event_screen_layout']);
+        add_action('add_meta_boxes_gps_event', [__CLASS__, 'event_meta_boxes'], 100);
+        add_filter('get_user_option_closedpostboxes_gps_event', [__CLASS__, 'event_closed_boxes']);
 
         // Disable block editor for classic editor post types
         add_filter('use_block_editor_for_post_type', [__CLASS__, 'disable_block_editor'], 10, 2);
@@ -1076,7 +1078,7 @@ class Posttypes {
                 'gps-courses-admin',
                 plugin_dir_url(dirname(__FILE__)) . 'assets/css/admin.css',
                 [],
-                '1.0.1'
+                (string) filemtime(GPSC_PATH . 'assets/css/admin.css')
             );
         }
 
@@ -1086,7 +1088,7 @@ class Posttypes {
                 'gps-event-admin',
                 plugin_dir_url(dirname(__FILE__)) . 'assets/js/event-admin.js',
                 ['jquery', 'jquery-ui-tabs', 'wp-color-picker', 'media-upload', 'thickbox'],
-                '1.0.4',
+                '1.0.5',
                 true
             );
 
@@ -1098,7 +1100,9 @@ class Posttypes {
             // If still no post ID, we need to save the post first before setting thumbnail
             wp_localize_script('gps-event-admin', 'gpsEventAdmin', [
                 'thumbnailNonce' => $post_id ? wp_create_nonce('gps_course_thumbnail_' . $post_id) : '',
-                'postId' => $post_id
+                'postId' => $post_id,
+                'layoutTitle' => __('Page layout', 'gps-courses'),
+                'layoutText'  => __('The course page body is built with Elementor. The fields above feed its widgets.', 'gps-courses'),
             ]);
 
             wp_enqueue_style('wp-color-picker');
@@ -1108,15 +1112,66 @@ class Posttypes {
     }
 
     /**
-     * Force single column layout for events
+     * Course editor: form on the left, Publish / Course image / AI Search on
+     * the right, Yoast and tracking boxes under the form.
      */
     public static function event_screen_layout_columns($columns) {
-        $columns['gps_event'] = 1;
+        $columns['gps_event'] = 2;
         return $columns;
     }
 
     public static function event_screen_layout() {
-        return 1;
+        return 2;
+    }
+
+    /**
+     * Sidebar boxes of the course editor. The Categories / Tags / Featured
+     * image boxes are removed: the form sets the same things (Basic info tab,
+     * Course image box), and the hidden boxes still posted their old values,
+     * so a featured image changed from the form came back on Update.
+     */
+    public static function event_meta_boxes() {
+        remove_meta_box('postimagediv', 'gps_event', 'side');
+        remove_meta_box('gps_event_categorydiv', 'gps_event', 'side');
+        remove_meta_box('tagsdiv-gps_event_tag', 'gps_event', 'side');
+        add_meta_box('gps_course_image', __('Course image', 'gps-courses'), [__CLASS__, 'render_course_image_box'], 'gps_event', 'side', 'high');
+    }
+
+    /** Yoast, revisions and tracking boxes start collapsed (until the user opens one). */
+    public static function event_closed_boxes($closed) {
+        if (false !== $closed) {
+            return $closed;
+        }
+        return ['wpseo_meta', 'yoast_internal_linking', 'revisionsdiv', 'wpcode-metabox-snippets', 'pys-head-footer'];
+    }
+
+    public static function render_course_image_box($post) {
+        $thumbnail_id = get_post_thumbnail_id($post->ID);
+        ?>
+        <div class="gps-form-field gps-course-image-box">
+            <div id="gps-featured-image-container">
+                <?php
+                if ($thumbnail_id) {
+                    echo wp_get_attachment_image($thumbnail_id, 'medium', false, ['id' => 'gps-featured-image-preview']);
+                } else {
+                    echo '<div id="gps-featured-image-placeholder" class="gps-image-placeholder">';
+                    echo '<span class="dashicons dashicons-format-image" aria-hidden="true"></span>';
+                    echo '<p>' . esc_html__('No image selected', 'gps-courses') . '</p>';
+                    echo '</div>';
+                }
+                ?>
+            </div>
+            <p class="gps-course-image-actions">
+                <button type="button" class="button" id="gps-set-featured-image">
+                    <?php echo $thumbnail_id ? esc_html__('Change Image', 'gps-courses') : esc_html__('Set Course Image', 'gps-courses'); ?>
+                </button>
+                <?php if ($thumbnail_id): ?>
+                <button type="button" class="button" id="gps-remove-featured-image"><?php esc_html_e('Remove Image', 'gps-courses'); ?></button>
+                <?php endif; ?>
+            </p>
+            <p class="description"><?php esc_html_e('Recommended size: 1600 × 720 px. Shown in the course header, catalog and social shares.', 'gps-courses'); ?></p>
+        </div>
+        <?php
     }
 
     /**
@@ -1178,32 +1233,7 @@ class Posttypes {
 
                 <!-- Basic Info Tab -->
                 <div id="gps-tab-basic" class="gps-tab-content">
-                    <!-- Featured Image -->
-                    <div class="gps-form-field">
-                        <label><?php _e('Course Image', 'gps-courses'); ?></label>
-                        <div id="gps-featured-image-container">
-                            <?php
-                            $thumbnail_id = get_post_thumbnail_id($post->ID);
-                            if ($thumbnail_id) {
-                                echo wp_get_attachment_image($thumbnail_id, 'medium', false, ['id' => 'gps-featured-image-preview']);
-                            } else {
-                                echo '<div id="gps-featured-image-placeholder" style="background: #f0f0f1; padding: 60px 20px; text-align: center; border: 2px dashed #dcdcde; border-radius: 6px;">';
-                                echo '<span class="dashicons dashicons-format-image" style="font-size: 48px; color: #c0c0c0;"></span><br>';
-                                echo '<p style="color: #646970; margin: 10px 0 0 0;">No image selected</p>';
-                                echo '</div>';
-                            }
-                            ?>
-                        </div>
-                        <p style="margin-top: 10px;">
-                            <button type="button" class="button" id="gps-set-featured-image">
-                                <?php echo $thumbnail_id ? __('Change Image', 'gps-courses') : __('Set Course Image', 'gps-courses'); ?>
-                            </button>
-                            <?php if ($thumbnail_id): ?>
-                            <button type="button" class="button" id="gps-remove-featured-image"><?php _e('Remove Image', 'gps-courses'); ?></button>
-                            <?php endif; ?>
-                        </p>
-                        <p class="description"><?php _e('Recommended size: 1600x720px', 'gps-courses'); ?></p>
-                    </div>
+                    <p class="gps-tab-intro"><?php esc_html_e('Dates, times and category appear in the course header, calendar and listings. The course image is in the sidebar.', 'gps-courses'); ?></p>
 
                     <div class="gps-form-grid">
                         <div class="gps-form-field gps-form-field-half">

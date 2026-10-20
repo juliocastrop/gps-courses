@@ -632,17 +632,64 @@ body.post-type-gps_event .wrap .page-title-action:focus {
     box-shadow: 0 4px 8px rgba(11, 82, 172, 0.3) !important;
 }
 
-/* Hide default metabox containers */
-.post-type-gps_event.post-php #postbox-container-1,
-.post-type-gps_event.post-php #postbox-container-2,
-.post-type-gps_event.post-new-php #postbox-container-1,
-.post-type-gps_event.post-new-php #postbox-container-2 {
-    display: none !important;
+/* Course editor sidebar (two columns since the Phase B redesign) */
+.post-type-gps_event #pageparentdiv {
+    display: none; /* courses have no parent / order to set */
 }
 
-.post-type-gps_event.post-php #post-body.columns-1,
-.post-type-gps_event.post-new-php #post-body.columns-1 {
-    margin-right: 0 !important;
+.post-type-gps_event .gps-course-image-box #gps-featured-image-container img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 6px;
+}
+
+.post-type-gps_event .gps-image-placeholder {
+    padding: 36px 12px;
+    text-align: center;
+    background: #f6f7f7;
+    border: 2px dashed #dcdcde;
+    border-radius: 6px;
+    color: #50575e;
+}
+
+.post-type-gps_event .gps-image-placeholder .dashicons {
+    width: 40px;
+    height: 40px;
+    font-size: 40px;
+    color: #8c8f94;
+}
+
+.post-type-gps_event .gps-image-placeholder p {
+    margin: 6px 0 0;
+}
+
+.post-type-gps_event .gps-course-image-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0 6px;
+}
+
+.post-type-gps_event .gps-tab-intro {
+    margin: 0 0 18px;
+    color: #50575e;
+}
+
+.post-type-gps_event .gps-layout-head {
+    margin: 24px 0 10px;
+}
+
+.post-type-gps_event .gps-layout-head h2 {
+    margin: 0 0 4px;
+    padding: 0;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.post-type-gps_event .gps-layout-head p {
+    margin: 0;
+    color: #50575e;
 }
 
 /* ============================================
@@ -907,4 +954,108 @@ body.post-type-gps_event .wrap .page-title-action:focus {
     .gps-form-grid {
         grid-template-columns: 1fr !important;
     }
+}
+
+/* ============================================
+   Courses hub list screens (Admin_Lists)
+   ============================================ */
+
+.gps-list-subtitle {
+    display: inline-block;
+    margin: 0 0 0 10px;
+    vertical-align: middle;
+    color: #50575e;
+    font-size: 13px;
+}
+
+.wp-list-table .gps-sub {
+    margin-top: 3px;
+    color: #50575e;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.wp-list-table .gps-muted {
+    color: #646970;
+}
+
+.gps-badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.6;
+    white-space: nowrap;
+    background: #f0f0f1;
+    color: #50575e;
+}
+
+.gps-badge--ok      { background: #e7f4ed; color: #145c3a; }
+.gps-badge--warn    { background: #fdf1dc; color: #7a4507; }
+.gps-badge--bad     { background: #fbecea; color: #9c2a23; }
+.gps-badge--info    { background: #e8eef8; color: #193463; }
+.gps-badge--gold    { background: #f3efe4; color: #6f5822; }
+.gps-badge--neutral { background: #f0f0f1; color: #50575e; }
+
+.gps-meter__label {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.gps-meter {
+    max-width: 140px;
+    height: 6px;
+    margin-top: 5px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: #f0f0f1;
+}
+
+.gps-meter__bar {
+    display: block;
+    height: 100%;
+    background: #0B52AC;
+}
+
+.gps-meter__bar--neutral { background: #8c8f94; }
+.gps-meter__bar--warn    { background: #b26200; }
+
+.gps-thumb {
+    display: block;
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    background: #f0f0f1;
+}
+
+.gps-thumb--round { border-radius: 50%; }
+.gps-thumb--logo  { width: 64px; object-fit: contain; border: 1px solid #dcdcde; border-radius: 4px; background: #fff; }
+.gps-thumb--empty { border: 1px dashed #c3c4c7; }
+
+.wp-list-table .column-gps_photo,
+.wp-list-table .column-gps_logo { width: 72px; }
+
+.post-type-gps_event .wp-list-table .column-gps_status,
+.post-type-gps_ticket .wp-list-table .column-gps_sale { width: 160px; }
+
+.post-type-gps_event .wp-list-table .column-gps_seats,
+.post-type-gps_ticket .wp-list-table .column-gps_sold { width: 160px; }
+
+.post-type-gps_event .wp-list-table .column-gps_from,
+.post-type-gps_ticket .wp-list-table .column-gps_price {
+    width: 90px;
+    text-align: right;
+}
+
+.post-type-gps_event .wp-list-table .column-gps_program { width: 160px; }
+.post-type-gps_ticket .wp-list-table .column-gps_type { width: 110px; }
+.post-type-gps_schedule .wp-list-table .column-gps_day,
+.post-type-gps_schedule .wp-list-table .column-gps_topics,
+.wp-list-table .column-gps_pstatus { width: 130px; }
+
+@media screen and (max-width: 782px) {
+    .gps-list-subtitle { display: block; margin: 8px 0 0; }
+    .post-type-gps_event .wp-list-table .column-gps_from,
+    .post-type-gps_ticket .wp-list-table .column-gps_price { text-align: left; }
 }
