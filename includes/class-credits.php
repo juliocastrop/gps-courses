@@ -72,7 +72,7 @@ class Credits {
             'notes'            => $notes,
             'awarded_at'       => current_time('mysql'),
         ]);
-        WooCommerce::clear_user_cache(0, $user_id);
+        Woo::clear_user_cache(0, $user_id);
         return $net;
     }
 
@@ -128,8 +128,8 @@ class Credits {
                 ));
                 error_log(sprintf('GPS Courses: moved CE ledger row #%d (event %d) from user #%d to designated attendee #%d (ticket %s)',
                     $row_id, $d->event_id, $d->user_id, $to, $ticket->ticket_code));
-                WooCommerce::clear_user_cache(0, $to);
-                WooCommerce::clear_user_cache(0, (int) $d->user_id);
+                Woo::clear_user_cache(0, $to);
+                Woo::clear_user_cache(0, (int) $d->user_id);
             }
             foreach ($rows as $left) {
                 error_log(sprintf('GPS Courses: CE ledger row #%d is a duplicate award (user #%d, event %d) with no designated attendee to move it to; review manually.',
