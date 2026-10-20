@@ -65,6 +65,15 @@ class Sponsors_Widget extends Base_Widget {
             ],
             'toggle'  => false,
         ]);
+        $this->add_control('source', [
+            'label'   => __('Sponsors', 'gps-courses'),
+            'type'    => Controls_Manager::SELECT,
+            'default' => 'all',
+            'options' => [
+                'all'     => __('All published sponsors', 'gps-courses'),
+                'default' => __('Default sponsors of the course pages', 'gps-courses'),
+            ],
+        ]);
         $this->add_control('grayscale', [
             'label'        => __('Grayscale logos (color on hover)', 'gps-courses'),
             'type'         => Controls_Manager::SWITCHER,
@@ -73,7 +82,7 @@ class Sponsors_Widget extends Base_Widget {
         ]);
         $this->add_control('sponsors_note', [
             'type'            => Controls_Manager::RAW_HTML,
-            'raw'             => esc_html__('Logos are the default sponsors from GPS Courses → Settings → Course page. Manage them under GPS Courses → Sponsors.', 'gps-courses'),
+            'raw'             => esc_html__('Manage sponsors (logo = featured image, website) under GPS Courses → Courses → Sponsors.', 'gps-courses'),
             'content_classes' => 'elementor-panel-alert elementor-panel-alert-info',
         ]);
         $this->end_controls_section();
@@ -81,7 +90,7 @@ class Sponsors_Widget extends Base_Widget {
 
     protected function render() {
         $s        = $this->get_settings_for_display();
-        $sponsors = Home_Sections::sponsors();
+        $sponsors = Home_Sections::sponsors(($s['source'] ?? 'all') === 'default' ? 'default' : 'all');
         if (!$sponsors) {
             if ($this->is_editor()) {
                 echo '<p class="gps-home-empty">' . esc_html__('No default sponsors yet: choose them in GPS Courses → Settings → Course page.', 'gps-courses') . '</p>';

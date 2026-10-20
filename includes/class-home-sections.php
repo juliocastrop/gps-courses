@@ -225,11 +225,15 @@ class Home_Sections {
      * Sponsors
      * ============================================================ */
 
-    /** The site's default sponsors (Course_Page settings), one per sponsor. */
-    public static function sponsors() {
+    /**
+     * Sponsors, one per sponsor. $source 'all': every published sponsor (by
+     * menu order, then title); 'default': the default list of the course pages.
+     */
+    public static function sponsors($source = 'all') {
         $out  = [];
         $seen = [];
-        foreach (Course_Page::sponsors(0) as $s) {
+        $list = 'default' === $source ? Course_Page::sponsors(0) : self::all_sponsors();
+        foreach ($list as $s) {
             $key = 'id' . (int) $s['id'];
             $name = function_exists('mb_strtolower') ? mb_strtolower(trim($s['name']), 'UTF-8') : strtolower(trim($s['name']));
             if (isset($seen[$key]) || ('' !== $name && isset($seen['n' . $name])) || ($s['logo'] && isset($seen['l' . $s['logo']]))) {
@@ -243,6 +247,27 @@ class Home_Sections {
                 $seen['l' . $s['logo']] = true;
             }
             $out[] = $s;
+        }
+        return $out;
+    }
+
+    /** Every published gps_sponsor, same shape as Course_Page::sponsors(). */
+    protected static function all_sponsors() {
+        $posts = get_posts([
+            'post_type'      => 'gps_sponsor',
+            'post_status'    => 'publish',
+            'posts_per_page' => 50,
+            'orderby'        => ['menu_order' => 'ASC', 'title' => 'ASC'],
+            'no_found_rows'  => true,
+        ]);
+        $out = [];
+        foreach ($posts as $p) {
+            $out[] = [
+                'id'   => (int) $p->ID,
+                'name' => html_entity_decode(get_the_title($p), ENT_QUOTES, 'UTF-8'),
+                'logo' => (int) get_post_thumbnail_id($p->ID),
+                'url'  => (string) get_post_meta($p->ID, Course_Page::META_SPONSOR_URL, true),
+            ];
         }
         return $out;
     }

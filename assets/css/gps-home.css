@@ -366,8 +366,10 @@
 
 /* ---------- sponsors ---------- */
 .gps-home .gps-home-logos {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    /* Centered whatever the number of sponsors (2 or 5 never leave a lopsided row) */
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 16px;
     margin: 0;
     padding: 0;
@@ -375,6 +377,7 @@
 }
 
 .gps-home .gps-home-logos__item {
+    flex: 0 1 calc((100% - 64px) / 5);
     min-width: 0;
     margin: 0;
 }
@@ -396,7 +399,7 @@
     width: auto;
     height: auto;
     max-width: 100%;
-    max-height: 56px;
+    max-height: 64px;
     object-fit: contain;
     transition: filter .2s ease, opacity .2s ease;
 }
@@ -411,7 +414,7 @@
 
 .gps-home .gps-home-logos--gray .gps-home-logos__img {
     filter: grayscale(1);
-    opacity: .7;
+    opacity: .85;
 }
 
 .gps-home .gps-home-logos--gray a:hover .gps-home-logos__img,
@@ -431,7 +434,7 @@
 @media (max-width: 1024px) {
     .gps-home .gps-home-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .gps-home .gps-home-sem__card { grid-template-columns: minmax(0, 1fr); gap: 28px; padding: 36px; }
-    .gps-home .gps-home-logos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .gps-home .gps-home-logos__item { flex-basis: calc((100% - 32px) / 3); }
 }
 
 @media (max-width: 600px) {
@@ -444,7 +447,8 @@
     .gps-home .gps-home-sem__next { padding: 16px; }
     .gps-home .gps-home-stats li { padding: 4px 10px; }
     .gps-home .gps-home-stats strong { font-size: 20px; }
-    .gps-home .gps-home-logos { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .gps-home .gps-home-logos { gap: 12px; }
+    .gps-home .gps-home-logos__item { flex-basis: calc((100% - 12px) / 2); }
     .gps-home .gps-home-logos__link { height: 84px; padding: 12px 14px; }
 }
 
