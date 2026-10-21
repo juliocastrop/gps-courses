@@ -505,6 +505,15 @@
     transition: filter .2s ease, opacity .2s ease;
 }
 
+/* White / light logos (sponsor option) sit on a navy plate */
+.gps-home .gps-home-logos__link--dark {
+    background: var(--gps-navy-deep);
+}
+
+.gps-home .gps-home-logos--gray .gps-home-logos__link--dark .gps-home-logos__img {
+    opacity: .9;
+}
+
 .gps-home .gps-home-logos__name {
     font-size: 14px;
     font-weight: 700;

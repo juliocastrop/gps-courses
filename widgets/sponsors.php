@@ -111,11 +111,12 @@ class Sponsors_Widget extends Base_Widget {
             $img  = $sp['logo'] ? wp_get_attachment_image((int) $sp['logo'], 'medium', false, ['alt' => $name, 'loading' => 'lazy', 'class' => 'gps-home-logos__img']) : '';
             $body = $img ?: '<span class="gps-home-logos__name">' . esc_html($name) . '</span>';
             $url  = trim((string) $sp['url']);
+            $dark = !empty($sp['dark']) ? ' gps-home-logos__link--dark' : '';
             echo '<li class="gps-home-logos__item">';
             if ('' !== $url) {
-                echo '<a class="gps-home-logos__link" href="' . esc_url($url) . '" target="_blank" rel="noopener">' . $body . '</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_get_attachment_image() / esc_html
+                echo '<a class="gps-home-logos__link' . $dark . '" href="' . esc_url($url) . '" target="_blank" rel="noopener">' . $body . '</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_get_attachment_image() / esc_html
             } else {
-                echo '<span class="gps-home-logos__link">' . $body . '</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_get_attachment_image() / esc_html
+                echo '<span class="gps-home-logos__link' . $dark . '">' . $body . '</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_get_attachment_image() / esc_html
             }
             echo '</li>';
         }

@@ -1668,6 +1668,13 @@
     justify-content: center;
 }
 
+/* White / light logos (sponsor option) sit on a navy plate */
+.gps-cp .gps-cp-sponsors__list li.is-dark > a,
+.gps-cp .gps-cp-sponsors__list li.is-dark > img,
+.gps-cp .gps-cp-sponsors__list li.is-dark > span {
+    background: #13254d;
+}
+
 .gps-cp .gps-cp-sponsors__logo {
     max-width: 100%;
     max-height: 40px;

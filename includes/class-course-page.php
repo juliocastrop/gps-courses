@@ -45,6 +45,7 @@ class Course_Page {
     /* Speaker / sponsor extras */
     const META_SPEAKER_URL = '_gps_profile_url';
     const META_SPONSOR_URL = '_gps_sponsor_url';
+    const META_SPONSOR_DARK = '_gps_sponsor_dark_logo'; // '1': white / light logo, shown on a navy plate
 
     /* Site settings (Settings → Course page) */
     const OPT_TEMPLATE = 'gps_course_template';         // elementor | gps
@@ -608,6 +609,7 @@ class Course_Page {
         <p><label for="gps-sponsor-url"><strong><?php esc_html_e('Website', 'gps-courses'); ?></strong></label>
         <input type="url" id="gps-sponsor-url" name="gps_sponsor_url" class="widefat" value="<?php echo esc_attr((string) get_post_meta($post->ID, self::META_SPONSOR_URL, true)); ?>" placeholder="https://"></p>
         <p class="description"><?php esc_html_e('The logo is the featured image (transparent PNG or SVG, about 280 × 112 px). Optional link for the logo on course pages.', 'gps-courses'); ?></p>
+        <p><label><input type="checkbox" name="gps_sponsor_dark_logo" value="1" <?php checked('1', (string) get_post_meta($post->ID, self::META_SPONSOR_DARK, true)); ?>> <?php esc_html_e('Light / white logo: show it on a dark background', 'gps-courses'); ?></label></p>
         <?php
     }
 
@@ -620,6 +622,11 @@ class Course_Page {
             delete_post_meta($post_id, self::META_SPONSOR_URL);
         } else {
             update_post_meta($post_id, self::META_SPONSOR_URL, $url);
+        }
+        if (!empty($_POST['gps_sponsor_dark_logo'])) {
+            update_post_meta($post_id, self::META_SPONSOR_DARK, '1');
+        } else {
+            delete_post_meta($post_id, self::META_SPONSOR_DARK);
         }
     }
 
@@ -1139,6 +1146,7 @@ class Course_Page {
                 'name' => html_entity_decode(get_the_title($sid), ENT_QUOTES, 'UTF-8'),
                 'logo' => (int) get_post_thumbnail_id($sid),
                 'url'  => (string) get_post_meta($sid, self::META_SPONSOR_URL, true),
+                'dark' => '1' === (string) get_post_meta($sid, self::META_SPONSOR_DARK, true),
             ];
         }
         return $out;

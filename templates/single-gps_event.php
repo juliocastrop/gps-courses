@@ -436,7 +436,7 @@ get_header();
                     <?php foreach ($d['sponsors'] as $sp) :
                         $logo = $sp['logo'] ? wp_get_attachment_image($sp['logo'], 'medium', false, ['alt' => $sp['name'], 'loading' => 'lazy', 'decoding' => 'async', 'class' => 'gps-cp-sponsors__logo']) : '<span class="gps-cp-sponsors__name">' . esc_html($sp['name']) . '</span>';
                         ?>
-                        <li>
+                        <li<?php echo !empty($sp['dark']) ? ' class="is-dark"' : ''; ?>>
                             <?php if ($sp['url']) : ?>
                                 <a href="<?php echo esc_url($sp['url']); ?>" target="_blank" rel="noopener sponsored"><?php echo $logo; // core output or escaped ?></a>
                             <?php else : ?>

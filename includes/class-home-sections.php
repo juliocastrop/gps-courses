@@ -302,6 +302,7 @@ class Home_Sections {
                 'name' => html_entity_decode(get_the_title($p), ENT_QUOTES, 'UTF-8'),
                 'logo' => (int) get_post_thumbnail_id($p->ID),
                 'url'  => (string) get_post_meta($p->ID, Course_Page::META_SPONSOR_URL, true),
+                'dark' => '1' === (string) get_post_meta($p->ID, Course_Page::META_SPONSOR_DARK, true),
             ];
         }
         return $out;
