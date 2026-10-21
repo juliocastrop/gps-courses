@@ -1122,7 +1122,7 @@ class Course_Page {
             'photo'    => (int) get_post_thumbnail_id($sid),
             'short'    => $short,
             'bio'      => $short !== $plain ? wpautop(wp_kses_post($bio)) : '',
-            'url'      => (string) get_post_meta($sid, self::META_SPEAKER_URL, true),
+            'url'      => About_Page::profile_url($sid),
             'linkedin' => (string) get_post_meta($sid, '_gps_social_linkedin', true),
         ];
     }

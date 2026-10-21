@@ -64,6 +64,7 @@ class Plugin {
         require_once GPSC_PATH . 'includes/class-course-page.php';
         require_once GPSC_PATH . 'includes/class-seminar-page.php';
         require_once GPSC_PATH . 'includes/class-contact-page.php';
+        require_once GPSC_PATH . 'includes/class-about-page.php';
         require_once GPSC_PATH . 'includes/class-admin-menu.php';
         require_once GPSC_PATH . 'includes/class-admin-lists.php';
         require_once GPSC_PATH . 'includes/class-ai-search.php';
@@ -141,6 +142,7 @@ class Plugin {
         Course_Page::init();
         Seminar_Page::init();
         Contact_Page::init();
+        About_Page::init(); // About page + faculty profiles (/team/<name>/)
         Admin_Menu::init();
         Admin_Lists::init();
         AI_Search::init();

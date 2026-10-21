@@ -1,0 +1,747 @@
+/**
+ * GPS Courses - About page (templates/page-about.php) and faculty profiles
+ * (templates/single-gps_speaker.php). Builds on gps-course.css (hero, cards,
+ * buttons, map); profile course cards come from gps-catalog.css.
+ */
+
+/* ===================================================================
+ * Shared pieces
+ * =================================================================== */
+
+.gps-ab .gps-ab-section {
+    padding-top: 88px;
+}
+
+.gps-ab .gps-ab-section:last-child {
+    padding-bottom: 96px;
+}
+
+.gps-ab .gps-ab-head {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 780px;
+    margin-bottom: 32px;
+}
+
+.gps-ab .gps-ab-eyebrow {
+    margin: 0;
+    font-family: var(--gps-cp-font);
+    font-size: 13px;
+    line-height: 1.3;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--gps-cp-bronze);
+}
+
+.gps-ab .gps-ab-eyebrow--gold {
+    color: var(--gps-cp-gold);
+}
+
+.gps-ab .gps-ab-h2 {
+    margin: 0;
+    font-family: var(--gps-cp-font);
+    font-size: clamp(26px, 3vw, 38px);
+    line-height: 1.15;
+    font-weight: 800;
+    letter-spacing: -.01em;
+    color: var(--gps-cp-navy);
+    text-wrap: balance;
+}
+
+.gps-ab .gps-ab-h2--sm {
+    font-size: clamp(22px, 2.4vw, 28px);
+    margin-bottom: 24px;
+}
+
+.gps-ab .gps-ab-h2--light {
+    color: #fff;
+}
+
+.gps-ab .gps-ab-h3 {
+    margin: 0;
+    font-family: var(--gps-cp-font);
+    font-size: 18px;
+    line-height: 1.3;
+    font-weight: 700;
+    color: var(--gps-cp-navy);
+}
+
+.gps-ab .gps-ab-text {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.7;
+    color: var(--gps-cp-text);
+}
+
+.gps-ab .gps-ab-photo {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 14px;
+    object-fit: cover;
+}
+
+/* ===================================================================
+ * About: hero, mission / vision
+ * =================================================================== */
+
+.gps-ab .gps-ab-hl {
+    display: block;
+}
+
+.gps-ab .gps-ab-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 6px;
+}
+
+.gps-ab .gps-ab-btn-line {
+    min-height: 52px;
+    padding: 0 26px;
+    border-radius: 10px;
+    border: 2px solid var(--gps-cp-gold);
+    background: transparent;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.gps-ab .gps-ab-btn-line:hover,
+.gps-ab .gps-ab-btn-line:focus {
+    background: var(--gps-cp-gold);
+    color: var(--gps-cp-deep);
+}
+
+.gps-ab .gps-ab-hero {
+    padding-bottom: 120px;
+}
+
+.gps-ab .gps-ab-mv {
+    position: relative;
+    z-index: 2;
+    margin-top: -56px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.gps-ab .gps-ab-mv__card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 1px 0 var(--gps-cp-line), 0 24px 48px -28px rgba(18, 38, 74, .45);
+}
+
+.gps-ab .gps-ab-mv__card--mission {
+    border-top: 4px solid var(--gps-cp-gold);
+}
+
+.gps-ab .gps-ab-mission {
+    margin: 0;
+    font-size: 19px;
+    line-height: 1.55;
+    font-weight: 600;
+    color: var(--gps-cp-navy);
+}
+
+/* ===================================================================
+ * About: facility, programs
+ * =================================================================== */
+
+.gps-ab .gps-ab-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    gap: 56px;
+    align-items: center;
+}
+
+.gps-ab .gps-ab-split__media .gps-ab-photo {
+    aspect-ratio: 5 / 4;
+}
+
+.gps-ab .gps-ab-split__body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+}
+
+.gps-ab .gps-ab-quote {
+    margin: 4px 0 0;
+    padding-left: 18px;
+    border-left: 3px solid var(--gps-cp-gold);
+    font-size: 18px;
+    line-height: 1.5;
+    font-weight: 700;
+    color: var(--gps-cp-blue);
+}
+
+.gps-ab .gps-ab-pillars {
+    margin: 0 0 28px;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.gps-ab .gps-ab-pillar {
+    margin: 0;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.gps-ab .gps-ab-pillar__icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: #e8eef8;
+    color: var(--gps-cp-blue);
+}
+
+.gps-ab .gps-ab-pillar .gps-ab-text {
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.gps-ab .gps-ab-wide {
+    aspect-ratio: 21 / 8;
+}
+
+/* ===================================================================
+ * About: the team
+ * =================================================================== */
+
+.gps-ab .gps-ab-team {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.gps-ab .gps-ab-member {
+    margin: 0;
+    min-width: 0;
+}
+
+.gps-ab .gps-ab-member__link {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: var(--gps-cp-card-shadow);
+    color: inherit;
+    text-decoration: none;
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.gps-ab .gps-ab-member__link:hover,
+.gps-ab .gps-ab-member__link:focus-visible {
+    transform: translateY(-3px);
+    box-shadow: 0 1px 0 var(--gps-cp-line), 0 24px 40px -24px rgba(18, 38, 74, .55);
+}
+
+.gps-ab .gps-ab-member__photo {
+    display: block;
+    aspect-ratio: 4 / 5;
+    background: #e8eef8;
+    overflow: hidden;
+}
+
+.gps-ab .gps-ab-member__photo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    object-fit: cover;
+    object-position: center bottom;
+}
+
+.gps-ab .gps-ab-member__body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 22px 24px 24px;
+}
+
+.gps-ab .gps-ab-member__name {
+    font-size: 20px;
+    line-height: 1.25;
+    font-weight: 800;
+    color: var(--gps-cp-navy);
+}
+
+.gps-ab .gps-ab-member__role {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--gps-cp-text);
+}
+
+.gps-ab .gps-ab-member__more {
+    margin-top: auto;
+    padding-top: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--gps-cp-blue);
+}
+
+/* ===================================================================
+ * About: seminar band, location
+ * =================================================================== */
+
+.gps-ab .gps-ab-club {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 28px;
+    padding: 48px clamp(24px, 4vw, 56px);
+    border-radius: 18px;
+    color: #fff;
+    background:
+        radial-gradient(ellipse 60% 90% at 90% 10%, rgba(11, 82, 172, .5), transparent 70%),
+        var(--gps-cp-deep);
+}
+
+.gps-ab .gps-ab-club__body {
+    flex: 999 1 420px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.gps-ab .gps-ab-club__text {
+    margin: 0;
+    max-width: 60ch;
+    font-size: 16px;
+    line-height: 1.65;
+    color: #d5dcea;
+}
+
+.gps-ab .gps-ab-club__chips {
+    margin: 0;
+    padding: 4px 0 0;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.gps-ab .gps-ab-club__chips li {
+    margin: 0;
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gps-cp-gold);
+    background: rgba(221, 200, 157, .16);
+}
+
+.gps-ab .gps-ab-loc {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 40px;
+    align-items: stretch;
+}
+
+.gps-ab .gps-ab-loc__body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+}
+
+.gps-ab .gps-ab-contact {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.gps-ab .gps-ab-lines {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--gps-cp-text);
+}
+
+.gps-ab .gps-ab-lines li {
+    display: flex;
+    gap: 12px;
+    margin: 0;
+}
+
+.gps-ab .gps-ab-lines .gps-cp-icon {
+    flex: none;
+    margin-top: 2px;
+    color: var(--gps-cp-blue);
+}
+
+.gps-ab .gps-ab-lines a {
+    color: var(--gps-cp-blue);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.gps-ab .gps-ab-lines address {
+    font-style: normal;
+}
+
+.gps-ab .gps-ab-lines strong {
+    color: var(--gps-cp-ink);
+}
+
+.gps-ab .gps-ab-map {
+    min-height: 360px;
+}
+
+/* ===================================================================
+ * Faculty profile
+ * =================================================================== */
+
+.gps-sp .gps-sp-hero {
+    padding-bottom: 104px;
+}
+
+.gps-sp .gps-sp-headline {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.4;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--gps-cp-gold);
+}
+
+.gps-sp .gps-sp-body {
+    display: grid;
+    grid-template-columns: 340px minmax(0, 1fr);
+    gap: 36px;
+    align-items: start;
+}
+
+.gps-sp .gps-sp-card {
+    position: relative;
+    z-index: 2;
+    margin-top: -72px;
+    overflow: hidden;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 1px 0 var(--gps-cp-line), 0 24px 48px -28px rgba(18, 38, 74, .55);
+}
+
+.gps-sp .gps-sp-card__photo {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-width: none;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    object-position: center bottom;
+    background: #e8eef8;
+}
+
+.gps-sp .gps-sp-card__body {
+    padding: 22px 24px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.gps-sp .gps-sp-facts {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.gps-sp .gps-sp-facts > div {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--gps-cp-hair);
+}
+
+.gps-sp .gps-sp-facts > div:first-child {
+    padding-top: 0;
+}
+
+.gps-sp .gps-sp-facts dt {
+    margin: 0 0 2px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--gps-cp-bronze);
+}
+
+.gps-sp .gps-sp-facts dd {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.45;
+    font-weight: 600;
+    color: var(--gps-cp-navy);
+}
+
+.gps-sp .gps-sp-card__cta {
+    width: 100%;
+    margin-top: 4px;
+}
+
+.gps-sp .gps-sp-main {
+    min-width: 0;
+    padding-top: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+/* Bio: headings and lists from the editor */
+.gps-sp .gps-sp-prose h2,
+.gps-sp .gps-sp-prose h3 {
+    margin: 28px 0 12px;
+    font-family: var(--gps-cp-font);
+    font-size: 20px;
+    line-height: 1.3;
+    font-weight: 800;
+    color: var(--gps-cp-navy);
+}
+
+.gps-sp .gps-sp-prose ul {
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.gps-sp .gps-sp-prose ul li {
+    position: relative;
+    margin: 0;
+    padding-left: 20px;
+}
+
+.gps-sp .gps-sp-prose ul li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: .7em;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--gps-cp-gold);
+}
+
+.gps-sp .gps-sp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.gps-sp .gps-sp-empty {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.gps-sp .gps-sp-empty p {
+    margin: 0;
+    font-size: 16px;
+    color: var(--gps-cp-text);
+}
+
+.gps-sp .gps-sp-empty .gps-cp-btn--outline {
+    align-self: center;
+}
+
+.gps-sp .gps-sp-others {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.gps-sp .gps-sp-others li {
+    margin: 0;
+    min-width: 0;
+}
+
+.gps-sp .gps-sp-other {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: var(--gps-cp-card-shadow);
+    color: inherit;
+    text-decoration: none;
+}
+
+.gps-sp .gps-sp-other:hover .gps-sp-other__name,
+.gps-sp .gps-sp-other:focus-visible .gps-sp-other__name {
+    color: var(--gps-cp-blue);
+}
+
+.gps-sp .gps-sp-other__photo {
+    flex: none;
+    width: 72px;
+    height: 72px;
+    max-width: none;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: center top;
+    background: #e8eef8;
+}
+
+.gps-sp .gps-sp-other__body {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.gps-sp .gps-sp-other__name {
+    font-size: 16px;
+    line-height: 1.3;
+    font-weight: 800;
+    color: var(--gps-cp-navy);
+}
+
+.gps-sp .gps-sp-other__role {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--gps-cp-text);
+}
+
+/* ===================================================================
+ * Tablet / phone
+ * =================================================================== */
+
+@media (max-width: 1024px) {
+    .gps-ab .gps-ab-split {
+        gap: 36px;
+    }
+
+    .gps-ab .gps-ab-pillars {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .gps-sp .gps-sp-body {
+        grid-template-columns: 300px minmax(0, 1fr);
+        gap: 28px;
+    }
+}
+
+@media (max-width: 860px) {
+    .gps-ab .gps-ab-mv,
+    .gps-ab .gps-ab-split,
+    .gps-ab .gps-ab-loc {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .gps-sp .gps-sp-body {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 24px;
+    }
+
+    .gps-sp .gps-sp-card {
+        width: 100%;
+        max-width: 420px;
+        margin-top: -56px;
+    }
+
+    .gps-sp .gps-sp-main {
+        padding-top: 0;
+    }
+}
+
+@media (max-width: 767px) {
+    .gps-ab .gps-ab-section {
+        padding-top: 56px;
+    }
+
+    .gps-ab .gps-ab-section:last-child {
+        padding-bottom: 64px;
+    }
+
+    .gps-ab .gps-ab-hero {
+        padding-bottom: 96px;
+    }
+
+    /* The course hero hides its tagline on phones; here it is the introduction */
+    .gps-ab .gps-ab-hero .gps-cp-hero__tagline,
+    .gps-sp .gps-sp-hero .gps-cp-hero__tagline {
+        display: block;
+        font-size: 16px;
+    }
+
+    .gps-ab .gps-ab-actions .gps-cp-btn {
+        flex: 1 1 100%;
+    }
+
+    .gps-ab .gps-ab-mv {
+        margin-top: -48px;
+        gap: 14px;
+    }
+
+    .gps-ab .gps-ab-mv__card,
+    .gps-ab .gps-ab-pillar {
+        padding: 24px;
+    }
+
+    .gps-ab .gps-ab-mission {
+        font-size: 17px;
+    }
+
+    .gps-ab .gps-ab-wide {
+        aspect-ratio: 16 / 9;
+    }
+
+    .gps-ab .gps-ab-club {
+        padding: 32px 24px;
+    }
+
+    .gps-ab .gps-ab-club .gps-cp-btn {
+        flex: 1 1 100%;
+    }
+
+    .gps-ab .gps-ab-map {
+        min-height: 280px;
+    }
+
+    .gps-sp .gps-sp-hero {
+        padding-bottom: 80px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gps-ab .gps-ab-member__link {
+        transition: none;
+    }
+
+    .gps-ab .gps-ab-member__link:hover,
+    .gps-ab .gps-ab-member__link:focus-visible {
+        transform: none;
+    }
+}

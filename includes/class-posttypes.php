@@ -221,11 +221,17 @@ class Posttypes {
                 'items_list'         => __('Speakers list', 'gps-courses'),
             ],
             'description'   => __('Speakers and instructors for courses', 'gps-courses'),
-            'public'        => false,
+            // Public profiles at /team/<name>/ (About_Page serves them, or sends
+            // visitors to the About page while its GPS templates are off)
+            'public'              => true,
+            'exclude_from_search' => true,
+            'show_in_nav_menus'   => false,
+            'has_archive'         => false,
+            'rewrite'             => ['slug' => 'team', 'with_front' => false],
             'show_ui'       => true,
             'show_in_menu'  => 'gps-dashboard',
             'menu_icon'     => 'dashicons-businessman',
-            'supports'      => ['title','editor','thumbnail'],
+            'supports'      => ['title','editor','thumbnail','page-attributes'],
             'show_in_rest'  => true,
         ]);
 
