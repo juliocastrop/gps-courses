@@ -20,6 +20,7 @@ class Plugin {
         require_once GPSC_PATH . 'includes/class-emails.php';
         require_once GPSC_PATH . 'includes/class-email-hub.php';
         require_once GPSC_PATH . 'includes/class-error-log.php';
+        require_once GPSC_PATH . 'includes/class-site-cleanup.php';
         require_once GPSC_PATH . 'includes/class-waitlist.php';
         require_once GPSC_PATH . 'includes/class-elementor.php';
         require_once GPSC_PATH . 'includes/class-attendance.php';
@@ -95,6 +96,7 @@ class Plugin {
         // Templates and Seminar Notifications (old URLs redirect there)
         Email_Hub::init();
         Error_Log::init();
+        Site_Cleanup::init();
         Waitlist::init();
         Elementor_Integration::init();
         Attendance::init();
