@@ -135,16 +135,26 @@
     box-shadow: 0 1px 0 var(--gps-cp-line), 0 24px 48px -28px rgba(18, 38, 74, .45);
 }
 
-.gps-ab .gps-ab-mv__card--mission {
+/* Mission and vision: same weight and size */
+.gps-ab .gps-ab-mv__card {
     border-top: 4px solid var(--gps-cp-gold);
 }
 
-.gps-ab .gps-ab-mission {
+.gps-ab .gps-ab-mv__text {
     margin: 0;
-    font-size: 19px;
-    line-height: 1.55;
-    font-weight: 600;
+    font-size: 17px;
+    line-height: 1.65;
+    font-weight: 500;
     color: var(--gps-cp-navy);
+}
+
+/* Hero line: the GPS statement, not a paragraph */
+.gps-ab .gps-ab-tagline {
+    max-width: 760px;
+    font-size: 20px;
+    line-height: 1.45;
+    font-weight: 600;
+    color: #fff;
 }
 
 /* ===================================================================
@@ -693,7 +703,7 @@
     .gps-ab .gps-ab-hero .gps-cp-hero__tagline,
     .gps-sp .gps-sp-hero .gps-cp-hero__tagline {
         display: block;
-        font-size: 16px;
+        font-size: 17px;
     }
 
     .gps-ab .gps-ab-actions .gps-cp-btn {
@@ -710,8 +720,8 @@
         padding: 24px;
     }
 
-    .gps-ab .gps-ab-mission {
-        font-size: 17px;
+    .gps-ab .gps-ab-mv__text {
+        font-size: 16px;
     }
 
     .gps-ab .gps-ab-wide {

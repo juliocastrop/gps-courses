@@ -36,7 +36,7 @@ get_header();
                 <?php echo esc_html($d['title']); ?>
                 <span class="gps-cp-hl gps-ab-hl"><?php echo esc_html($d['gold']); ?></span>
             </h1>
-            <p class="gps-cp-hero__tagline"><?php echo esc_html($d['tagline']); ?></p>
+            <p class="gps-cp-hero__tagline gps-ab-tagline"><?php echo esc_html($d['tagline']); ?></p>
             <div class="gps-ab-actions">
                 <a class="gps-cp-btn gps-cp-btn--gold" href="<?php echo esc_url($d['courses']); ?>"><?php esc_html_e('Explore courses', 'gps-courses'); ?></a>
                 <?php if ($d['seminar']['url']) : ?>
@@ -47,13 +47,13 @@ get_header();
     </section>
 
     <div class="gps-cp-wrap gps-ab-mv">
-        <section class="gps-cp-card gps-ab-mv__card gps-ab-mv__card--mission" aria-labelledby="gps-ab-mission-h">
+        <section class="gps-cp-card gps-ab-mv__card" aria-labelledby="gps-ab-mission-h">
             <h2 class="gps-ab-eyebrow" id="gps-ab-mission-h"><?php esc_html_e('Mission', 'gps-courses'); ?></h2>
-            <p class="gps-ab-mission"><?php echo esc_html($d['mission']); ?></p>
+            <p class="gps-ab-mv__text"><?php echo esc_html($d['mission']); ?></p>
         </section>
         <section class="gps-cp-card gps-ab-mv__card" aria-labelledby="gps-ab-vision-h">
             <h2 class="gps-ab-eyebrow" id="gps-ab-vision-h"><?php esc_html_e('Vision', 'gps-courses'); ?></h2>
-            <p class="gps-ab-text"><?php echo esc_html($d['vision']); ?></p>
+            <p class="gps-ab-mv__text"><?php echo esc_html($d['vision']); ?></p>
         </section>
     </div>
 
@@ -75,7 +75,7 @@ get_header();
 
     <section class="gps-cp-wrap gps-ab-section" aria-labelledby="gps-ab-programs-h">
         <div class="gps-ab-head">
-            <p class="gps-ab-eyebrow"><?php esc_html_e('Training programs', 'gps-courses'); ?></p>
+            <p class="gps-ab-eyebrow"><?php esc_html_e('Hands-on & digital', 'gps-courses'); ?></p>
             <h2 class="gps-ab-h2" id="gps-ab-programs-h"><?php echo esc_html($d['programs']['title']); ?></h2>
             <p class="gps-ab-text"><?php echo esc_html($d['programs']['lead']); ?></p>
         </div>

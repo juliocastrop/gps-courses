@@ -523,13 +523,13 @@ class About_Page {
             'eyebrow'   => __('About GPS', 'gps-courses'),
             'title'     => __('Georgia Prosthodontics Study Club', 'gps-courses'),
             'gold'      => __('& Training Center', 'gps-courses'),
-            'tagline'   => __('Advanced education in surgical, restorative and digital dentistry, taught step by step inside a working implant center and dental lab in Duluth, GA.', 'gps-courses'),
+            'tagline'   => __('Advanced Education in Surgical, Restorative and Digital Dentistry', 'gps-courses'),
             'hero'      => $page ? (int) get_post_thumbnail_id($page) : 0,
             'mission'   => __('To provide advanced dental education that enhances the knowledge, skills, and abilities of dental professionals.', 'gps-courses'),
             'vision'    => __('To lead advanced continued dental education through collaborative partnerships and individualized mentorships. We bring innovation, research, and outreach to fill in the voids in training and knowledge between formal education and the rapidly changing fields of surgical, restorative and digital dentistry.', 'gps-courses'),
             'facility'  => [
                 'image' => (int) get_option(self::OPT_FACILITY, 0),
-                'title' => __('Learn inside a working implant center and lab', 'gps-courses'),
+                'title' => __('State-of-the-Art facility with cutting edge Dental Technology', 'gps-courses'),
                 'text'  => [
                     __('Our trainees take courses within the clinical setting of the Dental Implant Center of Georgia Prosthodontics and the in-house laboratory, Prostho Dental Lab. Both are equipped with cutting-edge technology for advanced diagnostic, surgical, and restorative procedures in implant, reconstructive, and digital dentistry.', 'gps-courses'),
                     __('It is the right setting to observe and learn the latest techniques step by step, alongside a high-standard team.', 'gps-courses'),
@@ -537,7 +537,7 @@ class About_Page {
                 'quote' => __('Unlock the potential of collaboration, partnership and mentorship.', 'gps-courses'),
             ],
             'programs'  => [
-                'title' => __('Advanced Education in Surgical, Restorative and Digital Dentistry', 'gps-courses'),
+                'title' => __('Training Programs', 'gps-courses'),
                 'lead'  => __('Hands-on training in the latest digital technologies: diagnostic procedures, restorative and surgical treatment planning, and the digital design and manufacture of prostheses.', 'gps-courses'),
                 'items' => [
                     ['icon' => 'check', 'title' => __('Step-by-step workflows', 'gps-courses'), 'text' => __('Every procedure taught with its scientific rationale, from diagnosis to delivery.', 'gps-courses')],
