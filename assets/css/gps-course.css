@@ -1668,11 +1668,10 @@
     justify-content: center;
 }
 
-/* White / light logos (sponsor option) sit on a navy plate */
-.gps-cp .gps-cp-sponsors__list li.is-dark > a,
-.gps-cp .gps-cp-sponsors__list li.is-dark > img,
-.gps-cp .gps-cp-sponsors__list li.is-dark > span {
-    background: #13254d;
+/* White / light logos (sponsor option): darkened so they read on the light card */
+.gps-cp .gps-cp-sponsors__list li.is-dark .gps-cp-sponsors__logo {
+    filter: brightness(0);
+    opacity: .8;
 }
 
 .gps-cp .gps-cp-sponsors__logo {

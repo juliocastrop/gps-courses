@@ -505,13 +505,22 @@
     transition: filter .2s ease, opacity .2s ease;
 }
 
-/* White / light logos (sponsor option) sit on a navy plate */
-.gps-home .gps-home-logos__link--dark {
-    background: var(--gps-navy-deep);
+/* White / light logos (sponsor option): same white card, logo darkened to
+   match the others (gray in the grayscale row, near-black on hover / in color) */
+.gps-home .gps-home-logos__link--dark .gps-home-logos__img {
+    filter: brightness(0);
+    opacity: .8;
 }
 
 .gps-home .gps-home-logos--gray .gps-home-logos__link--dark .gps-home-logos__img {
-    opacity: .9;
+    filter: brightness(0);
+    opacity: .45;
+}
+
+.gps-home .gps-home-logos--gray a.gps-home-logos__link--dark:hover .gps-home-logos__img,
+.gps-home .gps-home-logos--gray a.gps-home-logos__link--dark:focus .gps-home-logos__img {
+    filter: brightness(0);
+    opacity: .85;
 }
 
 .gps-home .gps-home-logos__name {

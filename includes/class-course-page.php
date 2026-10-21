@@ -609,7 +609,7 @@ class Course_Page {
         <p><label for="gps-sponsor-url"><strong><?php esc_html_e('Website', 'gps-courses'); ?></strong></label>
         <input type="url" id="gps-sponsor-url" name="gps_sponsor_url" class="widefat" value="<?php echo esc_attr((string) get_post_meta($post->ID, self::META_SPONSOR_URL, true)); ?>" placeholder="https://"></p>
         <p class="description"><?php esc_html_e('The logo is the featured image (transparent PNG or SVG, about 280 × 112 px). Optional link for the logo on course pages.', 'gps-courses'); ?></p>
-        <p><label><input type="checkbox" name="gps_sponsor_dark_logo" value="1" <?php checked('1', (string) get_post_meta($post->ID, self::META_SPONSOR_DARK, true)); ?>> <?php esc_html_e('Light / white logo: show it on a dark background', 'gps-courses'); ?></label></p>
+        <p><label><input type="checkbox" name="gps_sponsor_dark_logo" value="1" <?php checked('1', (string) get_post_meta($post->ID, self::META_SPONSOR_DARK, true)); ?>> <?php esc_html_e('Light / white logo: darken it so it shows on white', 'gps-courses'); ?></label></p>
         <?php
     }
 
