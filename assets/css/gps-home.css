@@ -117,20 +117,14 @@
     background: var(--gps-navy-deep);
 }
 
-.gps-home .gps-home-fill__media--mosaic {
-    display: grid;
-    grid-auto-columns: minmax(0, 1fr);
-    grid-auto-flow: column;
-    gap: 2px;
-}
-
-.gps-home .gps-home-fill__tile {
+.gps-home .gps-home-fill__media--past {
+    /* One photo, framed like a course card cover */
+    background-color: var(--gps-navy-deep);
     background-size: cover;
     background-position: center;
-    filter: saturate(.85);
 }
 
-.gps-home .gps-home-fill__media--mosaic::after {
+.gps-home .gps-home-fill__media--past::after {
     content: "";
     position: absolute;
     inset: 0;

@@ -226,10 +226,7 @@ class Upcoming_Courses_Widget extends Base_Widget {
         <article class="gps-home-fill gps-home-fill--<?php echo esc_attr($kind); ?>">
             <?php if ('more' === $kind) :
                 $imgs = array_values(array_filter(array_column(isset($f['past']) ? (array) $f['past'] : [], 'image'))); ?>
-                <div class="gps-home-fill__media gps-home-fill__media--mosaic" aria-hidden="true">
-                    <?php foreach (array_slice($imgs, 0, 3) as $img) : ?>
-                        <span class="gps-home-fill__tile" style="background-image:url('<?php echo esc_url($img); ?>')"></span>
-                    <?php endforeach; ?>
+                <div class="gps-home-fill__media gps-home-fill__media--past" aria-hidden="true"<?php echo $imgs ? ' style="background-image:url(' . esc_url(str_replace(["'", '(', ')', ' '], ['%27', '%28', '%29', '%20'], $imgs[0])) . ')"' : ''; ?>>
                     <span class="gps-home-fill__badge"><?php esc_html_e('Past courses', 'gps-courses'); ?></span>
                 </div>
             <?php else : ?>
